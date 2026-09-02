@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>连环 · 积木预览</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/blocks/base/tokens.css">
+<link rel="stylesheet" href="showcase.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <div>
+      <h1>连环 · 积木预览</h1>
+      <p class="sub">下面每一块都是<b>连环里真在跑的那份前端</b>，装在一台假手机里给你点。喜欢哪块就拿走。</p>
+    </div>
+  </div>
+
+  <div class="skin" role="group" aria-label="换肤">
+    <div class="row">
+      <span class="lab">配色</span>
+      <div class="pills" id="themes"></div>
+    </div>
+    <div class="row">
+      <span class="lab">明暗</span>
+      <div class="pills" id="modes"></div>
+    </div>
+  </div>
+
+  <p class="vow">
+    这一页 <b>不读任何数据库、不连模型、不要麦克风、不要任何权限、什么都不上传</b>。
+    看到的字全是编的，刷新就没。<br>
+    <b>不是重画的样子</b> —— 每块跑的都是它自己那份源码，你看到的就是你拿走的。
+  </p>
+</header>
+
+<nav class="tabs" id="tabs" aria-label="挑一块看"></nav>
+
+<main id="stage"></main>
+
+<footer class="foot">
+  <p>
+    <b>前端积木（<code>blocks/</code>）：MIT</b> · 自己目录里有 LICENSE，拿去随便用。<br>
+    <b>完整的连环应用：AGPL-3.0-only</b> · 改了它拿去做成网络服务给别人用，要把完整源码交出来。
+  </p>
+  <p class="thin">
+    第三方组件保留各自的许可与署名，见仓库里的 <code>THIRD_PARTY_NOTICES.md</code>。
+    整仓是什么许可，都不会把上游那些改掉。
+  </p>
+</footer>
+
+<script src="assets/blocks/base/accent.js"></script>
+<script src="showcase.js"></script>
+</body>
+</html>

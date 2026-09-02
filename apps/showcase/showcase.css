@@ -1,0 +1,271 @@
+/* 预览站自己的壳。★ 只写这一页的排布 ——
+   颜色一律从 blocks/base/tokens.css 的变量来，一个色值都不写死，
+   不然换肤就换不动这一页，那才叫「近似重画」。 */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.7 -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.top { max-width: 1080px; margin: 0 auto; padding: 30px 20px 6px; }
+.brand { display: flex; gap: 14px; align-items: flex-start; }
+.mark {
+  width: 30px; height: 30px; flex: none; margin-top: 4px; border-radius: 9px;
+  background: var(--accent); box-shadow: var(--shadow);
+  transition: background .25s var(--e-out);
+}
+h1 { margin: 0; font-size: clamp(21px, 4.2vw, 27px); letter-spacing: -.01em; }
+.sub { margin: 4px 0 0; color: var(--sub); font-size: 14px; max-width: 58ch; }
+
+.skin { display: flex; flex-wrap: wrap; gap: 8px 26px; margin: 18px 0 0; }
+.row { display: flex; align-items: center; gap: 9px; }
+.lab { font-size: 11px; letter-spacing: .16em; color: var(--hint); }
+.pills { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.pill {
+  border: 1px solid var(--line); background: var(--card); color: var(--sub);
+  border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 13px;
+  cursor: pointer; transition: color .2s, border-color .2s, background .2s;
+}
+.pill:hover { color: var(--ink); }
+.pill.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.pill.dot { width: 26px; height: 26px; padding: 0; position: relative; }
+.pill.dot::after {
+  content: ""; position: absolute; inset: 5px; border-radius: 50%; background: var(--sw);
+}
+.pill.dot.on { border-color: var(--ink); }
+.pill:focus-visible, .tab:focus-visible, .copy:focus-visible, button:focus-visible,
+a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.vow {
+  margin: 16px 0 0; padding: 10px 13px; border-radius: 10px;
+  background: var(--card2); border: 1px solid var(--line);
+  color: var(--sub); font-size: 13.5px; max-width: 74ch;
+}
+.vow b { color: var(--ink); }
+
+/* 分区导航：按「这是什么」分组，每格上面一行小写英文当眉毛。
+   ★ 分组不是装饰 —— 十几块平铺成一长条，人是扫不完的。 */
+.tabs {
+  max-width: 1080px; margin: 22px auto 0; padding: 0 20px 2px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.tabgroup { display: flex; align-items: flex-start; gap: 12px; }
+.tabgroup > .glab {
+  flex: none; width: 52px; padding-top: 12px;
+  font-size: 11px; letter-spacing: .16em; color: var(--hint); text-align: right;
+}
+.tabgroup > .gitems {
+  display: flex; gap: 7px; flex-wrap: wrap; min-width: 0;
+}
+.tab {
+  flex: none; border: 1px solid var(--line); background: var(--card);
+  color: var(--sub); font: inherit; text-align: left;
+  padding: 7px 13px 8px; border-radius: 11px; cursor: pointer;
+  transition: color .2s var(--e-out), border-color .2s var(--e-out), background .2s var(--e-out);
+}
+.tab small {
+  display: block; font-size: 9.5px; letter-spacing: .14em; color: var(--hint);
+  text-transform: uppercase; line-height: 1.5;
+}
+.tab strong { display: block; font-size: 14px; font-weight: 500; line-height: 1.35; }
+.tab:hover { color: var(--ink); border-color: var(--sub); }
+.tab.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.tab.on small { color: var(--accent); opacity: .8; }
+.tab.on strong { font-weight: 600; }
+@media (max-width: 700px) {
+  .tabgroup { flex-direction: column; gap: 5px; }
+  .tabgroup > .glab { width: auto; padding-top: 0; text-align: left; }
+}
+
+main { max-width: 1080px; margin: 0 auto; padding: 0 20px 60px; }
+.panel { border-top: 1px solid var(--line); padding-top: 20px; }
+.panel-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h2 { margin: 0; font-size: 19px; }
+.kind {
+  font-size: 11.5px; padding: 2px 9px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--sub); background: var(--card2);
+}
+.kind.fake { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.truth { margin: 8px 0 16px; color: var(--sub); font-size: 14px; max-width: 72ch; }
+
+.panel-body { display: grid; grid-template-columns: minmax(0, 1fr) 292px; gap: 20px; align-items: start; }
+@media (max-width: 860px) { .panel-body { grid-template-columns: minmax(0, 1fr); } }
+
+.view {
+  border: 1px solid var(--line); border-radius: var(--r); overflow: hidden;
+  background: var(--card); box-shadow: var(--shadow);
+}
+/* ══════════════════════════════════════════════════════════════
+   假手机 —— 0902 重做。
+   ★ 每块的 demo 都是照**手机**画的（自己 max-width 393~440、绝对定位排到 700+）。
+     拿一个又宽又矮的框去裁它，结果就是「手机里一屏看得完的东西，在这儿要上下滑」。
+     所以给它一台真的手机：屏幕**恒定 393×852**（iPhone 15 的逻辑分辨率），
+     整机用 transform:scale 去适应可用空间 —— 屏幕里的 CSS 视口永远是 393×852，
+     跟真机一模一样，demo 里的 dvh / 媒体查询才算得对。
+   ★ 缩放放在 .phone 上、不在 iframe 上：iframe 缩了它内部的视口也跟着变，
+     那就等于把手机改小了，媒体查询会走到别的分支去。
+   ══════════════════════════════════════════════════════════════ */
+.stage-phone {
+  padding: 30px 20px 34px; display: flex; justify-content: center;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(var(--cast), .045), transparent 62%),
+    var(--card2);
+}
+
+.phone-fit {                       /* 占位：把缩放后的实际高度让出来，不然下面被压住 */
+  width: 100%; display: flex; justify-content: center;
+}
+
+.phone {
+  --screen-w: 393px;
+  --screen-h: 852px;
+  --bezel: 11px;                   /* 边框厚度 */
+  --scale: 1;
+  position: relative;
+  width: calc(var(--screen-w) + var(--bezel) * 2);
+  height: calc(var(--screen-h) + var(--bezel) * 2);
+  flex: none;
+  transform: scale(var(--scale));
+  transform-origin: 50% 0;
+  border-radius: 58px;
+  padding: var(--bezel);
+  /* 机身：钛边一道亮、一道暗，中间哑光 */
+  background:
+    linear-gradient(158deg, #6d6a66 0%, #43403d 16%, #2c2a28 46%, #4b4845 78%, #23211f 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, .10) inset,
+    0 1px 0 rgba(255, 255, 255, .16) inset,
+    0 2px 5px rgba(var(--cast), .18),
+    0 26px 60px rgba(var(--cast), .26);
+}
+
+.phone-screen {
+  position: relative; width: var(--screen-w); height: var(--screen-h);
+  border-radius: 47px; overflow: hidden; background: var(--bg);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .55);
+}
+.phone-screen iframe.demo {
+  display: block; width: var(--screen-w); height: var(--screen-h);
+  border: 0; background: var(--bg);
+}
+
+/* 灵动岛。★ pointer-events:none —— 它盖在 iframe 上，能点穿才不挡事 */
+.phone-island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 124px; height: 35px; border-radius: 999px; background: #08090a;
+  pointer-events: none; z-index: 3;
+}
+.phone-island::after {                /* 右边那颗镜头 */
+  content: ""; position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+  width: 11px; height: 11px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #33414d 0%, #10151a 58%, #05070a 100%);
+}
+/* 底部那道横条 */
+.phone-bar {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  width: 138px; height: 5px; border-radius: 999px;
+  background: rgba(var(--cast), .34); pointer-events: none; z-index: 3;
+}
+:root[data-theme="dark"] .phone-bar { background: rgba(255, 255, 255, .34); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .phone-bar { background: rgba(255, 255, 255, .34); }
+}
+
+/* 侧键。纯装饰，不可点 */
+.phone i[class^="key-"] {
+  position: absolute; background: linear-gradient(90deg, #2a2826, #55524e 46%, #232120);
+  pointer-events: none;
+}
+.phone .key-act  { left: -2px; top: 132px; width: 3px; height: 30px;  border-radius: 2px 0 0 2px; }
+.phone .key-up   { left: -2px; top: 186px; width: 3px; height: 58px;  border-radius: 2px 0 0 2px; }
+.phone .key-down { left: -2px; top: 256px; width: 3px; height: 58px;  border-radius: 2px 0 0 2px; }
+.phone .key-pwr  { right: -2px; top: 214px; width: 3px; height: 88px; border-radius: 0 2px 2px 0;
+                   background: linear-gradient(90deg, #232120, #55524e 54%, #2a2826); }
+
+/* 窄屏：机身收起来，屏幕铺满，只留一点圆角 —— 手机上看手机不用套一层手机 */
+@media (max-width: 860px) {
+  .stage-phone { padding: 0; background: none; }
+  .phone {
+    --bezel: 0px; width: 100%; height: auto; padding: 0;
+    border-radius: 0; background: none; box-shadow: none; transform: none;
+  }
+  .phone-screen { width: 100%; height: 78vh; min-height: 520px; border-radius: 0; box-shadow: none; }
+  .phone-screen iframe.demo { width: 100%; height: 100%; }
+  .phone-island, .phone-bar, .phone i[class^="key-"] { display: none; }
+}
+
+.more { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 13px; border-top: 1px solid var(--line); }
+
+.take {
+  border: 1px solid var(--line); border-radius: var(--r); background: var(--card);
+  padding: 15px 16px; box-shadow: var(--shadow); position: sticky; top: 16px;
+}
+.take-h { margin: 0 0 9px; font-size: 12px; letter-spacing: .16em; color: var(--hint); }
+.take-h2 { margin: 15px 0 6px; font-size: 12px; letter-spacing: .16em; color: var(--hint); }
+.cmd {
+  margin: 0; padding: 9px 11px; border-radius: 8px; background: var(--card2);
+  border: 1px solid var(--line); overflow-x: auto;
+}
+code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.2px; }
+.copy {
+  margin-top: 9px; width: 100%; border: 1px solid var(--accent); background: var(--accent);
+  color: var(--on-accent); border-radius: 9px; padding: 7px; font: inherit; font-size: 13.5px; cursor: pointer;
+}
+.copy:active { transform: scale(.99); }
+.paths { margin: 0; padding-left: 1.1em; }
+.paths li { margin: 3px 0; }
+.note, .src { margin: 12px 0 0; font-size: 12.5px; color: var(--sub); }
+.src.none { color: var(--hint); }
+.src a { color: var(--accent); }
+
+/* 配色那一页自己的小样 */
+.self-demo { padding: 26px; display: grid; gap: 14px; }
+.sw-card {
+  background: var(--card2); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 16px 18px; box-shadow: var(--shadow);
+}
+.sw-card.ghost { background: transparent; box-shadow: none; }
+.sw-card b { display: block; margin-bottom: 4px; }
+.sw-card p { margin: 0 0 12px; color: var(--sub); font-size: 13.5px; }
+.sw-accent {
+  border: 0; background: var(--accent); color: var(--on-accent);
+  border-radius: 9px; padding: 7px 15px; font: inherit; font-size: 13.5px; cursor: pointer;
+}
+
+/* ★ 下面两块 class 一律 fake- 开头：它们是骨架，不是积木。别混。 */
+.fake-chat { display: flex; flex-direction: column; height: 560px; }
+.fake-chat-head {
+  display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line);
+}
+.fake-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.fake-chat-head small { margin-left: auto; color: var(--hint); font-size: 12px; }
+.fake-log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.fake-bubble {
+  max-width: 74%; padding: 8px 13px; border-radius: 15px; font-size: 14.5px; line-height: 1.65;
+}
+.fake-bubble.them { align-self: flex-start; background: var(--card2); border: 1px solid var(--line); border-bottom-left-radius: 5px; }
+.fake-bubble.me { align-self: flex-end; background: var(--accent); color: var(--on-accent); border-bottom-right-radius: 5px; }
+.fake-bar { display: flex; gap: 8px; padding: 11px 14px; border-top: 1px solid var(--line); }
+.fake-bar input {
+  flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--card2); color: var(--ink);
+  border-radius: 999px; padding: 8px 15px; font: inherit; font-size: 14px;
+}
+.fake-send {
+  border: 0; background: var(--accent); color: var(--on-accent);
+  border-radius: 999px; padding: 8px 17px; font: inherit; font-size: 14px; cursor: pointer;
+}
+.fake-say { margin: 0; padding: 0 15px 12px; color: var(--hint); font-size: 12.5px; min-height: 1.4em; }
+
+.foot {
+  max-width: 1080px; margin: 0 auto; padding: 22px 20px 50px;
+  border-top: 1px solid var(--line); color: var(--sub); font-size: 13.5px;
+}
+.foot b { color: var(--ink); }
+.foot .thin { color: var(--hint); font-size: 12.5px; }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

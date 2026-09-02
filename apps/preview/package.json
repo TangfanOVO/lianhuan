@@ -1,0 +1,12 @@
+{
+  "name": "lianhuan-preview",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "description": "连环应用的静态空壳预览：core/web/index.html 的副本＋一条「没有后端」横条。零依赖，不碰任何真实数据。",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "npm run build && python3 -m http.server 8425 --directory dist"
+  }
+}

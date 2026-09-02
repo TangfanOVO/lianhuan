@@ -1,0 +1,13 @@
+{
+  "name": "lianhuan-showcase",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "连环的积木预览站。静态、零依赖、不碰任何真实数据。",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "npm run build && python3 -m http.server 8421 --directory dist",
+    "test": "node --test tests/*.test.mjs"
+  }
+}
