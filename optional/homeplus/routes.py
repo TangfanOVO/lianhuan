@@ -329,12 +329,36 @@ def api_travel():
 
 @router.get("/api/journeys")
 def api_journeys():
-    """票根：kind='远行' 的那些，一趟一张。"""
+    """票根：kind='远行' 的那些，一趟一张；只存文字，不要求生图。"""
     out = []
     for r in _store.db.execute("SELECT * FROM trips WHERE kind='远行' ORDER BY id DESC LIMIT 40"):
-        out.append({"title": r["place"], "year": datetime.fromtimestamp(r["ts"] or 0).strftime("%Y"),
-                    "stops": [s.strip() for s in (r["note"] or "").split("·") if s.strip()][:6]})
+        note = (r["note"] or "").strip()
+        parts = [s.strip(" ·-\t") for s in note.splitlines() if s.strip(" ·-\t")]
+        if not parts:
+            parts = ["这一趟还没有写下正文。"]
+        day = datetime.fromtimestamp(r["ts"] or 0).strftime("%Y-%m-%d")
+        out.append({"id": r["id"], "title": r["place"],
+                    "year": datetime.fromtimestamp(r["ts"] or 0).strftime("%Y"),
+                    "hint": "纯文字旅行手记 · 点开继续读",
+                    "stops": [{"place": r["place"], "date": day, "note": s}
+                              for s in parts[:12]]})
     return JSONResponse({"journeys": out})
+
+
+@router.post("/api/journeys")
+async def api_journey_add(req: Request):
+    """人也能直接写一趟；跟 AI 的 go_outing 手落到同一张 trips 表。"""
+    b = await req.json()
+    title = (b.get("title") or b.get("place") or "").strip()[:60]
+    note = (b.get("note") or b.get("content") or "").strip()[:4000]
+    if not title or not note:
+        return JSONResponse({"ok": False, "err": "写个地方，再留一句这趟发生了什么"},
+                            status_code=400)
+    cur = _store.db.execute(
+        "INSERT INTO trips(place,weather,note,kind,ts) VALUES(?,?,?,?,?)",
+        (title, (b.get("weather") or "")[:40], note, "远行", time.time()))
+    _store.db.commit()
+    return JSONResponse({"ok": True, "id": cur.lastrowid})
 
 
 def trip_add(place: str, weather: str = "", note: str = "", kind: str = "走走") -> dict:

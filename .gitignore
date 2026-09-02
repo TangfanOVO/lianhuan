@@ -27,6 +27,7 @@ dist/
 build/
 .DS_Store
 .venv/
+.runtime/
 
 # ★ 0901：上面那条光秃秃的 `dist/` 会把**上游组件的实现**一起吞掉 ——
 #   它匹配任意深度的 dist 目录，正好命中颜文字抽屉 vendor 里那六个实现文件，

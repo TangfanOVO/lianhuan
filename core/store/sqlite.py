@@ -56,6 +56,16 @@ CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
 END;
 """
 
+# 跟着「搬家」走的用户账本。设备订阅、密钥、缓存和本机文件故意不在这里：
+# `push_subs` 绑具体浏览器，`secrets.json` 根本不在数据库，上传文件另行搬。
+# 名单写死而不是遍历 sqlite_master，避免将来某个临时表悄悄混进导出。
+PORTABLE_TABLES = (
+    "notes", "diary", "letters", "moments", "moment_comments", "timeline_events",
+    "mood_state", "mood_log", "memes", "workbook", "trips", "calendar",
+    "anniversaries", "brain_history", "books", "book_chapters", "book_annotations",
+    "book_chat", "latent", "memory_hits", "reminders", "speak_log",
+)
+
 
 class SqliteStore(Store):
     def __init__(self, path: str | Path = "data/lianhuan.db"):
@@ -255,6 +265,20 @@ class SqliteStore(Store):
                         (key, json.dumps(value, ensure_ascii=False)))
         self.db.commit()
 
+    def export_all(self) -> dict:
+        """导出能跨设备复原的全部账本；不带密钥、推送订阅和本机缓存。"""
+        out = super().export_all()
+        out["lianhuan"] = 2
+        house = {}
+        known = {r["name"] for r in self.db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}
+        for table in PORTABLE_TABLES:
+            if table in known:
+                house[table] = [dict(r) for r in self.db.execute(f'SELECT * FROM "{table}"')]
+        out["house"] = house
+        out["not_included"] = ["provider_keys", "push_subscriptions", "uploaded_files"]
+        return out
+
     # ── 搬家 ──
     def import_all(self, data: dict, mode: str = "merge") -> dict:
         """导入。★ 0831（GPT 二轮 P0）重写成**先全量预校验、再单事务**：
@@ -269,6 +293,15 @@ class SqliteStore(Store):
         # ── 预校验：任何一条不像话，整批拒收，库一个字不动 ──
         mems = data.get("memories") or []
         turns = data.get("turns") or []
+        house = data.get("house") or {}
+        if not isinstance(house, dict):
+            raise ValueError("house 要是一个对象")
+        unknown = sorted(set(house) - set(PORTABLE_TABLES))
+        if unknown:
+            raise ValueError("house 里有不认识的表：" + "、".join(unknown[:5]))
+        for table, rows in house.items():
+            if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+                raise ValueError(f"house.{table} 要是一组对象")
         for i, m in enumerate(mems):
             if not isinstance(m, dict) or not str(m.get("content") or "").strip():
                 raise ValueError(f"memories[{i}] 不像一条记忆（要 dict、content 非空）")
@@ -282,15 +315,18 @@ class SqliteStore(Store):
         # ── 单事务：中途任何异常整体回滚。★ 用写锁串起来，并发导入不再互相撞 BEGIN ──
         n_m = n_t = skip = 0
         with self._wlock:
-            return self._do_import(mode, mems, turns, data, have_m, have_t)
+            return self._do_import(mode, mems, turns, house, data, have_m, have_t)
 
-    def _do_import(self, mode, mems, turns, data, have_m, have_t) -> dict:
-        n_m = n_t = skip = 0
+    def _do_import(self, mode, mems, turns, house, data, have_m, have_t) -> dict:
+        n_m = n_t = skip = n_house = 0
         self.db.execute("BEGIN")
         try:
             if mode == "replace":
                 self.db.execute("DELETE FROM turns")
                 self.db.execute("DELETE FROM memories")   # fts 由触发器跟着删
+                for table in reversed(PORTABLE_TABLES):
+                    if table in house:
+                        self.db.execute(f'DELETE FROM "{table}"')
                 have_m = set()
                 have_t = set()
             for m in mems:
@@ -324,6 +360,27 @@ class SqliteStore(Store):
                      t.get("channel") or "text", t.get("call_id"),
                      t.get("session_id"), t.get("ts") or time.time()))
                 n_t += 1
+            for table in PORTABLE_TABLES:
+                rows = house.get(table)
+                if not rows:
+                    continue
+                cols = [r["name"] for r in self.db.execute(f'PRAGMA table_info("{table}")')]
+                if not cols:
+                    raise ValueError(f"当前版本没有 house.{table}")
+                for row in rows:
+                    use = [c for c in cols if c in row]
+                    if not use:
+                        raise ValueError(f"house.{table} 有一条没有可导入字段")
+                    marks = ",".join("?" for _ in use)
+                    names = ",".join(f'"{c}"' for c in use)
+                    verb = "INSERT OR IGNORE" if mode == "merge" else "INSERT"
+                    cur = self.db.execute(
+                        f'{verb} INTO "{table}" ({names}) VALUES ({marks})',
+                        [row[c] for c in use])
+                    if cur.rowcount:
+                        n_house += 1
+                    else:
+                        skip += 1
             # ★ 这儿不能用 self.set_setting —— 它内部 commit，会把事务提前落定
             if mode == "replace" or data.get("persona"):
                 self.db.execute(
@@ -336,5 +393,6 @@ class SqliteStore(Store):
         except Exception:
             self.db.rollback()
             raise
-        return {"memories": n_m, "turns": n_t, "skipped": skip, "mode": mode,
+        return {"memories": n_m, "turns": n_t, "house": n_house,
+                "skipped": skip, "mode": mode,
                 "generation": self.generation}

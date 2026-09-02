@@ -29,6 +29,15 @@ def load_cfg() -> dict:
         return {}
 
 
+def _write_cfg(value: dict) -> None:
+    f = _cfg_file()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_suffix(f.suffix + ".tmp")
+    tmp.write_text(json.dumps(value, ensure_ascii=False, indent=1), encoding="utf-8")
+    os.chmod(tmp, 0o600)
+    tmp.replace(f)
+
+
 def save_server(name: str, command: str, args: list, env: dict) -> None:
     f = _cfg_file()
     try:
@@ -36,8 +45,7 @@ def save_server(name: str, command: str, args: list, env: dict) -> None:
     except Exception:
         cfg = {}
     cfg.setdefault("mcpServers", {})[name] = {"command": command, "args": args, "env": env}
-    f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(json.dumps(cfg, ensure_ascii=False, indent=1), encoding="utf-8")
+    _write_cfg(cfg)
 
 
 def drop_server(name: str) -> None:
@@ -45,7 +53,7 @@ def drop_server(name: str) -> None:
     try:
         cfg = json.loads(f.read_text(encoding="utf-8"))
         cfg.get("mcpServers", {}).pop(name, None)
-        f.write_text(json.dumps(cfg, ensure_ascii=False, indent=1), encoding="utf-8")
+        _write_cfg(cfg)
     except Exception:
         pass
     s = _servers.pop(name, None)
@@ -133,10 +141,15 @@ class _Server:
 
 async def start_all() -> None:
     for name, spec in load_cfg().items():
-        if name not in _servers:
-            s = _Server(name, spec)
-            _servers[name] = s
-            await s.start()
+        old = _servers.get(name)
+        # 安装好一个之前失败的 server 后要能重试；配置换了也不能继续守着旧进程。
+        if old and old.tools and old.spec == spec:
+            continue
+        if old:
+            await old.close()
+        s = _Server(name, spec)
+        _servers[name] = s
+        await s.start()
 
 
 def status() -> list:
@@ -171,3 +184,14 @@ async def execute(fn_name: str, args: dict) -> dict | None:
                 except Exception as e:
                     return {"ok": False, "err": f"{type(e).__name__}: {e}"[:200]}
     return None
+
+
+async def call_tool(server: str, tool: str, args: dict) -> dict | None:
+    """Call one named MCP tool without exposing the private server object to routes."""
+    s = _servers.get(server)
+    if not s or not any(t.get("name") == tool for t in s.tools):
+        return None
+    try:
+        return await s.call(tool, args)
+    except Exception as e:
+        return {"ok": False, "err": f"{type(e).__name__}: {e}"[:200]}

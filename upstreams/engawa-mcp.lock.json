@@ -1,0 +1,7 @@
+{
+  "name": "engawa-mcp",
+  "repository": "https://github.com/tsuru0805/engawa-mcp",
+  "commit": "27fdc6ad935b6d070387ac48c235df0653efa28c",
+  "license": "MIT",
+  "integration": "pinned local MCP runtime with a strict action allowlist"
+}

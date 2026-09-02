@@ -31,7 +31,7 @@ const worktree = process.argv.includes("--worktree");
 
 /* 这些目录整个不看：要么是构建出来的，要么是本机的东西 */
 const skipDirs = new Set([
-  ".git", ".venv", "node_modules", "__pycache__", "dist", "build", "coverage", ".gradle", ".pytest_cache",
+  ".git", ".venv", ".runtime", "node_modules", "__pycache__", "dist", "build", "coverage", ".gradle", ".pytest_cache",
 ]);
 const skipDirPaths = [
   /^data$/,                       // 使用者自己的库和文件，.gitignore 里也挡着

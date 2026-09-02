@@ -1,8 +1,7 @@
 # 按需带走
 
-连环是**一个仓库**，不是一堆小仓。拆成十几个仓维护不动，而且改一处要同步十几遍。
-补偿的办法是这两样：一份机器可读的清单（`lianhuan.layers.json`），
-和一支照着清单把东西整齐取出去的取件器。
+连环的应用与自写功能维护在**一个主仓库**，避免同一修复在十几个仓漂移；第三方完整实现保留各自上游仓库链接。
+需要分类带走时，用机器可读清单（`lianhuan.layers.json`）和取件器生成独立目录。
 
 ## 先看，再拿
 
@@ -31,6 +30,7 @@ npm run packs:list
 | `function/homelife` | 写作 · 心情 · 梗库 · 玩具厅 | 独立包 |
 | `function/homeplus` | 家什与台账 | 独立包 |
 | `function/reading` | 共读 | 独立包 |
+| `function/engawa` | Engawa 固定上游、安装器、MCP 白名单与檐廊入口 | 上游集成 |
 | `function/kaomoji-drawer` | 颜文字抽屉 | 适配 |
 | `function/qq-bridge` | 接一个聊天前端 | 适配 |
 | `function/obsidian-memory` | 把记忆存进你自己的笔记库 | 适配 |
@@ -99,6 +99,12 @@ npm install && npm run build && npm test    # 纯前端那几种
 - 数据库、真实聊天、登录态
 - `node_modules` / `dist` / `build` / 缓存 / `.bak` 备份 / 验收报告
 - **界面 ≠ 已接通。** 带了通话界面不代表语音能用 —— 每条的 `truth` 才算数
+
+## 推荐的完整上游
+
+- 轻量共读前端与实现保留；完整阅读器见 [Readest](https://github.com/readest/readest)。
+- 网易云共听保留连环前端；完整实现见 [music-together](https://github.com/Yueby/music-together)。
+- 这些链接是因为上游更完整，不表示本仓把自己的正常功能藏起来。
 
 ## 许可
 

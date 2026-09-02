@@ -98,6 +98,10 @@
       let t = 0, prog = 0, dragging = false, unlocked = false, glow = 0;
       let lx = 0, ly = 0, pvx = 0, pvy = 0, sinceFall = 0, nextFall = 0.6;
       let gust = null, nextGust = 4, windX = 0, windY = 0;
+      /* ResizeObserver can fire while p5 is still inside setup().  Before the
+         image pools exist, rebuilding the riverbed asks p5 to draw undefined
+         leaf images and the whole splash dies on narrow/mobile viewports. */
+      let ready = false;
       const SQ = 0.68, LSZ = 122, NLEAF = 16;
       const R2 = function (a, b) { return a + Math.random() * (b - a); };
       const clamp01 = function (v) { return v < 0 ? 0 : v > 1 ? 1 : v; };
@@ -463,9 +467,11 @@
            内部逻辑一个字没动，只是让外面调得到。 */
         self.unlockAt = doUnlock;
         bindPointer();
+        ready = true;
       };
 
       p.windowResized = function () {
+        if (!ready) return;
         const r = host.getBoundingClientRect();
         const nw = Math.max(240, r.width | 0), nh = Math.max(320, r.height | 0);
         if (nw === W && nh === H) return;

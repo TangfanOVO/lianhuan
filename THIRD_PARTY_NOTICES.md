@@ -19,6 +19,7 @@ MIT 那句「上述版权声明和本许可声明应包含在软件的所有副�
 | [ears](https://github.com/Eveacla11/ears) | 通话的上行链（录音 → 识别 → 情感标签）照它写的 | `Copyright (c) 2026 Eve` |
 | [Nocturne-Memory-Core](https://github.com/Pyruslili/Nocturne-Memory-Core) | 记忆分层里的「近场日记」那一层 | `Copyright (c) 2026 P0lar1zzZ` |
 | [journey-cards](https://github.com/nonchaiovo/journey-cards) | 出门页的数据契约 | `Copyright (c) 2026 nonchaiovo`（MIT，0831 实核） |
+| [engawa-mcp](https://github.com/tsuru0805/engawa-mcp) | 檐廊的网页 / RSS / 书架 / 天象 / 每日内容工具；安装固定版本到本机运行时 | `Copyright (c) 2026 tsuru0805 (晚晚)`；独立许可原文见 `licenses/ENGAWA_MCP.txt` |
 
 上面这些共用同一份 MIT 正文：
 

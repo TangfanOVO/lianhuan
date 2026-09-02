@@ -36,7 +36,7 @@
       "paths": [
         "core/engines"
       ],
-      "truth": "回声那条不接模型也能跑通全流程。CLI 那条要本机装了对应命令行；API 那条要自己贴 key，没贴时界面照实说未就绪，不假装能用。★ CLI 那条走 --resume，不读 history —— 窗口治理那套对它不生效。"
+      "truth": "回声那条不接模型也能跑通全流程。CLI 那条要本机装了对应命令行；API 那条要自己填配置，并以一次真实回复为验通，没贴 key 时界面照实说未就绪。★ CLI 那条走 --resume，不读 history —— 窗口治理那套对它不生效。"
     },
     "localdata": {
       "label": "本地账本",
@@ -49,7 +49,7 @@
       "paths": [
         "core/store"
       ],
-      "truth": "数据全在自己机器上的一个文件里。★ 导出目前只带 memories/turns/persona —— notes、diary、moments、心情、日历、共读、工作本既不导出也不导入，「整个家打包带走」还没做到。"
+      "truth": "数据全在自己机器上的一个文件里。v2 整屋导出覆盖聊天、记忆、人设、日记、信件、碎碎念、空间、时间线、心情、梗库、工作本、旅行、日历、纪念日、共读和提醒等可迁移账本；密钥、推送订阅和上传文件明确不进 JSON。老 v1 导出仍可导入。"
     },
     "memory": {
       "label": "连续性与记忆",
@@ -80,7 +80,7 @@
         "core/hands.py",
         "core/mcp_client.py"
       ],
-      "truth": "工具结果真回传给模型、能连着问最多五轮。★ 但持久脚注只画得出其中两只手的痕迹，其余二十八只做完了界面上留不下记录。AI 不能自己登记 MCP server。"
+      "truth": "工具结果真回传给模型、能连着问最多五轮；成功与失败都跟随该轮持久落库，刷新后仍可审计，失败不会打成功勾。AI 不能自己登记 MCP server。"
     },
     "speech": {
       "label": "神态与语气",
@@ -117,7 +117,7 @@
       "paths": [
         "optional/callkit"
       ],
-      "truth": "★ 要自己贴上游 key 才走得通，没贴时那张卡照实说缺什么。回声防线（不把自己的声音当成对方说话）装了四处并有测试钉着；打断的两半都在。**但整条链路缺凭据，没做过端到端真跑。**"
+      "truth": "★ 要自己贴上游 key 才走得通，没贴时那张卡照实说缺什么；保存后只显示『已配置』，不冒充厂商验通。豆包全双工与 ElevenLabs 流式转写/合成适配、打断和回声防线都有契约及集成测试；当前发布提交仍需用有效账号和真机各拨一通，才算当版端到端复验。"
     },
     "proactive": {
       "label": "主动找你与提醒",
@@ -171,6 +171,27 @@
         "optional/reading"
       ],
       "truth": "书要自己放进来，不带任何书。"
+    },
+    "engawa": {
+      "label": "Engawa 阅读侧廊",
+      "summary": "固定 MIT 上游版本、一键本机安装、12 项 MCP 工具白名单与檐廊页面。",
+      "kind": "integration",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/runtime",
+        "function/hands"
+      ],
+      "paths": [
+        "optional/engawa",
+        "scripts/setup-engawa.py",
+        "upstreams/engawa-mcp.lock.json",
+        "licenses/ENGAWA_MCP.txt"
+      ],
+      "docs": [
+        "UPSTREAM.md",
+        "THIRD_PARTY_NOTICES.md"
+      ],
+      "truth": "适配、安装器、固定提交和许可随包；上游代码只在用户点安装后进入被 Git 忽略的本机 .runtime。免模型 key，但网页/RSS等动作仍依赖网络；失败时返回错误，不用演示数据顶替。"
     },
     "kaomoji-drawer": {
       "label": "颜文字抽屉",
@@ -228,7 +249,7 @@
       "docs": [
         "docs/DEPLOY.md"
       ],
-      "truth": "★ 只能说「壳能构建出来」。没有真机逐项点过的证据之前，别写成「安卓全功能已验收」。锁屏推送那条 WebView 走不通，README 里写的是实话。"
+      "truth": "WebView 壳已有历史真机验收记录，返回、麦克风授权、文件选择与网页交互曾实测；但每个新发布 APK 仍需重新安装做一轮冒烟，不能用旧包证据冒充当前构建。锁屏推送不是 WebView 壳已证实能力。"
     }
   },
   "frontendPacks": {

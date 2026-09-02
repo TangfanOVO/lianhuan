@@ -124,6 +124,51 @@ class TestStore(unittest.TestCase):
         self.s.import_all({"turns": [{"role": "user", "content": "新的"}]}, mode="replace")
         self.assertEqual([t.content for t in self.s.recent_turns(9)], ["新的"])
 
+    def test_full_house_roundtrip_excludes_device_and_secret_state(self):
+        """搬家不能只搬聊天；也不能把浏览器订阅或密钥误塞进公开导出。"""
+        for store in (self.s,):
+            store.db.executescript("""
+                CREATE TABLE notes (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  kind TEXT, title TEXT, content TEXT, ts REAL);
+                CREATE TABLE trips (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  place TEXT NOT NULL, weather TEXT DEFAULT '', note TEXT DEFAULT '',
+                  kind TEXT DEFAULT '走走', ts REAL);
+                CREATE TABLE push_subs (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  endpoint TEXT UNIQUE, p256dh TEXT, auth TEXT, ts REAL);
+            """)
+        self.s.db.execute(
+            "INSERT INTO notes(kind,title,content,ts) VALUES(?,?,?,?)",
+            ("日记", "虚构测试日", "今天捡到一颗蓝色玻璃珠", 1.0))
+        self.s.db.execute(
+            "INSERT INTO trips(place,weather,note,kind,ts) VALUES(?,?,?,?,?)",
+            ("纸月车站", "晴", "在月台写了一张明信片", "远行", 2.0))
+        self.s.db.execute(
+            "INSERT INTO push_subs(endpoint,p256dh,auth,ts) VALUES(?,?,?,?)",
+            ("https://push.invalid/device-only", "fake", "fake", 3.0))
+        self.s.db.commit()
+
+        dump = self.s.export_all()
+        self.assertEqual(2, dump["lianhuan"])
+        self.assertEqual("今天捡到一颗蓝色玻璃珠", dump["house"]["notes"][0]["content"])
+        self.assertEqual("纸月车站", dump["house"]["trips"][0]["place"])
+        self.assertNotIn("push_subs", dump["house"])
+        self.assertIn("provider_keys", dump["not_included"])
+
+        other = SqliteStore(Path(self.tmp.name) / "full-house.db")
+        other.db.executescript("""
+            CREATE TABLE notes (id INTEGER PRIMARY KEY AUTOINCREMENT,
+              kind TEXT, title TEXT, content TEXT, ts REAL);
+            CREATE TABLE trips (id INTEGER PRIMARY KEY AUTOINCREMENT,
+              place TEXT NOT NULL, weather TEXT DEFAULT '', note TEXT DEFAULT '',
+              kind TEXT DEFAULT '走走', ts REAL);
+        """)
+        result = other.import_all(dump, mode="replace")
+        self.assertEqual(2, result["house"])
+        self.assertEqual("今天捡到一颗蓝色玻璃珠",
+                         other.db.execute("SELECT content FROM notes").fetchone()[0])
+        self.assertEqual("在月台写了一张明信片",
+                         other.db.execute("SELECT note FROM trips").fetchone()[0])
+
 
 class TestRecall(unittest.TestCase):
     def setUp(self):
@@ -150,6 +195,126 @@ class TestRecall(unittest.TestCase):
         uid = self.s.add_turn(Turn(role="user", content="这句不该重复出现"))
         inj = build_injection(self.s, "这句不该重复出现", exclude_id=uid)
         self.assertNotIn("这句不该重复出现", inj.split("〔最近说的话")[-1])
+
+
+class TestJourneyTicket(unittest.TestCase):
+    """旅行票根不是一张空卡：写入和读回必须落到同一张 trips 表。"""
+
+    def test_text_journey_post_then_read(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from optional.homeplus.routes import bind, router
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        store = SqliteStore(Path(tmp.name) / "journey.db")
+        bind(store)
+        app = FastAPI()
+        app.include_router(router)
+        client = TestClient(app)
+
+        created = client.post("/api/journeys", json={
+            "title": "纸月车站",
+            "note": "在月台写了一张明信片\n回程看见蓝色晚霞",
+        })
+        self.assertEqual(200, created.status_code)
+        self.assertTrue(created.json()["ok"])
+
+        journeys = client.get("/api/journeys").json()["journeys"]
+        self.assertEqual("纸月车站", journeys[0]["title"])
+        self.assertEqual(2, len(journeys[0]["stops"]))
+        self.assertEqual("回程看见蓝色晚霞", journeys[0]["stops"][1]["note"])
+
+    def test_both_co_watch_entrances_reach_the_real_chat_ledger(self):
+        h = (Path(__file__).resolve().parent.parent / APP()).read_text(encoding="utf-8")
+        self.assertIn('data-sub="一起看小红书"', h)
+        self.assertIn('data-sub="看 GitHub"', h)
+        handler = h[h.index("/* ══ 一起看链接 ══"):]
+        self.assertIn("document.querySelector('[data-go=\"chat\"]')", handler)
+        self.assertIn("ta.focus()", handler)
+        self.assertNotIn("共享浏览器已连接", handler[:2500])
+
+
+class TestEngawaIntegration(unittest.TestCase):
+    """Engawa is a pinned optional runtime, not a label pasted onto generic MCP."""
+
+    def test_setup_endpoint_is_local_only(self):
+        from core import gate
+        self.assertTrue(gate.command_path("/api/packs/engawa/setup"))
+        self.assertFalse(gate.command_path("/api/packs/engawa/enable"))
+
+    def test_installer_registration_contains_no_key_and_is_private(self):
+        import importlib.util
+        root = Path(__file__).resolve().parent.parent
+        spec = importlib.util.spec_from_file_location("setup_engawa", root / "scripts/setup-engawa.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        with tempfile.TemporaryDirectory() as d:
+            cfg = Path(d) / "mcp.json"
+            command = Path(d) / "runtime" / "engawa-mcp"
+            mod.register(command, cfg)
+            value = json.loads(cfg.read_text(encoding="utf-8"))
+            item = value["mcpServers"]["engawa"]
+            self.assertEqual(str(command), item["command"])
+            self.assertNotIn("key", json.dumps(value).lower())
+            self.assertEqual(0o600, cfg.stat().st_mode & 0o777)
+
+    def test_general_mcp_config_is_atomic_and_private(self):
+        from core import mcp_client
+        with tempfile.TemporaryDirectory() as d:
+            old = _os.environ.get("LIANHUAN_DB")
+            _os.environ["LIANHUAN_DB"] = str(Path(d) / "house.db")
+            try:
+                mcp_client.save_server("sample", "/bin/echo", [], {"TOKEN": "test-only"})
+                cfg = Path(d) / "mcp.json"
+                self.assertEqual(0o600, cfg.stat().st_mode & 0o777)
+                self.assertFalse((Path(d) / "mcp.json.tmp").exists())
+                self.assertIn("sample", mcp_client.load_cfg())
+            finally:
+                if old is None:
+                    _os.environ.pop("LIANHUAN_DB", None)
+                else:
+                    _os.environ["LIANHUAN_DB"] = old
+
+    def test_lock_and_license_travel_with_the_adapter(self):
+        root = Path(__file__).resolve().parent.parent
+        lock = json.loads((root / "upstreams/engawa-mcp.lock.json").read_text(encoding="utf-8"))
+        self.assertEqual("MIT", lock["license"])
+        self.assertRegex(lock["commit"], r"^[0-9a-f]{40}$")
+        notice = (root / "licenses/ENGAWA_MCP.txt").read_text(encoding="utf-8")
+        self.assertIn("Copyright (c) 2026 tsuru0805", notice)
+
+    def test_routes_reject_unlisted_actions_and_return_real_mcp_content(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from optional.engawa import routes
+
+        old_status, old_call = routes.mcp_client.status, routes.mcp_client.call_tool
+        routes.mcp_client.status = lambda: [{"name": "engawa", "ok": True,
+                                             "tools": ["daily_poem"], "err": ""}]
+
+        async def fake_call(server, tool, args):
+            return {"ok": True, "result": "虚构测试诗句"}
+
+        routes.mcp_client.call_tool = fake_call
+        try:
+            app = FastAPI()
+            app.include_router(routes.router)
+            client = TestClient(app)
+            self.assertTrue(client.get("/api/engawa/status").json()["ok"])
+            good = client.post("/api/engawa/action", json={"tool": "daily_poem", "arguments": {}})
+            self.assertEqual("虚构测试诗句", good.json()["content"])
+            self.assertEqual(400, client.post("/api/engawa/action",
+                             json={"tool": "shell", "arguments": {}}).status_code)
+        finally:
+            routes.mcp_client.status, routes.mcp_client.call_tool = old_status, old_call
+
+    def test_public_page_has_a_real_status_and_action_path(self):
+        h = (Path(__file__).resolve().parent.parent / APP()).read_text(encoding="utf-8")
+        self.assertIn('data-open="engawapage"', h)
+        self.assertIn("/api/engawa/status", h)
+        self.assertIn("/api/engawa/action", h)
+        self.assertIn('data-pk-setup="', h)
 
 
 class TestJobs(unittest.IsolatedAsyncioTestCase):
@@ -796,6 +961,15 @@ class TestBlocksDoNotDrift(unittest.TestCase):
                          "core/web 下又出现了一份 maple-water.js")
         app = (self.ROOT / APP()).read_text(encoding="utf-8")
         self.assertIn("/blocks/water/maple-water.js", app)
+
+    def test_water_resize_waits_until_setup_is_complete(self):
+        """ResizeObserver 会在窄屏首开时抢跑；叶片池没建好就重绘会把开屏炸掉。"""
+        need("blocks/water")
+        water = (self.ROOT / "blocks/water/maple-water.js").read_text(encoding="utf-8")
+        setup = water[water.index("p.setup = function"):water.index("function bindPointer")]
+        resize = water[water.index("p.windowResized = function"):water.index("function bindPointer")]
+        self.assertIn("ready = true", setup)
+        self.assertIn("if (!ready) return", resize)
 
     def test_ambience_css_is_identical_in_both_places(self):
         need("blocks/ambience")
@@ -1473,8 +1647,14 @@ class TestPublishGateIsEnforced(unittest.TestCase):
 
     def test_gitignore_covers_the_dangerous_ones(self):
         ig = open(".gitignore", encoding="utf-8").read()
-        for pat in ("*.bak*", "__pycache__/", "*.pyc", "REVIEW-*.md", "/data/"):
+        for pat in ("*.bak*", "__pycache__/", "*.pyc", "REVIEW-*.md", "/data/", ".runtime/"):
             self.assertIn(pat, ig, f".gitignore 少了 {pat}")
+
+    def test_public_scanner_skips_the_ignored_optional_runtime(self):
+        need("scripts/check-public-boundary.mjs")
+        src = Path("scripts/check-public-boundary.mjs").read_text(encoding="utf-8")
+        self.assertIn('".runtime"', src,
+                      "本机现装的可选运行时不进发行物，工作树扫描也不该深入第三方虚拟环境")
 
     def test_gitignore_has_no_inline_comments(self):
         """★ gitignore **不认行内注释** —— 写在模式后面会被当成路径的一部分，

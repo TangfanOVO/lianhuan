@@ -4,7 +4,7 @@
 所以这里的规矩：
   · 条件齐的包 → **「直接启用」真的启用**（挂路由、更新能力表），点完就能用
   · 缺东西的包 → 说清缺什么（哪个环境变量、哪个外部服务）
-  · 还没剥出来的 → 老实标「只有契约」，选它就写一份装配单（要做什么、契约在哪），
+  · 只有契约的 → 老实标「只有契约」，选它就写一份装配单（要做什么、契约在哪），
     **不冒充能用**
 
 新增不改旧：这个模块被 server 挂上，动态往 app 里 include 路由、往 WIRED 里添 key。
@@ -12,7 +12,10 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 import os
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -47,6 +50,10 @@ def bind(app, wired: list, store=None, pick_engine=None) -> None:
     # ★ 启动时把条件齐的真包直接挂上 —— 贴过 key 的人重启后不该再点一次「启用」
     for p in PACKS:
         if p["kind"] == "real" and p["id"] not in _enabled and not p["check"]():
+            if inspect.iscoroutinefunction(p["enable"]):
+                # Async adapters are brought up by the application's startup event.
+                # Calling them here would create an un-awaited coroutine before an event loop exists.
+                continue
             try:
                 p["enable"]()
                 _enabled.add(p["id"])
@@ -82,6 +89,36 @@ def _call_check():
     return ["还差一把 ElevenLabs 钥匙 —— 这一版只接了它一家做「听」，没有它就听不见你说话。"
             "（豆包那对 appid＋token 只接了「说」那半；豆包其实也能听，"
             "只是这一版还没接 —— 想自己接别家识别，契约在 docs/API.md。）"]
+
+
+def _engawa_executable() -> Path:
+    root = Path(__file__).resolve().parent.parent / ".runtime" / "engawa"
+    choices = (root / "bin" / "engawa-mcp", root / "Scripts" / "engawa-mcp.exe")
+    return next((path for path in choices if path.is_file()), choices[0])
+
+
+def _engawa_check():
+    if not _engawa_executable().is_file():
+        return ["本机还没装 Engawa；点下面安装即可（MIT、免 key，运行时不进 Git）"]
+    return []
+
+
+async def _engawa_enable():
+    from core import mcp_client
+    command = _engawa_executable()
+    if not command.is_file():
+        raise RuntimeError("Engawa 运行时还没安装")
+    cache = Path(os.environ.get("LIANHUAN_DB", "data/lianhuan.db")).parent / "engawa-cache"
+    mcp_client.save_server("engawa", str(command), [], {"ENGAWA_CACHE_DIR": str(cache)})
+    await mcp_client.start_all()
+    state = next((item for item in mcp_client.status() if item["name"] == "engawa"), None)
+    if not state or not state["ok"]:
+        raise RuntimeError((state or {}).get("err") or "Engawa 没有成功启动")
+
+
+def _engawa_connected() -> bool:
+    from core import mcp_client
+    return any(item["name"] == "engawa" and item["ok"] for item in mcp_client.status())
 
 
 def _obsidian_check():
@@ -145,6 +182,13 @@ def _qq_enable():
 
 
 PACKS = [
+    {"id": "engawa", "name": "Engawa 阅读侧廊", "kind": "real",
+     "desc": "网页、RSS、书架、今晚的天空、每日诗画、NASA 天文图和 arXiv。"
+             "固定 MIT 上游版本装进本机隔离运行时，AI 和檐廊页面都能直接用；不要 key。",
+     "check": _engawa_check, "enable": _engawa_enable,
+     "connected": _engawa_connected,
+     "setup": "scripts/setup-engawa.py", "setup_label": "安装 Engawa",
+     "contract": "UPSTREAM.md（Engawa）· licenses/ENGAWA_MCP.txt"},
     {"id": "qq-napcat", "name": "QQ · 在岗吗", "kind": "real",
      "desc": "看他的 QQ 在不在线，掉线了扫个码救回来。\n"
              "要自己跑一个叫 NapCat 的东西（开源的，让程序能上 QQ）—— 用小号，别用你天天在用的那个。",
@@ -229,7 +273,12 @@ def _state(p) -> dict:
     out = {"id": p["id"], "name": p["name"], "desc": p["desc"], "kind": p["kind"],
            "contract": p.get("contract", ""),
            "keys": [{**k, "set": bool(secrets.get(k["id"]))} for k in p.get("keys", [])]}
-    if p["kind"] == "builtin":
+    if p.get("setup"):
+        out["setup"] = True
+        out["setup_label"] = p.get("setup_label") or "安装"
+    if p.get("connected") and p["connected"]():
+        out["state"] = "on"
+    elif p["kind"] == "builtin":
         out["state"] = "on"
         out["builtin"] = True
     elif p["kind"] == "stub":
@@ -254,25 +303,53 @@ def list_packs():
 
 
 @router.post("/api/packs/{pid}/enable")
-def enable_pack(pid: str):
+async def enable_pack(pid: str):
     p = next((x for x in PACKS if x["id"] == pid), None)
     if p is None:
         return JSONResponse({"error": "没有这个包"}, status_code=404)
     if p["kind"] == "stub":
-        return JSONResponse({"error": "这个包还没剥出来，只有契约 —— 选「写进装配单」那条路"},
+        return JSONResponse({"error": "这个包目前只有契约 —— 选「写进装配单」那条路"},
                             status_code=409)
-    if pid in _enabled:
+    if pid in _enabled or (p.get("connected") and p["connected"]()):
         return JSONResponse({"ok": True, "state": "on", "note": "本来就开着"})
     missing = p["check"]()
     if missing:
         return JSONResponse({"error": "还缺东西", "missing": missing}, status_code=428)
     try:
-        p["enable"]()
+        result = p["enable"]()
+        if inspect.isawaitable(result):
+            await result
     except Exception as e:
         return JSONResponse({"error": f"启用时摔了一跤：{type(e).__name__}: {e}"[:200]},
                             status_code=500)
     _enabled.add(pid)
     return JSONResponse({"ok": True, "state": "on"})
+
+
+@router.post("/api/packs/{pid}/setup")
+async def setup_pack(pid: str):
+    """Run one repository-owned pinned installer.  Gate middleware makes this local-only."""
+    p = next((x for x in PACKS if x["id"] == pid), None)
+    if p is None or not p.get("setup"):
+        return JSONResponse({"error": "这个包没有一键安装器"}, status_code=404)
+    script = Path(__file__).resolve().parent.parent / p["setup"]
+    try:
+        done = await __import__("asyncio").to_thread(
+            subprocess.run, [sys.executable, str(script)], cwd=str(script.parent.parent),
+            capture_output=True, text=True, timeout=600,
+        )
+        if done.returncode:
+            return JSONResponse({"error": "安装没有完成；请在终端运行 python3 scripts/setup-engawa.py 看详情"},
+                                status_code=500)
+        result = p["enable"]()
+        if inspect.isawaitable(result):
+            await result
+        _enabled.add(pid)
+        return JSONResponse({"ok": True, "state": "on"})
+    except subprocess.TimeoutExpired:
+        return JSONResponse({"error": "安装超过十分钟，已停止等待；可以在终端重试"}, status_code=504)
+    except Exception as e:
+        return JSONResponse({"error": f"安装后没能接上：{type(e).__name__}: {e}"[:200]}, status_code=500)
 
 
 @router.post("/api/packs/{pid}/keys")

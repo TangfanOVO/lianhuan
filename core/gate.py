@@ -33,6 +33,11 @@ MAXAGE = 30 * 86400
 #: 只认本机的路径。**认证也不放行**，理由见模块头
 LOCAL_ONLY = {"/api/mcp/add", "/api/mcp/del"}
 
+
+def command_path(path: str) -> bool:
+    """Endpoints that can install or launch local code never accept LAN callers."""
+    return path in LOCAL_ONLY or (path.startswith("/api/packs/") and path.endswith("/setup"))
+
 _state: dict = {"on": False, "token": ""}
 
 

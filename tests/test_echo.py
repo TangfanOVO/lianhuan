@@ -8,8 +8,11 @@
   - 把 HEARD_DONE 那道闸删掉 →「闸真的装上了」红
   - 把 HEARD_STARTED 改回无条件作废 →「先挂起再判」红
 """
+import sys
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from optional.callkit.duplex import (
     ECHO_BARGE_FLOOR, ECHO_BARGE_MIN, ECHO_KEEP_N, ECHO_KEEP_SEC,

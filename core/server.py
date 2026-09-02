@@ -56,7 +56,7 @@ async def _gate_mw(request: Request, call_next):
     path = request.url.path
 
     # ① 命令执行类：认证过也不给外面用。密码会泄，起进程不给第二次机会。
-    if path in _gate.LOCAL_ONLY and not here:
+    if _gate.command_path(path) and not here:
         return JSONResponse({"error": "这条只能在这台机器上用 —— 它会在你电脑上起一个进程。"},
                             status_code=403)
 
@@ -140,6 +140,8 @@ app.include_router(_rd_router)
 # 颜文字抽屉（这家自己发布的开源组件，MIT）：前端 vendor + v2 状态接口，内置默认装
 from optional.kaomoji_drawer.routes import router as _kao_router   # noqa: E402
 app.include_router(_kao_router)
+from optional.engawa.routes import router as _engawa_router   # noqa: E402
+app.include_router(_engawa_router)
 _KAO_WEB = Path(__file__).parent.parent / "optional" / "kaomoji_drawer" / "web"
 
 

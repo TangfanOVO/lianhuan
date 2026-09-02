@@ -33,6 +33,7 @@ CORE = ["core", "optional", "android", "blocks/base", "blocks/water", "seed", "r
         # ★ 这份不能漏：MIT 那句「版权声明和许可正文要随所有副本一起」，
         #   靠的就是它跟着装出来的每一份走。漏了＝装出来的那份不合规。
         "THIRD_PARTY_NOTICES.md", "docs",
+        "scripts/setup-engawa.py", "upstreams/engawa-mcp.lock.json", "licenses/ENGAWA_MCP.txt",
         "start.command", "start.sh", ".env.example"]
 
 BLOCKS = [
@@ -191,7 +192,8 @@ def main():
              "记事四件套 · 心情 · 梗库 · 玩具厅 · 日历相册 · 共读 · 出门走走 —— "
              "**代码都在包里**，在 设置 › 功能包 里点一下就用（有的要贴 key，卡上写着）。",
              "通话（ElevenLabs / 豆包的 key）· QQ 桥（自跑 NapCat）· Obsidian 记忆（vault 路径）"
-             "同理，贴了就通。\n",
+             "同理；保存配置后要真实用一次才算验通。Engawa 阅读侧廊可以在功能包里一键安装，"
+             "它免 key，固定的 MIT 上游版本只装进本机 `.runtime/`。\n",
              "## 还没有的东西\n",
              "**没有的就是没有**，不会拿假数据冒充：",
              "- 纯浏览器存储（现在最少要跑这个薄后端）",

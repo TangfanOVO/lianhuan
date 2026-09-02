@@ -3328,11 +3328,13 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
           </div>
           <div style="flex:none;margin-left:auto;margin-right:16px">
             <div class="sf-row">
-              <!-- 0807：这一格原来是虚线空位（用户画的「代码架 · 还没做」，再往前是「看 GitHub」那张半透明 tile）。
-                   0807 定的：把本来留给 GitHub 的那个空位补好——书上架了，格子名也跟着从「还没做」换成「捡到的」。 -->
               <button class="sf-spine sf-hatch sf-hc2" data-open="toolpage" style="width:46px;height:158px">
                 <span class="sf-hd" style="height:12px"></span>
                 <span class="sf-nm">代码架</span>
+              </button>
+              <button class="sf-spine sf-rule sf-hsoft" data-sub="看 GitHub" style="width:42px;height:145px">
+                <span class="sf-hd" style="height:10px"></span>
+                <span class="sf-nm">一起看 GH</span>
               </button>
             </div>
             <div class="sf-plank" style="height:9px"></div>
@@ -3354,6 +3356,12 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
         <svg class="i" viewBox="0 0 24 24" style="width:19px;height:19px;color:var(--maple);flex:none"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10"/><path d="M3 7l9 6l9 -6"/></svg>
         <b style="flex:1;font-size:14.5px;font-weight:600">信</b>
         <span style="font-size:11.5px;color:var(--hint)">在记事</span>
+        <svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px;color:var(--hint)"><path d="M9 6l6 6l-6 6"/></svg>
+      </button>
+      <button class="sf-out" data-open="engawapage" style="margin-top:9px">
+        <svg class="i" viewBox="0 0 24 24" style="width:19px;height:19px;color:var(--maple);flex:none"><path d="M4 19h16"/><path d="M6 17V7l6-3l6 3v10"/><path d="M9 17v-5h6v5"/></svg>
+        <b style="flex:1;font-size:14.5px;font-weight:600">Engawa 阅读侧廊</b>
+        <span style="font-size:11.5px;color:var(--hint)">诗画 · 天象 · 书架</span>
         <svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px;color:var(--hint)"><path d="M9 6l6 6l-6 6"/></svg>
       </button>
     </section>
@@ -3923,7 +3931,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
       <div class="stamp">功能包</div>
     </div>
     <div class="subwrap">
-      <p class="lede" style="margin:14px 2px 16px">内置的装好就在用；条件齐的直接点就接上；还没剥出来的只有契约 —— 想自己做的选「写进装配单」。</p>
+      <p class="lede" style="margin:14px 2px 16px">内置功能装好就在用；外部服务保存配置后要真实调用确认；只有契约的功能可以写进装配单。</p>
       <!-- 引擎：哪家、哪个模型、key 在这儿填。key 存服务端一个 0600 的文件，不进库、不进导出 -->
       <div class="card" style="margin:0 0 14px;padding:15px 16px">
         <b style="display:block;font-size:15px">说话的引擎<small id="engnow" style="margin-left:8px;color:var(--hint);font-weight:400"></small></b>
@@ -4737,6 +4745,15 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
            0814 之后改成两个人一起走，文案跟着改。 -->
       <p class="lede">去了哪、天怎么样、遇见什么。<br>有我一个人走的，也有你说「带我走」的那些。</p>
 
+      <div class="poster" id="journeyform">
+        <input class="mfin" id="journeyTitle" placeholder="这一趟去了哪" maxlength="60">
+        <textarea id="journeyNote" rows="3" placeholder="留一句，或者写一篇旅行笔记" maxlength="4000"></textarea>
+        <div class="row">
+          <small id="journeyMsg" aria-live="polite">只存文字，不要求生图或多模态模型</small>
+          <button class="go" id="journeySave" type="button">收进票根</button>
+        </div>
+      </div>
+
       <!-- 0814 要的：一起出门这件事，落进书房的旅行日记里。
            门通到乌有乡自带的观察窗（真实地球坐标、世界地图、明信片能回）。
            走 /nowhere/ 是为了吃连环那道 cookie 门，不裸奔在公网上。 -->
@@ -4760,6 +4777,41 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
            手机上特别难用；出门这页就要「他自己出门记的」这个样子。 -->
 
       <div id="triplist"><div class="tripempty">翻一下…</div></div>
+    </div>
+  </div>
+
+  <div class="sub" id="engawapage">
+    <div class="top">
+      <button class="iconbtn" data-close="engawapage" aria-label="返回">
+        <svg class="i" viewBox="0 0 24 24"><path d="M5 12l14 0"/><path d="M5 12l6 6"/><path d="M5 12l6 -6"/></svg>
+      </button>
+      <div class="stamp">Engawa 阅读侧廊</div>
+    </div>
+    <div class="subwrap">
+      <div class="eyebrow">outside, close enough</div>
+      <p class="lede">看看今天的诗、画、星空和新文章。内容来自本机运行的 Engawa MCP；这里不放演示结果冒充联网成功。</p>
+      <div class="card" style="margin-bottom:13px">
+        <b id="engawaState">看看檐廊有没有连上…</b>
+        <p id="engawaDetail" style="margin:6px 0 0;color:var(--sub);font-size:12.5px;line-height:1.7"></p>
+        <button class="pkbtn" data-open="packspage" id="engawaSetupLink" type="button" hidden>去功能包安装</button>
+      </div>
+      <div class="grid" style="margin-bottom:13px">
+        <button class="tile" data-engawa-tool="daily_poem"><h3>今日一诗</h3><small>按时令挑一句</small></button>
+        <button class="tile" data-engawa-tool="daily_art"><h3>今日一画</h3><small>CC0 开放馆藏</small></button>
+        <button class="tile" data-engawa-tool="sky_tonight"><h3>今晚的天</h3><small>月相与行星</small></button>
+        <button class="tile" data-engawa-tool="apod"><h3>天文图</h3><small>NASA APOD</small></button>
+        <button class="tile" data-engawa-tool="on_this_day"><h3>历史今天</h3><small>Wikipedia</small></button>
+        <button class="tile" data-engawa-tool="shelf"><h3>翻书架</h3><small>看有哪些来源</small></button>
+      </div>
+      <div class="poster">
+        <input class="mfin" id="engawaUrl" type="url" placeholder="贴网页或 RSS 地址">
+        <div class="row">
+          <small>私人局域网地址默认拒绝，避免它借读网页去探本机。</small>
+          <button class="pkbtn" data-engawa-tool="web_read" type="button">读网页</button>
+          <button class="pkbtn" data-engawa-tool="rss_read" type="button">读 RSS</button>
+        </div>
+      </div>
+      <pre id="engawaResult" style="white-space:pre-wrap;word-break:break-word;max-height:42vh;overflow:auto;margin:13px 0 0;padding:15px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);font:13px/1.75 inherit" hidden></pre>
     </div>
   </div>
 
@@ -11528,12 +11580,9 @@ window.haptic = haptic;
   }, true);
 })();
 
-/* ══ 那两个不该开页面的入口 ══
-   它们的小字本来就写明了自己是什么：
-     「一起看小红书 · 链接贴给我就行」→ 不需要页面，把用户送回输入框就行
-     「看 GitHub · 还没做 · 存进工作本」→ 也不需要页面，说清楚它还没做
-   在此之前这两个点了都会开一张空的「这一页还没接数据」，比不开还难看。
-   ★ 「还没做」这种我只说，不替用户往工作本里偷偷写一条 —— 写库是用户的动作。 */
+/* ══ 一起看链接 ══
+   小红书和 GitHub 都走真实聊天账本：把人送回输入框，链接发出去后由当前模型评论。
+   空做一张“共享浏览器”页面反而是假功能；空间里发链接则走空间自己的真实记录与评论。 */
 (function(){
   document.addEventListener('click', function(e){
     const b = e.target.closest && e.target.closest('[data-sub="一起看小红书"], [data-sub="看 GitHub"]');
@@ -11542,15 +11591,14 @@ window.haptic = haptic;
     const sc = document.getElementById('scrim'), dw = document.getElementById('drawer');
     if (sc) sc.classList.remove('on');
     if (dw) dw.classList.remove('on');
-    const sub = b.getAttribute('data-sub');
-    if (sub === '一起看小红书'){
-      const tab = document.querySelector('[data-go="chat"]'); if (tab) tab.click();
-      const ta = document.getElementById('ta');
-      if (ta) setTimeout(() => ta.focus(), 150);
-      if (typeof toast === 'function') toast('链接贴过来，我陪你看');
-    } else {
-      if (typeof toast === 'function') toast('这个还没做。想要就跟我说一声，我记工作本里');
+    const tab = document.querySelector('[data-go="chat"]'); if (tab) tab.click();
+    const ta = document.getElementById('ta');
+    if (ta) {
+      ta.placeholder = b.getAttribute('data-sub') === '看 GitHub'
+        ? '贴 GitHub 链接，发出去就一起看…' : '贴小红书链接，发出去就一起看…';
+      setTimeout(() => ta.focus(), 150);
     }
+    if (typeof toast === 'function') toast('链接发出去，我就在同一段聊天里陪你看');
   }, true);
 })();
 
@@ -14607,9 +14655,30 @@ async function loadHome(){
     });
   }
 
-  fetch('/api/journeys').then(function(r){ return r.json(); }).then(draw).catch(function(e){
-    console.warn('[journeys]', e);
+  function loadJourneys(){
+    return fetch('/api/journeys').then(function(r){ return r.json(); }).then(draw).catch(function(e){
+      console.warn('[journeys]', e);
+    });
+  }
+  var save = document.getElementById('journeySave');
+  if (save) save.addEventListener('click', function(){
+    var title = document.getElementById('journeyTitle');
+    var note = document.getElementById('journeyNote');
+    var msg = document.getElementById('journeyMsg');
+    if (!title.value.trim() || !note.value.trim()) { msg.textContent = '地方和正文都要写一点'; return; }
+    save.disabled = true; msg.textContent = '收着…';
+    fetch('/api/journeys', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({title:title.value, note:note.value})})
+      .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
+      .then(function(x){
+        if (!x.ok) throw new Error(x.d.err || '没收进去');
+        title.value = ''; note.value = ''; msg.textContent = '收好了，点下面票根能读回';
+        return loadJourneys();
+      })
+      .catch(function(e){ msg.textContent = e.message || '没收进去，再试一次'; })
+      .finally(function(){ save.disabled = false; });
   });
+  loadJourneys();
 })();
 
 
@@ -16284,18 +16353,20 @@ async function loadHome(){
   var list = document.getElementById('packslist');
   if (!list) return;
   var esc = function(t){ return String(t==null?'':t).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); };
-  var ST = {on:'已接上', ready:'条件齐了', missing:'缺东西', stub:'只有契约'};
+  var ST = {on:'已配置', ready:'条件齐了', missing:'缺东西', stub:'只有契约'};
   function draw(packs){
     list.innerHTML = packs.map(function(p){
       var btns = '';
       if (p.state === 'ready') btns = '<button class="pkbtn main" data-pk-on="'+p.id+'">直接启用</button>';
-      else if (p.state === 'on') btns = '<span class="pkon">✓ 已接上</span>'
+      else if (p.state === 'on') btns = '<span class="pkon">✓ 已配置</span>'
         /* ★ 通话接上之后多一行语言。定的：**用的人只选中文还是英文，不问他哪家** —— 
              但底下究竟是谁在说，要照实写出来，不然选了「英文」却不知道没接就是骗人。 */
         + (p.id === 'call' ? '<div class="pklang" data-pk-lang></div>' : '');
       else if (p.state === 'missing'){
         btns = '<div class="pkmiss">缺：'+ (p.missing||[]).map(esc).join('；') + '</div>';
-        if ((p.keys||[]).length){
+        if (p.setup){
+          btns += '<button class="pkbtn main" data-pk-setup="'+p.id+'">'+esc(p.setup_label||'安装')+'</button>';
+        } else if ((p.keys||[]).length){
           /* ★ 0901 反馈：这几个格子看不懂。原来五个一模一样的密码框排一列，
              唯一的区别写在 placeholder 里 —— 而 placeholder **一打字就没了**，
              填到第三个已经分不清哪个是哪个；填 `eleven_v3` 那种普通文字的也做成密码框，
@@ -16330,7 +16401,7 @@ async function loadHome(){
                  + '</label>';
             return out;
           }).join('')
-          + '<button class="pkbtn main" data-pk-paste="'+p.id+'">贴上就接</button> '
+          + '<button class="pkbtn main" data-pk-paste="'+p.id+'">保存配置</button> '
           + '<button class="pkbtn" data-pk-plan="'+p.id+'">不用这几家，写进装配单</button>';
         } else {
           btns += '<button class="pkbtn" data-pk-plan="'+p.id+'">写进装配单，自己接</button>';
@@ -16473,9 +16544,19 @@ async function loadHome(){
         .then(function(r){return r.json();})
         .then(function(d){
           if (d.state === 'on'){ pa.textContent = '接上了 · 刷新中'; setTimeout(function(){ location.reload(); }, 700); }
-          else { pa.disabled = false; pa.textContent = '贴上就接';
+          else { pa.disabled = false; pa.textContent = '保存配置';
                  if (typeof toast === 'function') toast(d.error || (d.missing && d.missing[0]) || '还差点东西'); }
         });
+    }
+    var ps = e.target.closest && e.target.closest('[data-pk-setup]');
+    if (ps){
+      ps.disabled = true; ps.textContent = '安装中…';
+      fetch('/api/packs/'+ps.getAttribute('data-pk-setup')+'/setup', {method:'POST'})
+        .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+        .then(function(x){
+          if (x.ok && x.d.ok){ ps.textContent = '装好了 · 刷新中'; setTimeout(function(){location.reload();},700); }
+          else { ps.disabled=false; ps.textContent='再试一次'; if(typeof toast==='function') toast(x.d.error||'没装上'); }
+        }).catch(function(){ ps.disabled=false; ps.textContent='再试一次'; if(typeof toast==='function') toast('没装上'); });
     }
     var pl = e.target.closest && e.target.closest('[data-pk-plan]');
     if (pl){
@@ -16485,6 +16566,43 @@ async function loadHome(){
         .then(function(d){ pl.textContent = d.ok ? '写好了 · 在 '+d.plan : '没写上，再试一次'; if(!d.ok) pl.disabled = false; });
     }
   });
+})();
+
+/* ══ Engawa 阅读侧廊 ══ 只展示 MCP 真回执，离线时不塞演示内容。 */
+(function(){
+  var state = document.getElementById('engawaState');
+  var detail = document.getElementById('engawaDetail');
+  var setup = document.getElementById('engawaSetupLink');
+  var result = document.getElementById('engawaResult');
+  function status(){
+    fetch('/api/engawa/status').then(function(r){return r.json();}).then(function(d){
+      state.textContent = d.ok ? '檐廊连着' : '檐廊还没上线';
+      detail.textContent = d.detail || '';
+      setup.hidden = !!d.ok;
+    }).catch(function(){ state.textContent='檐廊还没上线'; detail.textContent='后端没有读回状态'; setup.hidden=false; });
+  }
+  document.addEventListener('click', function(e){
+    var open = e.target.closest && e.target.closest('[data-open="engawapage"]');
+    if (open) status();
+    var b = e.target.closest && e.target.closest('[data-engawa-tool]');
+    if (!b) return;
+    var tool = b.getAttribute('data-engawa-tool');
+    var args = {};
+    if (tool === 'web_read' || tool === 'rss_read'){
+      var url = (document.getElementById('engawaUrl').value || '').trim();
+      if (!url){ if(typeof toast==='function') toast('先贴一个地址'); return; }
+      args.url = url;
+    }
+    b.disabled=true; result.hidden=false; result.textContent='檐廊在翻…';
+    fetch('/api/engawa/action', {method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tool:tool,arguments:args})})
+      .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+      .then(function(x){
+        if (!x.ok || !x.d.ok) throw new Error(x.d.error || '没读回来');
+        result.textContent = typeof x.d.content === 'string' ? x.d.content : JSON.stringify(x.d.content,null,2);
+      }).catch(function(err){ result.textContent='没读回来：'+(err.message||'未知错误'); })
+      .finally(function(){b.disabled=false;});
+  }, true);
 })();
 
 /* ══ 系统返回手势 ══ 安卓/浏览器的「返回」要回到上一页，不是退出整个应用。
@@ -16704,7 +16822,7 @@ async function loadHome(){
         而且客户端发 no-cache 头 CF 根本不理）。
      → 用**内容指纹**当版本号：改了 maple-water.js 就把 MW_V 换成新的 md5 前 8 位，
        URL 一变 CF 就当新资源回源。p5 是固定版本、永远不变，反而该让它一直被缓存。 */
-  var MW_V = 'fffbaf09';
+  var MW_V = 'd84b9a8b';
   load('https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js')
     /* p5 只走 CDN，仓库不打包 1MB（LGPL 也就够不着我们）。挂了就走下面的纯纸底降级 */
     .then(function(){
