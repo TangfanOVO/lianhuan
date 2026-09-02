@@ -1,0 +1,264 @@
+/*!
+ * call.css —— 打电话页。
+ * ════════════════════════════════════════════════════════════════
+ * 整段照搬原项目 redesign/call.html 的 <style>（第 47–296 行），一个字节没重画。
+ * 只做了三件**机械**的事，每一件下面都注明了：
+ *   ① 那份文件开头的 :root token（16–45 行）不搬 —— 底座 base/tokens.css 就是它，
+ *      色名一样（--maple 在底座里桥到 --accent），所以选择器和值原文可用。
+ *   ② 重演拉杆 .rpbar / html[data-replay] 三条规则不搬 —— 那套要后端给录音，预览页没有。
+ *   ③ .threadwrap 不在这儿写第二份 —— 它在 ../thread/thread.css，值一样（76px）。
+ *
+ * 一句话（原项目那份自己写的）：线是一条线。谁在说线就往谁那头写；伙伴在想的时候，
+ * 线在那一头一笔写出枫叶，写完继续往右，走远了尾巴从左边一点点拆掉。
+ *
+ * 用：<link rel="stylesheet" href="../base/tokens.css">
+ *     <link rel="stylesheet" href="../thread/thread.css">
+ *     <link rel="stylesheet" href="call.css">
+ */
+
+/* ══════════ 一个底座里没有的 token ══════════
+   --hang-cast＝主键（挂断／接听那颗 72px 实心枫叶红）底下那圈投影。
+   原项目是在 call.html 自己的 :root 里定的（21 / 31 / 38 / 44 行），底座 tokens.css 没有它，
+   所以把那四处**原值**搬过来。四套都写全：亮、系统暗、手动暗、手动亮 —— 手动的必须压过系统偏好。 */
+:root{ --hang-cast:rgba(181,83,58,.30); }
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){ --hang-cast:rgba(0,0,0,.5); }
+}
+:root[data-theme="dark"]{ --hang-cast:rgba(0,0,0,.5); }
+:root[data-theme="light"]{ --hang-cast:rgba(181,83,58,.30); }
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:system-ui,-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;
+  -webkit-font-smoothing:antialiased; overflow:hidden; overscroll-behavior:none;
+}
+button{font-family:inherit;font-size:14px;border:0;background:none;color:inherit;padding:0;cursor:pointer}
+button:focus-visible{outline:2px solid var(--maple);outline-offset:3px}
+::selection{background:var(--maple-soft)}
+
+.stage{
+  position:fixed; inset:0; max-width:430px; margin:0 auto;
+  display:grid; grid-template-rows:auto minmax(0,1fr) auto auto auto;
+  padding:max(16px,env(safe-area-inset-top)) 0 max(14px,env(safe-area-inset-bottom));
+}
+
+/* ══════════ 顶 · 名字 ＋ 状态 ＋ 表 ══════════ */
+.head{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0 4px;
+  transition:opacity .3s var(--e-out)}
+.who{font-size:18px;font-weight:600;letter-spacing:-.01em}
+.meta{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--sub);
+  font-variant-numeric:tabular-nums}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--hint);flex:none;
+  transition:background-color .4s var(--e-out),transform .4s var(--spring-soft)}
+[data-phase="listening"] .dot{background:var(--ink);transform:scale(1.5)}
+[data-phase="speaking"] .dot,[data-phase="thinking"] .dot{background:var(--maple)}
+/* ══ 那颗星（0820，抄的原件）══ 「在想」的时候顶栏那颗点让位给它 */
+.cspin{display:none;position:relative;overflow:hidden;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;line-height:1;
+  color:var(--maple);text-align:center;vertical-align:-.12em}
+.cspin .gh{visibility:hidden;font-style:normal;display:block;line-height:1}
+.cspin .col{position:absolute;left:0;right:0;top:-.35em;
+  animation:codeSpinnerSpin 1.2s step-start infinite}
+.cspin .col i{display:block;line-height:2em;font-style:normal}
+@keyframes codeSpinnerSpin{
+  0%{transform:translateY(0)}     10%{transform:translateY(-2em)}
+  20%{transform:translateY(-4em)} 30%{transform:translateY(-6em)}
+  40%{transform:translateY(-8em)} 50%{transform:translateY(-8em)}
+  60%{transform:translateY(-6em)} 70%{transform:translateY(-4em)}
+  80%{transform:translateY(-2em)} 90%{transform:translateY(0)}
+}
+[data-phase="thinking"] .cspin{display:inline-block}
+[data-phase="thinking"] .dot{display:none}
+@media (prefers-reduced-motion: reduce){ .cspin .col{animation:none} }
+#word{min-width:2.2em}
+#timer{color:var(--hint);font-size:13px;transition:opacity .3s var(--e-out)}
+/* 还没接通（待机 / 来电 / 呼叫中）：顶栏和表让给中间那张脸 */
+[data-pre="1"] .head{opacity:0;pointer-events:none}
+[data-pre="1"] #timer{opacity:0}
+
+.field{position:relative;display:grid;min-height:0}
+.skin{grid-area:1/1;transition:opacity .34s var(--e-out)}
+[data-skin="glance"] .talk,[data-pre="1"] .talk,
+[data-skin="talk"] .glance,[data-pre="1"] .glance{opacity:0;pointer-events:none}
+[data-phase="ended"] .talk,[data-phase="ended"] .glance{animation:sinkOut .3s var(--e-in) both}
+
+/* ══════════ 皮一 · 对话（左边是伙伴那一侧说的，右边是用户那一侧说的） ══════════ */
+.talk{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0}
+.tl{
+  position:relative; display:grid; grid-template-columns:1fr; align-content:end;
+  /* (0820) 通话转写要能上滑看记录 —— 原来 overflow:hidden 锁死了。
+     改成能往上翻，留 40 行。 */
+  row-gap:15px; min-height:0; overflow-y:auto; overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch; padding:0 22px 4px;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 15%,#000 100%);
+          mask-image:linear-gradient(to bottom,transparent 0,#000 15%,#000 100%);
+}
+/* 硬双栏（设置里可切）：每句显式占一行，不然一侧的上一句和另一侧的下一句会挤进同一行、时间顺序就丢了 */
+[data-layout="columns"] .tl{grid-template-columns:1fr 1px 1fr;padding:0 18px 4px}
+[data-layout="columns"] .seam{display:block}
+.seam{display:none;position:absolute;left:50%;top:6%;bottom:0;width:1px;background:var(--thread);opacity:.75}
+.ln{min-width:0;transition:opacity .5s var(--e-out)}
+.ln[data-age="0"]{opacity:1}
+.ln[data-age="1"],.ln[data-age="2"]{opacity:.74}
+.ln[data-age="3"]{opacity:.46}
+.ln[data-side="mine"]{justify-self:start;max-width:86%}
+.ln[data-side="hers"]{justify-self:end;max-width:80%}
+[data-layout="columns"] .ln{max-width:none}
+[data-layout="columns"] .ln[data-side="mine"]{grid-column:1;justify-self:stretch;padding-right:15px}
+[data-layout="columns"] .ln[data-side="hers"]{grid-column:3;justify-self:stretch;padding-left:15px}
+.tag{font-size:10.5px;letter-spacing:.18em;color:var(--hint);margin-bottom:5px;text-align:left}
+.ln[data-tag="0"] .tag{display:none}
+/* 用户那一侧的话也走 --ink 压透明度 —— --sub 压在纸上只有 3.39:1，那一侧的每一句都会掉到那个数下面 */
+.say{font-size:16px;line-height:1.72;text-align:left;color:var(--ink);word-break:break-word;
+  transition:font-size .3s var(--e-out)}
+.ln[data-age="1"] .say,.ln[data-age="2"] .say{font-size:14.5px}
+.ln[data-age="3"] .say{font-size:13.5px}
+.ln[data-side="hers"] .say{opacity:.82}
+/* ★ 0820 逮到的英文塌空格：逐字落下是把**每个字符包成一个
+   inline-block 的 span**，中文一字一格没事，英文里那个「空格 span」宽度直接塌成 0。
+   加 white-space:pre 让空格保住自己的宽度（换行发生在 span 之间，不受影响）。 */
+.say span{display:inline-block;white-space:pre;animation:drop .34s var(--e-out) both}
+/* 打断：正在出的字停在那儿，末尾一个墨点，不消失 */
+.caret{display:inline-block;width:1px;height:.95em;vertical-align:-.12em;margin-left:4px;
+  background:var(--ink);opacity:.34;animation:none}
+/* 说英文时的中文转录：跟在原句下面一行小字，不抢原句 */
+.alt{font-size:13px;line-height:1.5;color:var(--ink);opacity:.62;margin-top:3px}
+.ln[data-age="1"] .alt,.ln[data-age="2"] .alt,.ln[data-age="3"] .alt{font-size:12px}
+
+/* ══════════ 打字：不方便说话时的另一张嘴（不是第三张皮） ══════════ */
+.typebar{padding:0 20px;transition:opacity .3s var(--e-out)}
+[data-pre="1"] .typebar{opacity:0;pointer-events:none}
+.typehint{display:flex;width:100%;min-height:44px;align-items:center;justify-content:center;gap:7px;
+  font-size:13px;color:var(--hint);letter-spacing:.01em}
+.typerow{display:none;align-items:center;gap:8px;padding:0 0 6px}
+[data-typing="1"] .typehint{display:none}
+[data-typing="1"] .typerow{display:flex;animation:rise .22s var(--e-out) both}
+/* ★ 16px 是硬的：iOS 一聚焦就放大整页。而且不许用 font 简写写 inherit（DESIGN.md 坑①） */
+.typerow input{flex:1 1 auto;min-width:0;font-family:inherit;font-size:16px;line-height:1.4;
+  color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:11px 14px;outline:none}
+.typerow input:focus-visible{border-color:var(--maple)}
+/* 发送是描边不是实心 —— 全屏唯一的实心枫叶红留给挂断／接听 */
+.sendbtn{width:44px;height:44px;flex:none;border-radius:50%;display:grid;place-items:center;
+  border:1px solid var(--ink);color:var(--ink)}
+.closebtn{width:32px;height:44px;flex:none;display:grid;place-items:center;color:var(--hint)}
+
+/* ══════════ 皮二 · 瞥一眼（贴耳拿开的那一下） ══════════ */
+/* ★ 0820 逮到的：句子一长就铺满整屏，还滑不动 —— 转写页和大字页都这样。
+   两页都限高、都能滚。 */
+.glance{display:grid;align-content:center;justify-items:center;gap:16px;padding:0 26px;
+  text-align:center;min-height:0;overflow:hidden}
+#big{font-size:40px;font-weight:600;letter-spacing:-.03em;line-height:1.1;color:var(--sub)}
+[data-phase="speaking"] #big{color:var(--ink)}
+#glanceline{font-size:19px;line-height:1.62;max-width:22ch;color:var(--sub);
+  transition:color .3s var(--e-out);
+  /* 长段落别把整屏撑爆：自己滚，滚条不露脸 */
+  max-height:46vh;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+#glanceline::-webkit-scrollbar{display:none}
+#glanceline[data-side="mine"]{color:var(--ink)}
+
+/* ══════════ 待机 / 来电 / 呼叫中 —— 开屏那一下 ══════════ */
+.pre{display:grid;align-content:center;justify-items:center;text-align:center;grid-area:1/1;
+  opacity:0;pointer-events:none;transition:opacity .3s var(--e-out)}
+[data-pre="1"] .pre{opacity:1;pointer-events:auto}
+[data-phase="incoming"] .pre{animation:enterCall .42s var(--spring-soft) both}
+.crest{width:34px;height:34px;fill:var(--maple);
+  transition:width .3s var(--spring-soft),height .3s var(--spring-soft)}
+[data-phase="incoming"] .crest,[data-phase="ringing"] .crest{width:40px;height:40px}
+[data-phase="incoming"] .crest{animation:ringBeat 1.6s var(--e-out) infinite}
+[data-phase="ringing"] .crest{animation:crestLand .42s var(--spring-soft) both}
+.pre h1{font-size:21px;font-weight:600;letter-spacing:-.02em;margin:18px 0 0;
+  transition:font-size .3s var(--e-out)}
+[data-phase="incoming"] .pre h1,[data-phase="ringing"] .pre h1{font-size:27px}
+.pre p{font-size:14px;color:var(--sub);margin:7px 0 0}
+/* 原型开关：接线后删 */
+.lethim{margin-top:24px;font-size:13px;color:var(--ink);letter-spacing:.02em;min-height:44px;
+  display:inline-flex;align-items:center;padding:0 16px;border:1px solid var(--line);
+  border-radius:12px;background:var(--card);opacity:.82;transition:opacity .24s var(--e-out)}
+[data-phase="incoming"] .lethim,[data-phase="ringing"] .lethim{opacity:0;pointer-events:none}
+
+.backhome{margin-top:14px;font-size:12.5px;color:var(--hint);letter-spacing:.02em;
+  text-decoration:none;min-height:44px;display:inline-flex;align-items:center;padding:0 14px;
+  transition:opacity .24s var(--e-out)}
+[data-phase="incoming"] .backhome,[data-phase="ringing"] .backhome{opacity:0;pointer-events:none}
+
+/* ══════════ 那条线 ══════════
+   .threadwrap{height:76px} ＋ 它那块 canvas 在 ../thread/thread.css 里（原项目 call.html:223-224
+   的原值，那块已经跟原项目对过了）。这儿**不写第二份** —— 一个值两处写，早晚漂开。 */
+
+/* ══════════ 换皮的两个点（不占底部三格：底部只放动作） ══════════ */
+.pager{display:flex;justify-content:center;align-items:center;gap:4px;
+  transition:opacity .3s var(--e-out)}
+[data-pre="1"] .pager{opacity:0;pointer-events:none}
+.pager button{width:46px;height:44px;display:grid;place-items:center;border-radius:10px}
+.pager i{width:6px;height:6px;border-radius:50%;background:var(--thread);display:block;
+  transition:background-color .24s var(--e-out)}
+[data-skin="talk"] .pager button:first-child i,
+[data-skin="glance"] .pager button:last-child i{width:7px;height:7px;background:var(--ink)}
+
+/* ══════════ 底 · 拇指区 ══════════ */
+.controls{position:relative;display:flex;align-items:center;justify-content:center;gap:26px;
+  padding:6px 20px 30px}
+.keywrap{position:relative;display:grid;place-items:center;transition:opacity .3s var(--e-out)}
+[data-pre="1"] .keywrap{opacity:0;pointer-events:none}
+.key{width:58px;height:58px;border-radius:50%;background:var(--card);border:1px solid var(--line);
+  color:var(--ink);box-shadow:0 2px 9px rgba(var(--cast),.07);display:grid;place-items:center;
+  transition:transform .28s var(--spring-pop),background-color .24s var(--e-out),border-color .24s var(--e-out)}
+.key:active{transform:scale(.94)}
+.key[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg);box-shadow:none}
+.key .slash{opacity:0;transition:opacity .18s var(--e-out)}
+.key[aria-pressed="true"] .slash{opacity:1}
+.keylabel{position:absolute;top:64px;font-size:11.5px;color:var(--hint);letter-spacing:.02em;
+  white-space:nowrap}
+/* 全屏唯一的实心枫叶红。来电时那一份给「接听」，挂断降成描边（拒接） */
+.primary{width:72px;height:72px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:var(--maple);color:var(--on-maple);box-shadow:0 5px 18px var(--hang-cast);
+  transition:transform .34s var(--spring-soft),background-color .3s var(--e-out),
+             color .3s var(--e-out),box-shadow .3s var(--e-out)}
+.primary:active{transform:scale(.94)}
+[data-phase="incoming"] .primary{background:transparent;border:1px solid var(--ink);color:var(--ink);
+  box-shadow:none;transform:translateX(-52px)}
+.answer{position:absolute;top:6px;left:50%;margin-left:-36px;width:72px;height:72px;border-radius:50%;
+  display:grid;place-items:center;background:var(--maple);color:var(--on-maple);
+  box-shadow:0 5px 18px var(--hang-cast);opacity:0;pointer-events:none;
+  transform:translateX(52px) scale(.72);
+  transition:opacity .26s var(--e-out),transform .34s var(--spring-soft)}
+[data-phase="incoming"] .answer{opacity:1;pointer-events:auto;transform:translateX(52px)}
+.icon{width:23px;height:23px;stroke:currentColor;stroke-width:2;fill:none;
+  stroke-linecap:round;stroke-linejoin:round}
+.icon-lg{width:27px;height:27px}
+.dialicon{display:none}
+[data-phase="idle"] .dialicon{display:block}
+[data-phase="idle"] .hangicon{display:none}
+
+/* ══════════ 贴耳：屏幕自己熄灭 ══════════ */
+.ear{position:absolute;inset:0;z-index:20;background:#07090c;display:grid;place-items:center;
+  align-content:center;opacity:0;pointer-events:none;transition:opacity .5s var(--e-out)}
+[data-ear="1"] .ear{opacity:1;pointer-events:auto}
+.ear i{width:132px;height:1px;background:#4a3f39;display:block;
+  animation:breathe 3.6s ease-in-out infinite}
+.earhint{position:absolute;bottom:15vh;font-size:12.5px;letter-spacing:.03em;color:#8b7d73}
+/* 贴着脸的时候不许有亮的东西：提示三秒后自沉 */
+[data-ear="1"] .earhint{animation:sink 1s var(--e-out) 3s forwards}
+
+/* ══════════ Motion Spec v1（0730 定死的，别另起一套） ══════════ */
+@keyframes drop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+@keyframes breathe{0%,100%{opacity:.22;transform:scaleX(.72)}50%{opacity:.62;transform:scaleX(1)}}
+/* ★ 原项目这条写的是 @keyframes sink{to{…}} 单帧（合法，起始帧隐含＝当前色）。
+   积木包的 css 自检要求每个 @keyframes 至少有首尾两帧（防文件被截断），
+   所以把那个隐含的起点**写明**：#8b7d73 就是 .earhint 自己的原色，效果一模一样。 */
+@keyframes sink{from{color:#8b7d73}to{color:#2e2926}}
+@keyframes sendpop{0%{transform:scale(.9)}22%{transform:scale(1.06)}100%{transform:scale(1)}}
+@keyframes enterCall{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes crestLand{0%{opacity:0;transform:translateY(-18px) scale(.84)}100%{opacity:1;transform:none}}
+@keyframes ringBeat{0%,46%,100%{transform:scale(1)}12%{transform:scale(1.075)}24%{transform:scale(1)}34%{transform:scale(1.055)}}
+@keyframes sinkOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(14px)}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important}
+  .say span{opacity:1;transform:none}
+}

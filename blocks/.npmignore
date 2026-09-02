@@ -1,0 +1,7 @@
+# ★ 构建产物不出门。
+#   `.gitignore` 里的 `dist/` 只管 git；npm 打包看的是 package.json 的 files 和这个文件。
+#   0902 复核逮到过：dist 里存着**改写前**的注释副本，源文件清干净了它还留着旧的。
+dist/
+tests/
+scripts/
+*.bak*

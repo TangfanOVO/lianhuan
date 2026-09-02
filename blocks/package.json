@@ -1,0 +1,61 @@
+{
+  "name": "lianhuan-blocks",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "连环的前端积木：配色与明暗、主页、环境效果、水面待机、丝线纸夹散摞、纸的材质、卡片抽屉面板、书架、记忆字云、机器人面板、聊天页、打电话页。零依赖；零网络（只有水面待机那一块运行时要 p5.js，走 CDN，README 交代过）。",
+  "sideEffects": [
+    "*.css"
+  ],
+  "files": [
+    "base/",
+    "ambience/",
+    "water/",
+    "physics/",
+    "paper/",
+    "parts/",
+    "shelf/",
+    "glyphcloud/",
+    "robot/",
+    "thread/",
+    "home/",
+    "chat/",
+    "call/",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    "./tokens.css": "./base/tokens.css",
+    "./accent": "./base/accent.js",
+    "./crest": "./base/crest.js",
+    "./ambience": "./ambience/ambience.js",
+    "./ambience.css": "./ambience/ambience.css",
+    "./home.css": "./home/home.css",
+    "./home": "./home/home.js",
+    "./water": "./water/maple-water.js",
+    "./silk-rope": "./physics/silk-rope.js",
+    "./paper-clip": "./physics/paper-clip.js",
+    "./stack": "./physics/stack.js",
+    "./paper.css": "./paper/paper.css",
+    "./parts": "./parts/parts.js",
+    "./parts.css": "./parts/parts.css",
+    "./shelf": "./shelf/shelf.js",
+    "./shelf.css": "./shelf/shelf.css",
+    "./glyph-cloud": "./glyphcloud/glyph-cloud.js",
+    "./glyph-cloud.css": "./glyphcloud/glyph-cloud.css",
+    "./robot": "./robot/robot.js",
+    "./robot.css": "./robot/robot.css",
+    "./thread": "./thread/thread.js",
+    "./thread.css": "./thread/thread.css",
+    "./chat": "./chat/chat.js",
+    "./chat.css": "./chat/chat.css",
+    "./call": "./call/call.js",
+    "./call.css": "./call/call.css",
+    "./glyph-ui": "./glyphcloud/glyph-ui.js",
+    "./glyph-ui.css": "./glyphcloud/glyph-ui.css"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs"
+  }
+}

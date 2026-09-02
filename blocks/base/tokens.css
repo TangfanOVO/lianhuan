@@ -1,0 +1,169 @@
+/* ══════════════════════════════════════════════════════════════
+   底座 —— 横向积木的最底下一层。
+   只想要这套配色和手感的人，拿走这一个文件就够了，不用碰别的。
+
+   里面有三样东西：颜色 / 字 / 动。都是从一个真跑了几个月的项目里沉下来的，
+   每条 ★ 都是真咬过人的坑，别当装饰删掉。
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 1. 颜色 ────────────────────────────────────────────────
+   底是**纸**，不是白。白底在夜里刺眼，纸底不会。
+
+   重点色全屏只有一个（--accent）：徽标、当前状态、进度条、发送键、收藏亮起。
+   别的地方一律不上色 —— 一个界面上两种重点色，等于没有重点色。      */
+:root {
+  --bg:#f4f1ec;  --card:#fffdfa;  --card2:#faf7f1;
+  /* ★ 0902 对齐原项目 proto.html:36 —— 0804 定的：字色别纯黑，暖一点。
+     这三个原来是更早那版（#2b2724/#8a817a/#b3aaa2），hint 亮出一大截。 */
+  --ink:#453d36; --sub:#776f68;   --hint:#7b6f64;  --line:#e4ded6;
+  --accent:#b5533a;                     /* 枫叶红 */
+  --accent-soft:#f2e3dc;
+  --thread:#ddd2c6;                     /* 挂东西的那根线 */
+  --thread2:color-mix(in srgb, var(--accent) 35%, var(--thread));
+  --shadow:0 1px 2px rgba(43,39,36,.04), 0 8px 22px rgba(43,39,36,.055);
+  --shadow-lift:0 2px 6px rgba(43,39,36,.06), 0 18px 40px rgba(43,39,36,.10);  /* 浮起来那层，比 --shadow 深 */
+  --card-border:none;                   /* 有没有描边 —— 换皮时改这个，别改每张卡 */
+  --r:16px;                             /* 圆角 */
+
+  /* ── 书脊那版要的三个（0807 定的，0830 补进积木层）──────────────
+     --cast  投影的墨色。写成 **RGB 三元组**不是颜色值，因为要 rgba(var(--cast),.12)
+             这样按需调透明度；四套皮各给各的（暗色下用纯黑，不然书底会发一圈暖光）
+     --pull  把书抽出来多少
+     --press 按下去陷多深（原稿里 pressDepth = 2 档） */
+  --cast:43,39,36;
+  --pull:18px;
+  --press:3px;
+
+  /* --tape 胶带（0902 补）：主页便签、纸夹那层贴的那道。
+     ★ 原项目换重点色时**它跟着变**（accent.js 派生 18%）—— proto.html:5426-5444。 */
+  --tape:rgba(185,136,79,.18);
+
+  /* ── 名字的一层别名（0830 补）─────────────────────────────────
+     ★ 积木层管重点色叫 `--accent`（中性，谁拿去都不别扭），
+       应用那边从第一版起就叫 `--maple`（这个项目的皮是枫叶红）。
+       两个名字都在用，所以在这儿搭一座桥：**只拿积木走的人不用改一行 CSS**。
+       改配色只改 `--accent` 那一处，下面这两个自己跟着走。 */
+  --maple: var(--accent);
+  --maple-soft: var(--accent-soft);
+  --on-maple: var(--on-accent);
+
+  /* ★ 重点色**上面**那层字，是第三个变量，不许写死 #fff。
+     白字只在深的重点色上成立：
+       亮色枫叶红 #b5533a → 白字对比度 4.93 ✅
+       暗色浅橙   #e0a373 → 白字对比度 2.17 ❌（这是你每天看自己说的话的地方）
+     换色时用 accent.js 里的 onAccent() 算，别猜。               */
+  --on-accent:#fff;
+
+  /* ── 骨架（0902 补，原项目 proto.html:52-57）──────────────────
+     换皮＝换这几个的值，不改任何一条规则。 */
+  --font-display:'Songti SC','Noto Serif SC',serif;
+  --display-weight:600;
+  --grain:0;                            /* 胶片颗粒强度，0＝不上 */
+}
+
+/* ★ 暗色要写**三处**，一处都不能少：
+     ① 系统偏好（没手动切的人走这条）
+     ② 手动切到暗（必须能压过系统偏好）
+     ③ 手动切到亮（同上，反方向）
+   只写 @media 的话，系统是暗色时用户手动切亮会切不动。            */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#12161d;  --card:#1a1f28;  --card2:#161b23;
+    --ink:#eef2f7; --sub:#9aabbf;   --hint:#6f7e92;
+    --line:rgba(255,255,255,.09);
+    --accent:#e0a373;  --accent-soft:rgba(224,163,115,.15);
+    --thread:rgba(255,255,255,.13);
+  --thread2:color-mix(in srgb, var(--accent) 35%, var(--thread));
+  --shadow:0 2px 10px rgba(0,0,0,.28);
+  --shadow-lift:0 8px 30px rgba(0,0,0,.10);
+  --card-border:1px solid rgba(255,255,255,.06);
+    --thread2:color-mix(in srgb, var(--accent) 35%, var(--thread));
+    --shadow:0 2px 10px rgba(0,0,0,.28);
+  --shadow-lift:0 8px 30px rgba(0,0,0,.10);
+    --shadow-lift:0 8px 30px rgba(0,0,0,.10);
+    --card-border:1px solid rgba(255,255,255,.06);
+    --on-accent:#2b2724;              /* 浅橙上面要用深字 */
+    --cast:0,0,0;                     /* ★ 暗色必须重钉，不然书脊底下发一圈暖光 */
+    --tape:rgba(224,163,115,.14);
+    --shadow:0 1px 2px rgba(0,0,0,.30), 0 8px 22px rgba(0,0,0,.32);
+    --shadow-lift:0 2px 6px rgba(0,0,0,.34), 0 18px 40px rgba(0,0,0,.44);
+    --hint:#7b889b;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#12161d;  --card:#1a1f28;  --card2:#161b23;
+  --ink:#eef2f7; --sub:#9aabbf;   --hint:#6f7e92;
+  --line:rgba(255,255,255,.09);
+  --accent:#e0a373;  --accent-soft:rgba(224,163,115,.15);
+  --thread:rgba(255,255,255,.13);
+  --on-accent:#2b2724;
+  --cast:0,0,0;
+  --tape:rgba(224,163,115,.14);
+  --hint:#7b889b;
+  --shadow:0 1px 2px rgba(0,0,0,.30), 0 8px 22px rgba(0,0,0,.32);
+  --shadow-lift:0 2px 6px rgba(0,0,0,.34), 0 18px 40px rgba(0,0,0,.44);
+}
+:root[data-theme="light"] {
+  --bg:#f4f1ec;  --card:#fffdfa;  --card2:#faf7f1;
+  --ink:#453d36; --sub:#776f68;   --hint:#7b6f64;  --line:#e4ded6;
+  --accent:#b5533a;  --accent-soft:#f2e3dc;  --thread:#ddd2c6;
+  --on-accent:#fff;
+  /* ★ --cast/--tape/--shadow 在这儿必须重写一份：暗色媒体查询里加了 token，
+     手动切回亮色时若不重钉，会漏用暗色那份（DESIGN.md 记的坑）。 */
+  --cast:43,39,36;
+  --tape:rgba(185,136,79,.18);
+  --shadow:0 1px 2px rgba(43,39,36,.04), 0 8px 22px rgba(43,39,36,.055);
+  --shadow-lift:0 2px 6px rgba(43,39,36,.06), 0 18px 40px rgba(43,39,36,.10);
+}
+
+/* ── 2. 动 —— Motion Spec v1 ────────────────────────────────
+   规矩三条：只动 transform / opacity；prefers-reduced-motion 全降级；
+   依赖不在就静默不动、绝不报错。                                  */
+:root {
+  --e-out:cubic-bezier(.22,.61,.36,1);        /* 进场、展开 */
+  --e-in:cubic-bezier(.4,0,1,1);              /* 退场（比进场快） */
+  --spring-soft:cubic-bezier(.34,1.26,.64,1); /* 过冲约 4% */
+  --spring-pop:cubic-bezier(.34,1.56,.64,1);  /* 过冲约 9% */
+
+  --t-page:.2s;      /* 页面切换，位移 14px */
+  --t-sheet-in:.3s;  --t-sheet-out:.22s;      /* ★ 退比进快，不然像卡住了 */
+  --t-scrim:.24s;    /* 遮罩。★ 跟手拖动时必须关掉过渡 */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration:.01ms !important; animation-iteration-count:1 !important;
+    transition-duration:.01ms !important; scroll-behavior:auto !important;
+  }
+}
+
+/* ── 3. 字 ──────────────────────────────────────────────── */
+:root {
+  --font: system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", sans-serif;
+}
+body { font-family: var(--font); font-size:15px; line-height:1.7;
+       color:var(--ink); background:var(--bg); }
+
+/* 小标签：压在中文大标题上面那行英文 */
+.eyebrow { font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--hint); }
+
+/* ★ 数字列在一起就必须 tabular-nums，不然每次刷新宽度都在跳 */
+.num { font-weight:800; letter-spacing:-.05em; font-variant-numeric:tabular-nums; }
+
+/* ★★ 输入框字号不得低于 16px。
+   iOS Safari 的硬规矩：小于 16px 一聚焦就强制放大整页。
+   而且**不能用 font 简写写 inherit** ——
+       font: 16px inherit;   ✗ 非法值，整条声明被丢掉，字号从未生效
+   要分开写：                                                     */
+input, textarea, select, button {
+  font-family: inherit;
+  font-size: 16px;          /* ✓ 分开写才生效 */
+}
+
+/* ★ 用了 preserveAspectRatio="none" 的装饰线条必须配这条，
+   不然 SVG 被横向拉伸时笔画粗细跟着变形。                        */
+svg .thread path, svg path.thread { vector-effect: non-scaling-stroke; }
+
+/* 按下去要有反应 —— 有反馈和没反馈，手感差别比想象的大 */
+.pressable { transition: transform .28s var(--spring-pop); }
+.pressable:active { transform: scale(.985); }

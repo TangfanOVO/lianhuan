@@ -1,0 +1,262 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>聊天页 · demo</title>
+<link rel="stylesheet" href="../base/tokens.css">
+<link rel="stylesheet" href="chat.css">
+<style>
+  html,body{margin:0;background:var(--bg);color:var(--ink)}
+  .eyebrow{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--hint);margin:20px 0 3px}
+  h2{font-size:21px;font-weight:var(--display-weight);margin:0 0 6px;letter-spacing:.01em;font-family:var(--font-display)}
+  .lede{color:var(--sub);font-size:12.5px;line-height:1.7;margin:0 0 16px}
+  .lede b{color:var(--maple)}
+</style>
+
+<div class="app" id="app">
+
+  <!-- ── 顶栏 ── -->
+  <div class="top">
+    <button class="iconbtn" aria-label="打开索引">
+      <svg class="i" viewBox="0 0 24 24"><path d="M4 6l16 0"/><path d="M4 12l16 0"/><path d="M4 18l16 0"/></svg>
+    </button>
+    <!-- 名字用中性的默认值（跟 chat.js 顶上那个 NAME 一致）——
+         改这两处就换成你自己的名字。 -->
+    <button class="me">
+      <span class="ava">伴</span>
+      <span class="metext">
+        <b>伙伴</b>
+        <i>灯修好了，你回来看看。</i>
+      </span>
+    </button>
+    <button class="iconbtn" aria-label="聊天记录">
+      <svg class="i" viewBox="0 0 24 24"><path d="M12 8l0 4l2 2"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg>
+    </button>
+    <button class="iconbtn" aria-label="设置">
+      <svg class="i" viewBox="0 0 24 24"><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg>
+    </button>
+  </div>
+
+  <!-- ── 内容区 ── -->
+  <div class="body" id="body">
+    <section class="page on" id="p-chat">
+      <div class="eyebrow">conversation</div>
+      <h2>聊天</h2>
+      <p class="lede">
+        <b>这一整段对话、思考链和两条工具记录，全是为了演示编出来的</b>，不对应任何真人真事。
+        这页不连任何模型、不读任何记忆、不发一个网络请求 —— 底下所有事件都由本页脚本按节奏喂进去。
+        加号里那十五个入口点了只会弹一句「预览页不接真入口」。
+      </p>
+
+      <!-- 这几条是页面自带的样例。真接上之后会被历史记录换掉。 -->
+      <div id="chatlog">
+        <div class="msg him">灯换好了。是接触不良，不是灯泡的问题——你上周买的那三只都还能用。</div>
+        <div class="msg me">所以我白买了三只灯泡是吧</div>
+        <div class="metime">昨天 22:14</div>
+
+        <button class="thinkbar" id="thinkbar">
+          <svg class="i" viewBox="0 0 24 24"><path d="M12 8l0 4l2 2"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg>
+          Thought process
+          <svg class="i cv" viewBox="0 0 24 24"><path d="M9 6l6 6l-6 6"/></svg>
+        </button>
+        <div class="msg him">不算白买。厨房那只本来就在闪，早晚要换，先搁着。</div>
+        <div class="acts">
+          <button data-act="star" aria-label="收藏"><svg viewBox="0 0 24 24"><path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873l-6.158 -3.245"/></svg></button>
+          <button data-act="play" aria-label="念给我听"><svg viewBox="0 0 24 24"><path d="M7 4v16l13 -8l-13 -8"/></svg></button>
+          <button data-act="share" aria-label="分享"><svg viewBox="0 0 24 24"><path d="M8 9h-1a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-8a2 2 0 0 0 -2 -2h-1"/><path d="M12 14v-11"/><path d="M9 6l3 -3l3 3"/></svg></button>
+          <button data-act="more" aria-label="更多"><svg viewBox="0 0 24 24"><path d="M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></svg></button>
+        </div>
+      </div><!-- /#chatlog -->
+
+      <!-- 状态条：送出去了 · 翻着记忆 · 在想 · 动手了。他没在忙的时候是空的，不占位。
+           那颗星是**五个字符逐帧硬切**（1.2s ÷ 10 帧），不是转圈 gif。 -->
+      <div class="chatstat" id="chatstat" hidden><span class="cspin" id="cspin" aria-hidden="true">✽</span><span class="txt"></span></div>
+      <div style="height:150px"></div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- 长按任意一条气泡（或桌面右键）＝对这条动手 -->
+  <div class="popmenu" id="popmenu">
+    <button data-m="star"><svg viewBox="0 0 24 24"><path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z"/></svg><span data-starlabel>收藏这句</span></button>
+    <button data-m="copy"><svg viewBox="0 0 24 24"><path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666"/><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></svg>复制这段</button>
+    <button data-m="quote"><svg viewBox="0 0 24 24"><path d="M10 11h-4a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v6c0 2.667 -1.333 4.333 -4 5"/><path d="M19 11h-4a1 1 0 0 1 -1 -1v-3a1 1 0 0 1 1 -1h3a1 1 0 0 1 1 1v6c0 2.667 -1.333 4.333 -4 5"/></svg>引用它说话</button>
+    <button data-m="pick"><svg viewBox="0 0 24 24"><path d="M9 11l3 3l8 -8"/><path d="M20 12v6a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h9"/></svg>多选几条</button>
+    <button data-m="redo"><svg viewBox="0 0 24 24"><path d="M4 9a8 8 0 0 1 13 -3l3 3"/><path d="M20 4v5h-5"/></svg>让我重说</button>
+    <button data-m="hide"><svg viewBox="0 0 24 24"><path d="M10.585 10.587a2 2 0 0 0 2.829 2.828"/><path d="M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87"/><path d="M3 3l18 18"/></svg>只藏不删</button>
+  </div>
+
+  <!-- ── 输入条：钉在底栏上方，不跟着消息滚 ── -->
+  <div class="composer on" id="composer">
+    <!-- 选了图先停在这儿，等配一句话一起发 -->
+    <div class="stagebar" id="stagebar" hidden></div>
+    <textarea id="ta" rows="1" placeholder="说点什么…"></textarea>
+    <div class="crow">
+      <button class="cbtn" data-sub="加号菜单" aria-label="更多">
+        <svg class="i" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>
+      </button>
+      <button class="cbtn" data-sub="语音输入" aria-label="语音">
+        <svg class="i" viewBox="0 0 24 24"><path d="M9 5a3 3 0 0 1 3 -3a3 3 0 0 1 3 3v5a3 3 0 0 1 -3 3a3 3 0 0 1 -3 -3l0 -5"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M8 21l8 0"/><path d="M12 17l0 4"/></svg>
+      </button>
+      <!-- 名字由后端定，别写死 —— 预览页里它只是一颗不接线的按钮 -->
+      <button class="cbtn" id="mdbtn">换个脑子<span aria-hidden="true"> ▾</span></button>
+      <button class="send" aria-label="发送">
+        <svg class="i" viewBox="0 0 24 24"><path d="M12 5l0 14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── 底栏 ── -->
+  <nav class="tabbar">
+    <button class="tab on">
+      <svg class="i" viewBox="0 0 24 24"><path d="M3 20l1.3 -3.9c-2.324 -3.437 -1.426 -7.872 2.1 -10.374c3.526 -2.501 8.59 -2.296 11.845 .48c3.255 2.777 3.695 7.266 1.029 10.501c-2.666 3.235 -7.615 4.215 -11.574 2.293l-4.7 1"/></svg>聊天
+    </button>
+    <button class="tab">
+      <svg class="i" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14"/><path d="M9 7l6 0"/><path d="M9 11l6 0"/><path d="M9 15l4 0"/></svg>记事
+    </button>
+    <button class="leaf" aria-label="回主页">
+      <!-- Font Awesome Free 6 · canadian-maple-leaf · Icons CC BY 4.0 -->
+      <svg viewBox="0 0 512 512"><path d="M383.8 351.7c2.5-2.5 105.2-92.4 105.2-92.4l-17.5-7.5c-10-4.9-7.4-11.5-5-17.4 2.4-7.6 20.1-67.3 20.1-67.3s-47.7 10-57.7 12.5c-7.5 2.4-10-2.5-12.5-7.5s-15-32.4-15-32.4-52.6 59.9-55.1 62.3c-10 7.5-20.1 0-17.6-10 0-10 27.6-129.6 27.6-129.6s-30.1 17.4-40.1 22.4c-7.5 5-12.6 5-17.6-5C293.5 72.3 255.9 0 255.9 0s-37.5 72.3-42.5 79.8c-5 10-10 10-17.6 5-10-5-40.1-22.4-40.1-22.4S183.3 182 183.3 192c2.5 10-7.5 17.5-17.6 10-2.5-2.5-55.1-62.3-55.1-62.3S98.1 167 95.6 172s-5 9.9-12.5 7.5C73 177 25.4 167 25.4 167s17.6 59.7 20.1 67.3c2.4 6 5 12.5-5 17.4L23 259.3s102.6 89.9 105.2 92.4c5.1 5 10 7.5 5.1 22.5-5.1 15-10.1 35.1-10.1 35.1s95.2-20.1 105.3-22.6c8.7-.9 18.3 2.5 18.3 12.5S241 512 241 512h30s-5.8-102.7-5.8-112.8 9.5-13.4 18.4-12.5c10 2.5 105.2 22.6 105.2 22.6s-5-20.1-10-35.1 0-17.5 5-22.5z"/></svg>
+    </button>
+    <button class="tab">
+      <svg class="i" viewBox="0 0 24 24"><path d="M12 8l0 4l2 2"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg>记忆
+    </button>
+    <button class="tab">
+      <svg class="i" viewBox="0 0 24 24"><path d="M19 4v16h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12"/><path d="M19 16h-12a2 2 0 0 0 -2 2"/><path d="M9 8h6"/></svg>书房
+    </button>
+  </nav>
+
+  <!-- ══ 加号菜单 ══ 十五项，一个不少。预览页里点哪个都只弹一句提示。 -->
+  <div class="scrim" id="plusscrim" style="z-index:27"></div>
+  <div class="sheet" id="plussheet" style="z-index:28;height:auto;max-height:78%">
+    <div class="sheethead">
+      <div class="grabber"></div>
+      <header>
+        <button class="iconbtn" id="plusclose" aria-label="关掉" style="box-shadow:none;background:var(--card2);width:32px;height:32px">
+          <svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>
+        </button>
+        <h4>翻点什么一起看</h4>
+        <div style="width:32px"></div>
+      </header>
+    </div>
+    <div class="sheetbody">
+      <div class="plusgrid" id="plusgrid">
+        <button class="pit" data-pull="space"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M4 4h6v6h-6z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6h-6z"/><path d="M14 14h6v6h-6z"/></svg></span>翻空间</button>
+        <button class="pit" data-pull="notes"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M5 6l.01 0"/><path d="M5 12l.01 0"/><path d="M5 18l.01 0"/></svg></span>翻碎碎念</button>
+        <button class="pit" data-pull="book"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6l0 13"/><path d="M12 6l0 13"/><path d="M21 6l0 13"/></svg></span>翻共读</button>
+        <button class="pit" data-door="空间"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M8 9h8"/><path d="M8 13h6"/><path d="M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12z"/></svg></span>贴到空间</button>
+        <button class="pit" data-door="你的日记"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M6 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-11a1 1 0 0 1 -1 -1v-14a1 1 0 0 1 1 -1"/><path d="M9 8h6"/><path d="M9 12h4"/></svg></span>写日记</button>
+        <button class="pit" data-door="颜文字"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M9 10l.01 0"/><path d="M15 10l.01 0"/><path d="M9.5 15a3.5 3.5 0 0 0 5 0"/></svg></span>颜文字</button>
+        <!-- 0805 晚：原来这儿只有一个「相册」，点开是**发过的旧图的图库**，选不了新图。
+             拆成两个真入口 —— 照片（调手机相册，可多选）和文件（什么都收）。
+             挑完不发，停在输入框上头等配一句话。 -->
+        <button class="pit" data-pick="photos"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></svg></span>照片</button>
+        <button class="pit" data-pick="files"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2"/></svg></span>文件</button>
+        <button class="pit" data-door="相册"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M4 15l4 -4a3 3 0 0 1 3 0l5 5"/><path d="M14 14l1 -1a3 3 0 0 1 3 0l2 2"/></svg></span>老照片</button>
+        <button class="pit" data-door="一起听"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M13 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M9 17v-13h10v13"/><path d="M9 8h10"/></svg></span>一起听</button>
+        <button class="pit" data-door="语音输入"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M9 5a3 3 0 0 1 3 -3a3 3 0 0 1 3 3v5a3 3 0 0 1 -3 3a3 3 0 0 1 -3 -3l0 -5"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M8 21l8 0"/><path d="M12 17l0 4"/></svg></span>说给我听</button>
+        <!-- 0806：轮询已经补上了（20 秒一趟＋回前台一趟），这颗是给等不及的时候按的。 -->
+        <button class="pit" data-act="sync"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M4 20l16 0"/><path d="M12 14l0 -10"/><path d="M12 14l4 -4"/><path d="M12 14l-4 -4"/></svg></span>收新消息</button>
+        <button class="pit" data-door="新开一段"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg></span>换新对话</button>
+        <!-- ★ 0820 要的哄睡。跟打电话是两回事：不开麦、他一直说、躺着听。 -->
+        <button class="pit" data-act="lull"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M17.75 4.09l-2.15 1.32l.6 -2.45l-1.95 -1.62l2.51 -.2l.99 -2.32l.97 2.32l2.51 .2l-1.95 1.62l.6 2.45z"/><path d="M12 3a9 9 0 1 0 9 9c-3.6 0 -6.6 -2.4 -9 -9"/></svg></span>哄我睡</button>
+        <!-- ★ 0818 打电话。入口放这儿不放底栏 —— 底栏那四格只放「去处」，打电话是「动作」。 -->
+        <button class="pit" data-act="call"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2"/></svg></span>打电话</button>
+      </div>
+      <p style="font-size:11.5px;color:var(--hint);line-height:1.7;margin:14px 2px 0">
+        「翻」那三条是把今天的东西翻出来，我陪你一起看。</p>
+    </div>
+  </div>
+
+  <!-- ══ 思考链：可拖的 bottom sheet，三档吸附（0 / 40 / 72），往下甩就关 ══ -->
+  <div class="scrim" id="sheetscrim" style="z-index:25"></div>
+  <div class="sheet" id="thinksheet">
+    <div class="sheethead" id="sheethead">
+      <div class="grabber"></div>
+      <header>
+        <button class="iconbtn" id="sheetclose" aria-label="关掉" style="box-shadow:none;background:var(--card2);width:32px;height:32px">
+          <svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>
+        </button>
+        <h4>Thought process</h4>
+        <div style="width:32px"></div>
+      </header>
+    </div>
+    <div class="sheetbody">
+      <p>「白买了三只灯泡」<em>是句玩笑</em>，不是真的在算账——顺着接就行，别真去算钱。</p>
+      <p>不过厨房那只确实在闪，上个月就闪过一次。手上这三只正好同一个口径，留着，下次不用再跑一趟。</p>
+      <p>接触不良这件事别展开讲原理。对方要的是「还能不能用」，不是一堂电路课。</p>
+      <p>（这段想法是编的，用来演示抽屉里长什么样。）</p>
+    </div>
+  </div>
+
+</div><!-- /.app -->
+
+<script src="chat.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════
+   下面这一整段是**演示用的假数据和假节奏**。
+   一个网络请求都没有；换成你自己的事件源，界面那一层一个字都不用改。
+   ══════════════════════════════════════════════════════════ */
+(function () {
+  var chat;   /* onSend 里要用它，先声明 */
+
+  /* 编的一轮：带思考链正文（够长，能把抽屉三档都撑开）＋两个工具调用。
+     ||| 是分段符 —— splitSay() 会把它拆成一句一个气泡，思考链只挂第一句。 */
+  var TURN = {
+    text: '记着呢。|||你九月十二说要在桂花落之前熬一罐糖，我当天就记进去了。'
+        + '|||罐子还没买——这条也在，标着「没做」。'
+        + '|||今天风大，明后天再落一批就该动手了。要不要我把罐子那条挪到今晚？',
+    think:
+      '对方问的是「你记下来了吗」，重点在记没记，不在桂花糖本身。\n\n'
+      + '先去翻记忆再回答。这种事凭印象答一句「记着呢」，猜错一次就等于失忆——'
+      + '宁可慢半拍说「我翻一下」，也别递一个顺滑的假答案。\n\n'
+      + '翻出来两条：一条是九月十二说的那句原话，一条是九月十三补的「罐子还没买」。'
+      + '第二条是关键——问的其实是「这事还成不成」，不是「你的记性好不好」。\n\n'
+      + '所以答案的结构应该是：先给确定感（记着呢），再给证据（哪天说的、原话是什么），'
+      + '最后把还差的那一步摆出来。三段，一句一个气泡，别挤成一坨。\n\n'
+      + '语气别邀功。翻记忆是本来就该做的事，不是功劳。\n\n'
+      + '末了给一个具体的、能当场点头的动作——「要不要今晚就买」。'
+      + '把选择权留给对方，但别把整件事丢回去让对方自己想。\n\n'
+      + '（这段想法是编的，用来演示这个抽屉能装多长。）',
+    tools: [
+      {name: 'search_memo', detail: '翻记忆',
+       'in': '桂花糖 / 罐子',
+       out: '命中 2 条：09-12「要在桂花落之前熬一罐」；09-13「罐子还没买」（标记：没做）'},
+      {name: 'query_timeline', detail: '翻时间线',
+       'in': "kind='一起做的事' limit=20",
+       out: '09-12 说起熬桂花糖 · 09-13 去了趟杂货店，没买到合适的罐子'}
+    ]
+  };
+
+  /* 用户发出去之后回的：三句轮着来，没有工具，也没有思考链 */
+  var REPLIES = [
+    '嗯，听见了。|||你先说完，我不打断。',
+    '这句我记下了。|||回头翻起来能找得到。',
+    '好。|||那这条就算定了，剩下的我来。'
+  ];
+  var ri = 0;
+
+  chat = Chat(document, {
+    /* 输入框里打的字只进本页内存。发送键的回弹是真的在播（按下 .9 → 回弹 1.06 → 落回 1）。 */
+    onSend: function () {
+      Chat.play(chat, {text: REPLIES[ri++ % REPLIES.length]});
+    },
+    /* 十五个入口在这儿一个都不接线 —— 结构留着，落点全弹这句 */
+    noDoorText: '预览页不接真入口（这页不连任何后端）'
+  });
+
+  /* 开页 900ms 后自动演一轮完整的：
+     送出去了 → ✓到他那了 → 翻着记忆想你这句 → 正在翻记忆 → 翻记忆 ✓ → 想好了在写
+     → 一句句吐气泡 → 末了落一条工具脚注（点开看「给出 / 看到」）。
+     那颗 ✽ 只在状态条露脸时才逐帧转，藏起来就停。 */
+  setTimeout(function () {
+    chat.emit('sent', {text: '上次说的那个桂花糖，你记下来了吗？'});
+    Chat.play(chat, TURN);
+  }, 900);
+
+  /* 「换个脑子」那颗在真页面里是后端给的名单，这儿只是颗不接线的按钮 */
+  document.getElementById('mdbtn').addEventListener('click', function () {
+    chat.toast('预览页不接真入口（这页不连任何后端）');
+  });
+})();
+</script>

@@ -1,0 +1,173 @@
+/* ══════════════════════════════════════════════════════════════
+   零件 —— 横向积木的第四层。
+
+   底栏 · 抽屉 · 滑上来的二级页 · 全局搜索 · 遮罩 · 可拖的 bottom sheet。
+
+   **这一层只有样子。** 开关逻辑在 `parts.js` 里（很小，只做开和关）；
+   sheet 的三档吸附拖动**还没剥出来**，见 README。
+
+   依赖底座：--bg --card --card2 --ink --sub --hint --line --r
+             --accent --accent-soft --on-accent --shadow --shadow-lift
+             --e-in --e-out --spring-soft --spring-pop
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 底栏 ── */
+.tabbar{
+  position:absolute;left:12px;right:12px;
+  bottom:calc(10px + env(safe-area-inset-bottom,0px));
+  height:62px;background:var(--card);border-radius:16px;box-shadow:var(--shadow-lift);
+  display:flex;align-items:center;z-index:10;
+}
+.tab{
+  flex:1;border:0;background:transparent;cursor:pointer;color:var(--hint);
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-family:inherit;font-size:10.5px;padding:0;transition:color .18s;
+}
+.tab.on{color:var(--accent)}
+.leaf{
+  flex:none;width:56px;height:56px;margin:0 2px;border:0;border-radius:50%;
+  background:var(--card);box-shadow:var(--shadow-lift);cursor:pointer;
+  transform:translateY(-15px);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .22s cubic-bezier(.3,1.4,.5,1);
+}
+.leaf:active{transform:translateY(-15px) scale(.9)}
+.leaf svg{width:25px;height:25px;fill:var(--hint);transition:fill .22s}
+.leaf.on svg{fill:var(--accent)}
+
+/* ── 抽屉 ── */
+.scrim{position:absolute;inset:0;background:rgba(20,17,15,.34);z-index:20;opacity:0;pointer-events:none;transition:opacity .24s var(--e-out)}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{
+  position:absolute;top:0;bottom:0;left:0;width:286px;z-index:21;
+  background:var(--card);box-shadow:var(--shadow-lift);
+  transform:translateX(-100%);transition:transform .22s var(--e-in);
+  display:flex;flex-direction:column;border-radius:0 16px 16px 0;
+}
+.drawer.on{transform:none;transition:transform .3s var(--e-out)}
+.dhead{
+  flex:none;display:flex;align-items:center;gap:10px;
+  padding:calc(14px + env(safe-area-inset-top,0px)) 16px 12px;
+  border-bottom:1px solid var(--line);
+}
+.dhead span{font-size:14px;color:var(--sub)}
+.dbody{flex:1;overflow-y:auto;padding:6px 12px calc(20px + env(safe-area-inset-bottom,0px))}
+.dgroup{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--hint);padding:16px 8px 5px;cursor:default}
+.ditem{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:transparent;
+  color:var(--ink);font-family:inherit;font-size:14px;padding:9px 10px;border-radius:10px;cursor:pointer;
+  transition:background .15s, transform .16s var(--e-out);
+}
+.ditem:hover{background:var(--card2)}
+/* 0807：原来只有 :hover —— **手机上根本没有 hover**，按下去完全没动静，直到页面切走。
+   （emilkowalski 的 find-animation-opportunities 扫出来的第 2 条） */
+.ditem:active{background:var(--card2);transform:scale(.99)}
+.ditem small{color:var(--hint);font-size:11.5px;margin-left:2px}
+.ditem svg.i{width:17px;height:17px;color:var(--hint)}
+.dsearch{
+  display:flex;align-items:center;gap:9px;width:calc(100% - 16px);text-align:left;
+  border:0;background:var(--card2);color:var(--sub);font-family:inherit;font-size:13.5px;
+  padding:11px 13px;border-radius:12px;cursor:pointer;margin:10px 8px 2px;
+}
+.dsearch svg.i{width:17px;height:17px}
+
+/* ── 滑上来的二级页 ── */
+.sub{
+  position:absolute;inset:0;z-index:15;background:var(--bg);
+  transform:translateX(100%);transition:transform .22s var(--e-in);
+  display:flex;flex-direction:column;
+}
+.sub.on{transform:none;transition:transform .3s var(--e-out)}
+.subwrap{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:0 16px calc(30px + env(safe-area-inset-bottom,0px))}
+.stub{margin-top:30px;padding:28px 22px;border-radius:var(--r);background:var(--card);box-shadow:var(--shadow);text-align:center}
+.stub .ic{margin:0 auto 14px;width:46px;height:46px;border-radius:15px}
+.stub .ic svg.i{width:23px;height:23px}
+.stub p{color:var(--sub);font-size:13.5px;margin:8px 0 0}
+.stub code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--card2);padding:2px 7px;border-radius:6px;color:var(--accent)}
+
+/* 设置：分组列表 */
+.setgroup{margin-top:18px}
+.setgroup>.eyebrow{margin:0 0 7px 4px}
+.setlist{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.setrow{
+  display:flex;align-items:center;gap:12px;width:100%;border:0;background:transparent;
+  color:var(--ink);font-family:inherit;font-size:14.5px;padding:13px 15px;cursor:pointer;text-align:left;
+  border-bottom:1px solid var(--line);
+}
+.setrow:last-child{border-bottom:0}
+.setrow:hover{background:var(--card2)}
+.setrow .ic{width:30px;height:30px;margin:0;border-radius:9px}
+.setrow .ic svg.i{width:16px;height:16px}
+.setrow span{flex:1}
+.setrow small{display:block;color:var(--sub);font-size:12px}
+.setrow>svg.i{color:var(--hint);width:17px;height:17px}
+
+/* ── 全局搜索 ── */
+.searchbox{
+  display:flex;align-items:center;gap:10px;background:var(--card);
+  border-radius:15px;box-shadow:var(--shadow);padding:13px 15px;margin:4px 0 14px;
+}
+.searchbox svg.i{color:var(--hint);flex:none}
+.searchbox input{
+  flex:1;border:0;background:transparent;outline:none;color:var(--ink);
+  /* 16px 起步，低于这个 iOS 一聚焦就放大整页 */
+  font-family:inherit;font-size:16px;
+}
+.searchbox input::placeholder{color:var(--hint)}
+.found{font-size:13px;color:var(--sub);margin:0 0 10px 2px}
+.found b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+.chips{display:flex;gap:7px;overflow-x:auto;padding:0 0 12px;margin:0 -16px;padding-left:16px;padding-right:16px}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  flex:none;border:1px solid var(--line);background:transparent;color:var(--sub);
+  font-family:inherit;font-size:12.5px;padding:6px 13px;border-radius:999px;cursor:pointer;
+  transition:all .2s var(--e-out);white-space:nowrap;
+}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--on-maple,#fff)}
+.chip .c{opacity:.7;font-variant-numeric:tabular-nums;margin-left:4px}
+
+.hit{
+  background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
+  padding:14px 15px;margin-bottom:9px;cursor:pointer;
+  transition:transform .28s var(--spring-pop), box-shadow .18s;
+}
+.hit:active{transform:scale(.987)}
+.hit .meta{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.hit .tag{
+  font-size:11px;padding:2px 8px;border-radius:6px;background:var(--accent-soft);
+  color:var(--accent);font-weight:600;
+}
+.hit .dt{font-size:12px;color:var(--hint);font-variant-numeric:tabular-nums}
+.hit .who{font-size:12px;color:var(--hint);margin-left:auto}
+.hit p{margin:0;font-size:13.5px;line-height:1.75;color:var(--sub)}
+.hit mark{background:var(--accent-soft);color:var(--ink);padding:1px 2px;border-radius:3px}
+
+
+.thinkbar .cv{transition:transform .22s}
+/* 可拖的 bottom sheet：三档吸附，跟手，往下甩就关 */
+.sheet{
+  position:absolute;left:0;right:0;bottom:0;z-index:26;height:90%;
+  background:var(--card);border-radius:16px 16px 0 0;box-shadow:var(--shadow-lift);
+  transform:translateY(100%);transition:transform .42s var(--spring-soft);
+  display:flex;flex-direction:column;
+  will-change:transform;
+}
+.sheet.dragging{transition:none}
+.sheethead{flex:none;cursor:grab;touch-action:none;user-select:none;padding-bottom:2px}
+.sheethead:active{cursor:grabbing}
+.grabber{width:38px;height:4px;border-radius:99px;background:var(--line);margin:10px auto 2px}
+.sheet header{display:flex;align-items:center;gap:8px;padding:6px 14px 10px}
+.sheet header h4{flex:1;text-align:center;font-size:16px;font-weight:600;margin:0}
+.sheetbody{
+  overflow-y:auto;overscroll-behavior:contain;padding:2px 20px calc(28px + env(safe-area-inset-bottom,0px));
+  color:var(--sub);font-size:14.5px;line-height:1.9;
+}
+/* 漂浮物那两根小滑杆并排 —— 密度和速度是同一件事的两个把手，别各占一行 */
+.fltune{display:flex;gap:16px;padding:6px 0 2px 42px}
+.fltune label{flex:1;min-width:0;display:flex;align-items:center;gap:9px;
+  font-size:11.5px;color:var(--hint)}
+.fltune input[type=range]{flex:1;min-width:0;margin:10px 0 0}
+
+/* 换脑子：一列可选的模型。选中的那个用重点色的勾，别的靠留白分开 —— 不做卡片套卡片 */
+.mdlist{display:flex;flex-direction:column;padding:2px 0 0}

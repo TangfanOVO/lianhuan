@@ -1,0 +1,21 @@
+/* 漂浮物 —— 飘在背景里的那些小东西
+   ════════════════════════════════════════════════════════════════
+   ★ 这份跟应用 index.html 里那一段是**同一份**（应用是单文件零构建，引不了外链）。
+     改一处要改两处 —— tests 里钉了一条防漂移。
+   ★ 要 base/tokens.css 里的 --maple（积木层叫 --accent，那边搭了别名）。
+   ★ 宿主要 position:relative 或 absolute，且内容层的 z-index 要比它高。
+   ════════════════════════════════════════════════════════════════ */
+
+/* 漂浮物 —— 图标全来自 Tabler / Font Awesome，没有一个是手画的 */
+.floaty{position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.floaty i{
+  position:absolute;top:-8%;display:block;color:var(--maple);opacity:.2;
+  animation:fall linear infinite;
+}
+.floaty i svg{width:100%;height:100%;display:block}
+.floaty i svg[data-line]{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.floaty i svg[data-solid]{fill:currentColor}
+@keyframes fall{
+  0%  {transform:translate3d(0,-10vh,0) rotate(0deg)}
+  100%{transform:translate3d(var(--drift,14px),112vh,0) rotate(var(--spin,300deg))}
+}

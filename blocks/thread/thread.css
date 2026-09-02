@@ -1,0 +1,4 @@
+/* 那条线自己只要一件事：一块能铺满的画布。
+   ★ 别给它 background —— 它是画在宿主底色上的一条线，不是一张图。 */
+.threadwrap { position: relative; width: 100%; height: 76px;   /* 家里 call.html:223 的原值，别改 */ }
+.threadwrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }

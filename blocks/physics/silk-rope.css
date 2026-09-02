@@ -1,0 +1,51 @@
+/* 丝线叠卡 —— 配 silk-rope.js 用。只有这些，没有别的。
+   依赖底座：--card --sub --hint --accent --accent-soft --shadow --card-border --e-out --e-in */
+
+.silkstage {
+  position: relative; height: 560px; touch-action: pan-y;
+  transition: opacity .22s var(--e-in);
+}
+.silkstage > svg[data-svg] {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  z-index: 1; pointer-events: none;
+}
+
+/* ── 卡片尺寸跟着窄屏收一点（0902）────────────────────────────
+   几何那半边本来就在按 `sx = W/393` 压（rebuild() 里），但卡片的字号和内边距是
+   写死的 —— 393 以下线上的点越挤越近、卡片却纹丝不动，窄屏上就贴边、互相叠。
+   ★ silk-rope.js 没把 sx 暴露出来（那半边一个字不许改），所以这儿走 CSS：
+     clamp 的**上限就是原来的那几个数**，所以 393 及以上一个像素都没变；
+     只有比 393 窄才开始收，收到 333 那一档为止（再窄就停，别把字缩到看不清）。
+   ※ 用的是 vw 不是容器宽 —— 舞台是通栏的块，两者相等；真要塞进窄侧栏里用，
+     把这几条覆盖掉就行。 */
+.silkcard {
+  position: absolute; left: 0; top: 0;
+  transform-origin: 50% 50%; will-change: transform; z-index: 3;
+  padding: clamp(6.8px, 2.04vw, 8px) clamp(10.2px, 3.05vw, 12px) clamp(7.6px, 2.29vw, 9px);
+  border-radius: 16px;
+  background: var(--card); border: var(--card-border); box-shadow: var(--shadow);
+  cursor: pointer; white-space: nowrap;
+  /* ⚠ 这条 transition 只许写这三个属性。写 `all` 会把 JS 每帧算出来的 transform
+     也套上过渡 —— 风立刻糊成一团，卡片像在泥里游。真栽过。 */
+  transition: opacity .3s var(--e-out), filter .3s var(--e-out), box-shadow .3s var(--e-out);
+}
+/* ★ hidden 会被上面那条 position 之外的 display 声明盖掉，所以钉死一次 */
+.silkcard[hidden] { display: none; }
+
+.silkcard b { display: block; font-size: clamp(12.3px, 3.69vw, 14.5px); font-weight: 650; line-height: 1.3; }
+.silkcard i { display: block; font-size: clamp(9.8px, 2.93vw, 11.5px); color: var(--sub); margin-top: 1px; font-style: normal; }
+.silkcard em {
+  font-style: normal; font-size: clamp(9.3px, 2.8vw, 11px); font-weight: 600;
+  color: var(--accent); background: var(--accent-soft);
+  padding: 1px 6px; border-radius: 6px; margin-left: 2px;
+}
+
+/* 按下去变淡，不缩放 —— 缩放要占 transform，而 transform 每帧被物理写着。
+   而且纸被按住变淡，本来就比缩放更像纸。 */
+.silkcard:active { opacity: .86; transition-duration: .12s; }
+
+.silkhint {
+  position: absolute; left: 0; right: 0; bottom: 4px; z-index: 2;
+  text-align: center; font-size: 10.5px; line-height: 1.6; color: var(--hint);
+  transition: opacity .3s var(--e-out); pointer-events: none;
+}

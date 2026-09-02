@@ -1,0 +1,45 @@
+/* 纸夹 · 散摞 —— 两种主页排法的舞台样式
+   ════════════════════════════════════════════════════════════════════
+   ★ 跟应用 index.html 里那几条是同一份，tests 钉着。
+   ★ 卡片本身的样子写在 DOM 的内联 style 里（原设计稿就是那样导出的），
+     所以这里只有舞台和两条**行高还原**——那两条不是装饰，是几何的一部分，见注释。
+   ════════════════════════════════════════════════════════════════════ */
+
+/* 画布：两种排法都按固定尺寸画，整块等比缩放，不重排 */
+.hcanvas{position:relative;width:440px;height:748px;margin:0 auto;overflow:hidden;perspective:1100px}
+.paperstage{position:relative;width:393px;height:660px;margin:0 auto;overflow:hidden;perspective:1100px}
+.paperhint{position:absolute;left:0;right:0;bottom:86px;text-align:center;font-size:10.5px;color:var(--hint);pointer-events:none;transition:opacity .3s var(--e-out)}
+[data-stackstage] [data-leaf] b{line-height:normal}
+[data-paperstage] [data-body] b,
+[data-paperstage] [data-body] i,
+[data-paperstage] [data-body] span{line-height:normal}
+
+/* 按下去有反应（原来只有方块版有） */
+[data-slip], [data-leaf]{transition:opacity .26s var(--e-out)}
+[data-slip]:active, [data-leaf]:active{opacity:.86;transition-duration:.12s}
+
+/* ── fit() 量的那个盒子 ────────────────────────────────────────
+   原件里对应的是 [data-home="paper"] / [data-home="stack"]：一个**宽度跟着视口走**
+   的普通块，放在 .body.nopad（左右内边距归零）里。paper-clip.js / stack.js 的 fit()
+   量的就是它 —— `host.parentElement.clientWidth`，k = min(1, W/440)，
+   然后 host 缩 k、盒子的 height 让成 748*k。
+   ✗ 0902 之前这里写死 `width:440px;height:748px` —— fit() 永远量到 440，
+     k 恒等于 1，再窄的屏也不缩，画布被外面那层 overflow 硬裁掉。
+   ※ 跟原件唯一不一样的一处：原件的 .hcanvas 是 `margin:0 auto`，可容器比 440 窄时
+     auto 会算成 0（左对齐、右边溢出），而 fit() 的 transform-origin 是 50% 0 ——
+     缩完会偏到一边去。原件那台机 440 宽、k 恒等于 1，碰不到这一格；这儿必须真居中，
+     所以用 flex 居中（justify-content:center 在溢出时是两边均分，正好跟 50% 0 对上）。 */
+.hstage{position:relative;width:100%;display:flex;justify-content:center;align-items:flex-start}
+.hstage .hcanvas{margin:0;flex:0 0 auto}
+
+/* ── 底噪纸墙（0902 从原件平移过来的）──────────────────────────
+   纸夹和散摞底下那一层散着的纸。**原来这两个 demo 一张都没有** ——
+   卡片浮在一片空白上，跟真的差得远。
+   ★ 是整段搬的，位置/转角/透明度一个数没动：这套几何是手调出来的，重画一定不对。
+   ★ 它在 .hcanvas 外面 —— 舞台有 perspective，进去会跟着卡片一起被透视推远。
+   ★ 挂法照原件：墙是**画布的外层兄弟**，贴在最外面那层壳（原件是 .app，demo 是 .wrap）
+     上 inset:0，随壳的整高伸缩、不吃 host 的 transform。
+     0902 之前它被塞进 440×748 的 .hstage 里 —— 一整屏的墙（135 张、y 覆盖 −67→913）
+     被关进画布那么大的框里，跟着画布一起缩，缩完还漏边。 */
+.wallbg{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  transition:opacity .42s var(--e-out), filter .42s var(--e-out)}

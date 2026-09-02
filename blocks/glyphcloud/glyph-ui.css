@@ -1,0 +1,37 @@
+/* 记忆字云 · 外壳层 —— 样式
+   ════════════════════════════════════════════════════════════════════
+   ⚠ 这份要**和 glyph-cloud.css 一起引**，两个都要，顺序：先 tokens.css，
+     再 glyph-cloud.css，最后这一份。
+
+   ★ 为什么这儿没有 #glyphwrap / #glyphrow / #glyphpick 那一大段：
+     原项目 glyph_ui.css 那 100 行**已经原样在 glyph-cloud.css 里了**
+     （逐行 diff 过，只有注释里的人名被抹掉，CSS 规则一个字节不差）。
+     再抄一遍就是同一组规则加载两次 —— 所以这儿只补 glyph-cloud.css
+     假设「宿主已经有」、但一个空白页没有的那几条：
+
+       .subwrap   #glyphwrap 的 `margin:0 -16px` 是**出血**，靠的是外层有 16px 内边距；
+                  外层没内边距的话画布会顶出容器去。原件：proto.html:868
+       .dhint     四栏上面那句灰色小字。原件：proto.html:1287
+       [hidden]   hidden 属性等价于 display:none，可 CSS 里任何一条 display 声明
+                  优先级都比它高，直接把它盖掉（原项目一天里栽了三次）。
+                  原件：glyph/index.html:32
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ★ 原件 glyph/index.html:32 记的坑（一天里栽了三次，钉死）：
+   hidden 属性等价于 display:none，可 CSS 里任何一条 display 声明优先级都比它高，
+   直接把它盖掉。#glyphpick 初始带 hidden，这条不写它就一直挂在那儿。 */
+[hidden]{display:none!important}
+
+/* 字云所在的那一栏。#glyphwrap / #glyphrow 都是 `margin:0 -16px` 往外顶，
+   顶出去的正是这 16px —— 所以这两个值是**一对**，改一个要改另一个。
+   原件：proto.html:868 */
+.subwrap{
+  flex:1;overflow-y:auto;overscroll-behavior:contain;
+  padding:0 16px calc(30px + env(safe-area-inset-bottom,0px));
+}
+
+/* 图底下那句灰色小字（原项目里是「一共 N 条」）。原件：proto.html:1287 */
+.dhint{
+  font-size:11.5px;color:var(--hint);margin:-4px 2px 2px;min-height:1.2em;
+  transition:opacity .22s var(--e-out);
+}

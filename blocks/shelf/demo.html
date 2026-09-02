@@ -1,0 +1,193 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>书房 · 书脊 · demo</title>
+<link rel="stylesheet" href="../base/tokens.css">
+<link rel="stylesheet" href="shelf.css">
+<style>
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.7 system-ui,-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif}
+  .wrap{max-width:440px;margin:0 auto;min-height:100vh;background:var(--bg);padding:0 16px 40px}
+  .eyebrow{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--hint);margin:22px 0 3px}
+  h2{font-size:21px;font-weight:700;margin:0 0 3px;letter-spacing:.01em}
+  .lede{font-size:13px;color:var(--sub);margin:2px 0 22px}
+  .picked{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:9;
+    background:var(--card);box-shadow:var(--shadow-lift);border-radius:12px;
+    padding:9px 15px;font-size:13px;opacity:0;transition:opacity .25s}
+  .picked.on{opacity:1}
+  .packs{max-width:440px;margin:0 auto;padding:0 16px 26px}
+  .packs button{min-height:36px;padding:0 14px;border-radius:11px;background:var(--card);
+    border:1px solid var(--line);color:var(--sub);font:inherit;font-size:13px;cursor:pointer}
+  .packs button.on{border-color:var(--maple);color:var(--maple);background:var(--maple-soft);font-weight:600}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">the study</div>
+  <h2>书房</h2>
+  <p class="lede">一起做事的房间。点一本书试试 —— 它会被抽出来一点；戳一下机器人，它会歪个头。<br>
+    <b>这一页的字都是编的</b> —— 书脊上写的是应用自己的入口名，不是真的书名，
+    页面里没有任何真实的私人内容。</p>
+
+  <!-- ══ 下面这一架是**原型稿里那一架，原样照搬**（书目、尺寸、板厚、花纹一个数没改）══
+       每本书的宽高是内联 style 手定的：58×190 / 50×168 / 46×178 / 46×200 …
+       板厚 13 / 10 / 9 / 9 也是一格一格手写的，不是算出来的。
+       JS 关掉时这一架照样在（下面那段脚本会用 shelf.js 的默认 config 重画一份一样的）。 -->
+  <div id="shelfzone">
+    <!-- 上层：一起做的（四本立着 ＋ 梗典横躺在右边） -->
+    <div class="sf-bay">
+      <div class="sf-row">
+        <button class="sf-spine sf-plain sf-hsoft" data-sub="一起看书" style="width:58px;height:190px">
+          <span class="sf-hd" style="height:15px"></span>
+          <span class="sf-nm">在读</span>
+          <span class="sf-rib"></span>
+        </button>
+        <button class="sf-spine sf-rule sf-hsoft" data-sub="共读笔记" style="width:50px;height:168px">
+          <span class="sf-hd" style="height:11px"></span>
+          <span class="sf-hd2"></span>
+          <span class="sf-nm">共读笔记</span>
+        </button>
+        <button class="sf-spine sf-dot sf-hsoft" data-sub="一起听" style="width:46px;height:178px">
+          <span class="sf-hd" style="height:18px"></span>
+          <span class="sf-nm">唱片</span>
+        </button>
+        <button class="sf-spine sf-hatch sf-hsoft" data-sub="一起看小红书" style="width:46px;height:200px">
+          <span class="sf-hd" style="height:13px"></span>
+          <span class="sf-nm">小红书</span>
+          <span class="sf-tag"></span>
+        </button>
+        <!-- 横躺的梗典：外壳 170×48，里头那层 48×170 转 90 度；名字要倒着串才读得顺 -->
+        <button class="sf-laid" data-open="memepage" style="width:170px;height:48px" aria-label="梗典">
+          <span class="sf-dot sf-hc2" style="width:48px;height:170px;left:61px;top:-61px">
+            <span class="sf-hd" style="height:14px"></span>
+            <span class="sf-nm">典梗</span>
+          </span>
+        </button>
+      </div>
+      <div class="sf-plank" style="height:13px"></div>
+      <div class="sf-lab">一起做的</div>
+    </div>
+
+    <!-- 下层：我一个人的 / 工具 / 捡到的，三格并排 -->
+    <div class="sf-row2">
+      <div style="flex:none">
+        <div class="sf-row">
+          <button class="sf-spine sf-grid sf-hc2" data-cell="fish" data-open="fishpage" style="width:54px;height:182px">
+            <span class="sf-hd" style="height:12px"></span>
+            <span class="sf-nm">钓鱼图鉴</span>
+          </button>
+          <button class="sf-spine sf-rule2 sf-hc2" data-open="tripspage" style="width:44px;height:164px">
+            <span class="sf-hd" style="height:16px"></span>
+            <span class="sf-hd2"></span>
+            <span class="sf-nm">旅行手帐</span>
+          </button>
+        </div>
+        <div class="sf-plank" style="height:10px"></div>
+        <div class="sf-lab">我一个人的</div>
+      </div>
+      <div style="flex:none;width:112px">
+        <div class="sf-row">
+          <button class="sf-spine sf-plain sf-hc2" data-sub="工作本" style="width:52px;height:172px">
+            <span class="sf-hd" style="height:10px"></span>
+            <span class="sf-hd2"></span>
+            <span class="sf-nm">工作本</span>
+          </button>
+          <!-- 工作本右边那块空位摆的是机器人。★ 不做书脊：它不是一本书。
+               书按下去是「被抽出来」（--pull 上移＋歪 1.4 度），
+               它按下去是「被戳了一下」——歪头 7 度再弹回来。同一条 spring-pop 曲线，不同的语义。 -->
+          <button class="sf-bot" data-open="botpage" aria-label="机器人">
+            <svg class="sf-botface" viewBox="0 0 40 40" aria-hidden="true">
+              <rect x="8.5" y="7" width="23" height="18.5" rx="3.5"/>
+              <path d="M14.5 14.2l2.2 2.4l2.2 -2.4"/>
+              <path d="M21.1 14.2l2.2 2.4l2.2 -2.4"/>
+              <path d="M6.2 13.5v5"/><path d="M33.8 13.5v5"/>
+              <path d="M20 25.5v3.2"/>
+              <path d="M15.6 28.7h8.8l2.6 4.3h-14z"/>
+            </svg>
+          </button>
+        </div>
+        <div class="sf-plank" style="height:9px"></div>
+        <div class="sf-lab">工具</div>
+      </div>
+      <div style="flex:none;margin-left:auto;margin-right:16px">
+        <div class="sf-row">
+          <button class="sf-spine sf-hatch sf-hc2" data-open="toolpage" style="width:46px;height:158px">
+            <span class="sf-hd" style="height:12px"></span>
+            <span class="sf-nm">代码架</span>
+          </button>
+        </div>
+        <div class="sf-plank" style="height:9px"></div>
+        <div class="sf-lab">捡到的</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 摊在桌上＝当前在读那本，一按直接进正文（不用先过书架）。
+       ★ 它和下面那扇门都在 #shelfzone **外面** —— 等比 zoom 只缩架子，不缩这两块。 -->
+  <div id="deskslot">
+    <button class="sf-desk" data-desk>
+      <span class="edge"></span>
+      <span class="ic" style="margin-bottom:0;margin-left:6px"><svg class="i" viewBox="0 0 24 24"><path d="M19 4v16h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12"/><path d="M19 16h-12a2 2 0 0 0 -2 2"/><path d="M9 8h6"/></svg></span>
+      <span style="flex:1"><b>摊在桌上</b><i>翻一下…</i></span>
+      <svg class="i" viewBox="0 0 24 24" style="width:17px;height:17px;color:var(--hint)"><path d="M9 6l6 6l-6 6"/></svg>
+    </button>
+  </div>
+
+  <div class="eyebrow">别处的门</div>
+  <div id="outslot">
+    <button class="sf-out" data-jump="write" data-jumpname="信">
+      <svg class="i" viewBox="0 0 24 24" style="width:19px;height:19px;color:var(--maple);flex:none"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10"/><path d="M3 7l9 6l9 -6"/></svg>
+      <b style="flex:1;font-size:14.5px;font-weight:600">信</b>
+      <span style="font-size:11.5px;color:var(--hint)">在记事</span>
+      <svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px;color:var(--hint)"><path d="M9 6l6 6l-6 6"/></svg>
+    </button>
+  </div>
+</div>
+<div class="picked" id="toast"></div>
+
+<div class="packs" id="packs"><button class="on" type="button">装了「机器人」</button></div>
+<script src="shelf.js"></script>
+<script>
+  var toast = document.getElementById('toast'), timer = 0;
+  function say(t){
+    toast.textContent = t; toast.classList.add('on');
+    clearTimeout(timer); timer = setTimeout(function(){ toast.classList.remove('on'); }, 1600);
+  }
+
+  /* ★ 书房里摆什么，取决于**装了哪些功能包** —— 没装的那件不该出现在架子上。
+     摆一个点了没反应的东西，比架子上空着更糟。下面那个开关就是演这件事：
+     关掉「机器人」，工具那格的摆件连同它占的位置一起消失，架子自己合拢。 */
+  var packs = { robot: true };
+
+  /* 默认 config 就是上面照搬的那一架（Shelf.HOME）。这里只按开关删掉机器人，
+     别的一个字不改 —— 重画出来跟静态那份是同一架。 */
+  function shelfCfg(){
+    var c = JSON.parse(JSON.stringify(Shelf.HOME));      /* 纯数据，深拷贝够用 */
+    if (!packs.robot) delete c.bays[1].bot;
+    c.fitTo = document.querySelector('.wrap');
+    c.onPick = function(id, b){ say('点了「' + (b.name || id) + '」'); };
+    return c;
+  }
+
+  var zone = document.getElementById('shelfzone');
+  function draw(){ Shelf(zone, shelfCfg()); }
+  draw();
+
+  /* 架子外头那两块也用同一份 config 重建一次（它们不进 zoom） */
+  var deskslot = document.getElementById('deskslot');
+  deskslot.innerHTML = '';
+  deskslot.appendChild(Shelf.desk(Shelf.HOME.desk, function(){ say('翻开摊在桌上那本'); }));
+
+  var outslot = document.getElementById('outslot');
+  outslot.innerHTML = '';
+  outslot.appendChild(Shelf.out(Shelf.HOME.out, function(id, c){ say('去「' + c.name + '」'); }));
+
+  var sw = document.getElementById('packs');
+  sw.addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    packs.robot = !packs.robot;
+    b.classList.toggle('on', packs.robot);
+    b.textContent = packs.robot ? '装了「机器人」' : '没装「机器人」';
+    say(packs.robot ? '机器人回到架子上了' : '没装的包不占位置 —— 架子自己合拢');
+    draw();
+  });
+</script>

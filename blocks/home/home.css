@@ -1,0 +1,310 @@
+/*!
+ * home.css —— 一整页主页（方块 tiles 版）
+ *
+ * 干什么用：给「配色与明暗」那种预览页当**画布**。换一次主题，整页跟着变 ——
+ * 顶栏、天数、便签、正在听、六格 tile、健康、四颗小圆、空间、底栏，一个不落。
+ *
+ * 里头的每一条规则都是从应用那半边跑了几个月的原件里**整段搬过来的**，
+ * 每一节都标了它在原件里的行号。看着「好像可以更好」的地方也一个字没动 ——
+ * 那些数字（步距、圆角、38px 的线高、-15px 的抬起）都是在真机上量出来的。
+ *
+ * 依赖：只要 base/tokens.css。
+ *   底栏中央那片家徽要 base/crest.js 给形状（一行 JS，见 demo.html）——
+ *   **全仓库只有一片枫叶，就在 crest.js 里**，别在这儿再存一份 path。
+ *
+ * 颜色：一律走 token，没有一处写死。唯一的例外在 .disc 那一节，那儿有注。
+ *   可用 token 见 base/tokens.css（--bg --card --card2 --ink --sub --hint --line
+ *   --maple --maple-soft --on-maple --thread --tape --r --card-border
+ *   --font-display --display-weight --shadow --shadow-lift --e-out --spring-pop …）
+ *
+ * MIT（见同目录 LICENSE）。底栏那片枫叶是 Font Awesome Free 6 的
+ * canadian-maple-leaf，Icons 走 CC BY 4.0，署名在仓库 UPSTREAM.md。
+ */
+
+/* ══ 1. 外壳 ══ 原件 proto.html:180-206 ═══════════════════════════════
+   ★ 0805 02:20 逮到的那一跤：**整页能往左推一屏**，右边露出一片白。
+     查出来是二级页用 `position:absolute; transform:translateX(100%)` 停在右边一屏处
+     等着划进来 —— **transform 之后的盒子照样算进父级的可滚动区**。
+     `overflow:hidden` 挡不住：它只是不给滚动条，**元素本身仍是滚动盒**，
+     手指照样能把它推走。`overflow:clip` 才是「不产生滚动盒」的那个值。
+     两行并排写：不认 clip 的老浏览器停在 hidden，认的用 clip。 */
+.app{
+  display:flex; flex-direction:column;
+  height:100dvh;
+  overflow:hidden;
+  overflow:clip;
+  background:var(--bg); color:var(--ink);
+  transition:background .45s var(--e-out), color .45s var(--e-out);
+  font:15px/1.7 system-ui,-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;
+  position:relative;
+}
+@media (min-width:680px){
+  .app{
+    max-width:440px; height:min(894px,92dvh);   /* 跟画布同宽——常见的 412 比它窄 28，会裁到卡片 */
+    margin:20px auto; border-radius:34px;
+    box-shadow:var(--shadow-lift);   /* 阴影和描边只留一个：1px 边压在宽软阴影下＝幽灵卡 */
+  }
+}
+
+/* 所有线条图标统一规格 —— Tabler 的原始设定。原件 proto.html:207-212 */
+svg.i{
+  width:20px; height:20px; flex:none;
+  stroke:currentColor; stroke-width:2; fill:none;
+  stroke-linecap:round; stroke-linejoin:round;
+}
+
+/* ══ 2. 顶栏 ══ 原件 proto.html:214-331（只取顶栏本身用得着的几条）═══════
+   ✂ 原件那一段里还夹着 .nwdoor（出门走走那扇门）、.avapick（设置页那个大圆）、
+     .stamp、.iconbtn.withtx、.app.homefull（丝线版主页专用的浮顶栏）——
+     那几个都不属于这一页，没搬。要用的话去原件那几行整段取。 */
+.top{
+  flex:none; display:flex; align-items:center; gap:8px;
+  padding:calc(12px + env(safe-area-inset-top,0px)) 14px 10px;
+  /* 底纸背景板是 absolute z-index:0，顶栏原来 static＝不参与层叠，会被它整条盖住。 */
+  position:relative; z-index:9;
+}
+.iconbtn{
+  width:38px;height:38px;flex:none;border:0;border-radius:12px;
+  background:var(--card);box-shadow:var(--shadow);color:var(--ink);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:transform .16s;
+}
+.iconbtn:active{transform:scale(.93)}
+
+/* 顶栏那块是「我」，不是假天气 —— 名字和签名都该能在设置里改。
+   ⚠️ 必须带 .top 限定。`me` 是个到处都在用的类名（聊天气泡 .msg.me、聊天记录 .dayrow.me…），
+      裸写这条的话，那个 999px 圆角 ＋ 白底 ＋ flex:1 会全漏过去 ——
+      0806 栽过一次：聊天记录里「我」那一块被撑成一条大胶囊，
+      就是这条漏到消息气泡上去了。**写选择器先限定父级。** */
+.top .me{
+  flex:1;min-width:0;display:flex;align-items:center;gap:10px;
+  background:var(--card);box-shadow:var(--shadow);border:var(--card-border);
+  border-radius:999px;padding:6px 14px 6px 6px;cursor:pointer;
+  color:var(--ink);font-family:inherit;text-align:left;
+  transition:background .45s var(--e-out), box-shadow .2s;
+}
+.top .me:active{box-shadow:var(--shadow-lift)}
+.ava{
+  width:30px;height:30px;flex:none;border-radius:50%;
+  background:var(--maple);color:var(--on-maple,#fff);display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:600;font-family:var(--font-display);
+  transition:background .45s var(--e-out);
+  overflow:hidden;                      /* 换成真头像时，图得被那个圆剪住 */
+}
+.ava img{width:100%;height:100%;object-fit:cover;display:block}
+.metext{min-width:0;display:block;line-height:1.25}
+.metext b{display:block;font-size:13px;font-weight:600}
+.metext i{
+  display:block;font-size:11px;color:var(--sub);font-style:normal;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* ══ 3. 内容区 ══ 原件 proto.html:343-378 ═══════════════════════════════
+   ★ 滚动条不出镜（0806 逮到的）：主页右上角那个「暗色半圆」不是这一页画的东西 ——
+     是内容区的悬浮滚动条，圆角的拇指被容器圆角裁掉一半，看着像贴了块脏东西。
+     内容照滚，只是那条不露脸 —— 手机 App 本来也不显示滚动条。
+   ⚠ 这两条在原件里就是**全局**的（proto.html 是整个 App 的样式表）。原样照搬没改。
+     宿主页面要是不想全站藏滚动条，把它们收进 `.app *` 的后代选择器再用。 */
+*{scrollbar-width:none}
+*::-webkit-scrollbar{width:0;height:0;display:none}
+
+/* overscroll-behavior:contain —— 内容滚到头之后别把外面那层也拖走（滚动链）。
+   ★ 同一天同一跤的第二处：只写了 overflow-y，另一轴的计算值就从 visible 被顶成 auto
+     —— 等于白送一条横向滚动。overflow-x 显式钉死（clip 优先，hidden 兜底）。 */
+.body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2px 16px 100px;
+  overflow-x:hidden; overflow-x:clip;
+  overscroll-behavior:contain}
+
+/* ══ 4. 页与卡片族 ══ 原件 proto.html:391-426 ═══════════════════════════ */
+.page{display:none}
+.page.on{display:block;animation:fade .2s var(--e-out)}
+@keyframes fade{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+
+.eyebrow{
+  font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--hint);margin:20px 0 3px;
+}
+h2{font-size:21px;font-weight:var(--display-weight);margin:0 0 14px;letter-spacing:.01em;font-family:var(--font-display)}
+h3{font-size:15.5px;font-weight:600;margin:0 0 3px;line-height:1.45}
+.lede{color:var(--sub);font-size:13px;margin:-8px 0 16px}
+
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);border:var(--card-border);padding:16px;transition:background .45s var(--e-out),border-radius .45s var(--e-out),box-shadow .45s}
+.tile{
+  background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
+  padding:15px 14px;border:var(--card-border);text-align:left;width:100%;cursor:pointer;
+  color:var(--ink);font:inherit;display:block;
+  transition:transform .28s var(--spring-pop), box-shadow .18s;
+}
+.tile:active{transform:translateY(1px) scale(.985)}
+.tile:hover{box-shadow:var(--shadow-lift)}
+.ic{
+  width:34px;height:34px;border-radius:11px;background:var(--maple-soft);
+  display:flex;align-items:center;justify-content:center;margin-bottom:10px;color:var(--maple);
+}
+.ic svg.i{width:18px;height:18px}
+.tile small{color:var(--sub);font-size:12px;display:block;margin-top:1px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.badge{
+  display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;
+  background:var(--maple-soft);color:var(--maple);font-weight:600;margin-left:6px;
+  vertical-align:middle;line-height:1.6;
+}
+.ghost{opacity:.5}
+.row{display:flex;align-items:center;gap:12px}
+
+/* ══ 5. 按下反馈 ══ 原件 proto.html:438-441 ═════════════════════════════
+   拿 emilkowalski 的 `find-animation-opportunities` 扫的：全站 368 个可点元素，
+   119 个有按下反馈、249 个没有。那道四问闸门筛完只剩 5 处该补，
+   补的全是 **Motion Spec v1 里已有的规格**，没另起一套。
+   ⚠ 不能走 transform：风每帧往 inline 写 `translate3d(…) scale(…)`，
+     CSS 的 `:active{transform}` 下一帧就被盖掉。走 opacity —— 没人占它。
+   ⚠ transition 只许写 opacity 这一个属性：写 `all` 会把风的 transform 也套上过渡。
+   ✂ 说明：[data-slip] / [data-leaf] / .silkcard 是**另外两版主页**（散摞、纸夹、丝线）
+     的卡片，这一版（方块 tiles）里没有这些元素。按交代原样照搬留着，
+     方便把那两版一起摆进来时不用再回原件抠。方块版自己的反馈是上面 .tile:active。 */
+#p-home [data-slip], #p-home [data-leaf]{transition:opacity .26s var(--e-out)}
+#p-home .silkcard:active,
+#p-home [data-slip]:active,
+#p-home [data-leaf]:active{opacity:.86;transition-duration:.12s}
+
+/* ══ 6. 那根线 ══ 原件 proto.html:555-563 ═══════════════════════════════
+   ★ non-scaling-stroke：SVG 被横向拉伸时笔画不跟着变形，
+     全程就是一根粗细一样的线。（DESIGN.md 坑③） */
+.thread{display:block;width:100%;height:38px;color:var(--thread)}
+.thread path{
+  fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;
+  vector-effect:non-scaling-stroke;
+}
+.thread circle{display:none}
+
+/* ══ 7. 主页零件 ══ 原件 proto.html:565-645 ═════════════════════════════ */
+.daycount{padding:16px 2px 4px}
+.daycount .n{font-size:72px;font-weight:var(--display-weight);letter-spacing:-.03em;line-height:.92;font-variant-numeric:tabular-nums;font-family:var(--font-display)}
+.daycount .since{font-size:11px;letter-spacing:.16em;color:var(--hint);text-transform:uppercase}
+.daycount .zh{font-size:13px;color:var(--sub);margin-top:5px}
+
+/* 便签：上边缘一道胶带压着。--tape 跟着皮换（tokens.css 里亮暗各一份）。 */
+.note{
+  background:var(--card);border-radius:4px 4px 12px 12px;box-shadow:var(--shadow);
+  padding:16px 15px 12px;position:relative;
+}
+.note::before{
+  content:"";position:absolute;top:-6px;left:50%;transform:translateX(-50%) rotate(-1.5deg);
+  width:76px;height:14px;background:var(--tape);border-radius:2px;
+}
+.lw{padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:1.68}
+.lw:last-child{border-bottom:0}
+.lw .when{
+  display:block;font-size:10.5px;letter-spacing:.14em;color:var(--hint);
+  margin-bottom:2px;font-variant-numeric:tabular-nums;
+}
+.lw .said{color:var(--ink)}
+
+/* 转碟。
+   ★ 0805 定的：碟子一直转，在手机上看着就是个加载菊花，会被当成程序卡在那儿没响应。
+     改成**默认停着**，真的在放歌才 .disc.on。
+   ⚠ 唯一一处没走 token 的颜色：`#241f1c` 是黑胶盘本身的墨色（中心那点才是重点色）。
+     原件就是这个值，照搬未改 —— 唱片在亮皮暗皮下都是黑的，它不该跟着换肤走。 */
+.disc{
+  width:52px;height:52px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 50% 50%, var(--maple) 0 13%, #241f1c 14% 100%);
+  box-shadow:var(--shadow);animation:spin 9s linear infinite;
+  animation-play-state:paused;
+}
+.disc.on{animation-play-state:running}
+/* ★ 原件是 `@keyframes spin{to{transform:rotate(360deg)}}`（proto.html:620）。
+   单帧在浏览器里合法（缺的那头按元素当前值算），但积木层的自检钉着
+   「每个 @keyframes 至少有首尾两帧」（ambience.css 被截断那一跤留下的规矩）。
+   补一帧 from，跑起来跟原件完全一样。 */
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){
+  /* 原件那一块还列了 .msg / .drawer / .sheet 一串别的页的东西，这一页用不上，没搬。 */
+  .disc,.page.on{animation:none !important}
+}
+
+.bar{height:5px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;background:var(--maple);border-radius:99px}
+
+/* 小圆入口（颜文字这类没处放的） */
+.pills{display:flex;gap:9px}
+.pill{
+  flex:1;min-width:0;background:var(--card);border:0;border-radius:14px;box-shadow:var(--shadow);
+  padding:12px 6px;cursor:pointer;color:var(--ink);font-family:inherit;font-size:12px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  transition:transform .18s;
+}
+.pill:active{transform:scale(.95)}
+.pill .ic{width:30px;height:30px;margin:0;border-radius:10px}
+.pill .ic svg.i{width:16px;height:16px}
+
+/* ══ 8. 底栏 ══ 原件 proto.html:801-825 ═════════════════════════════════
+   4 个去处 ＋ 中央一片家徽（回主页）。DESIGN.md §5 那条硬线的实体：
+   底部 3~5 个、建议 4 个；不许有 More / 溢出 tab；放的是**去处，不是动作**。 */
+.tabbar{
+  position:absolute;left:12px;right:12px;
+  bottom:calc(10px + env(safe-area-inset-bottom,0px));
+  height:62px;background:var(--card);border-radius:16px;box-shadow:var(--shadow-lift);
+  display:flex;align-items:center;z-index:10;
+}
+.tab{
+  flex:1;border:0;background:transparent;cursor:pointer;color:var(--hint);
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-family:inherit;font-size:10.5px;padding:0;transition:color .18s;
+}
+.tab.on{color:var(--maple)}
+.leaf{
+  flex:none;width:56px;height:56px;margin:0 2px;border:0;border-radius:50%;
+  background:var(--card);box-shadow:var(--shadow-lift);cursor:pointer;
+  transform:translateY(-15px);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .22s cubic-bezier(.3,1.4,.5,1);
+}
+.leaf:active{transform:translateY(-15px) scale(.9)}
+.leaf svg{width:25px;height:25px;fill:var(--hint);transition:fill .22s}
+.leaf.on svg{fill:var(--maple)}
+
+/* ══ 9. 「这些字都是编的」══ 这一条**不在原件里**，是这块自己加的 ══════════
+   原件那一页装的是真实数据。搬进开源积木要全换成占位，
+   那就得在页面上说清楚它是占位 —— 不然下一个人会以为那是接口回来的样子。 */
+.fakenote{
+  margin:16px 2px 0;text-align:center;
+  font-size:11.5px;line-height:1.7;color:var(--hint);
+}
+
+/* ══ 10. 六种排法共用的那几条 ══ 原件 proto.html:231 / 343-378 / 1068 ═══════
+   方块以外的五种排法（垂丝 / 横渡 / 灯串 / 纸夹 / 散摞）画的是一整块画布，
+   不是一排卡片。画布要铺到壳的边上，靠的就是下面这四个 class ——
+   由 home.js 的 syncPad() 按「在不在主页 ＋ 是哪一种排法」开关。
+   ⚠ 它们全加在 .body 上，而 .body 是所有页共用的：换页必须重算一次，
+     不然切到别的页它还赖着，内容会贴到最左边、连上下滚都被 overflow 锁死。 */
+
+/* 底纸墙（.wallbg，在 physics/paper-stack.css 里）是 absolute z-index:0 贴在 .app 上的，
+   内容区原来 static＝不参与层叠，会被它整条盖住。原件 proto.html:1068 就是这一条。 */
+.body{position:relative;z-index:1}
+
+/* 丝线三种排法：顶栏浮起来，画布这才够得到屏幕最上沿，线从两条栏后面穿过去。
+   ⚠⚠ 必须是子选择器 `>`。写成后代选择器 `.app.homefull .top` 那一版，
+      会把每个二级页自己的「← 标题」栏统统浮起来 —— 一脱离流，下面的内容就顶上去、
+      被标题条整条压住（原件那一跤，注释留在 proto.html:340-358）。 */
+.app.homefull > .top{position:absolute;left:0;right:0;top:0}
+
+/* 丝线三种排法：上下内边距全归零，画布 = 整屏。
+   ⚠ overflow 必须两条分开写：简写会把 .body 那条 overflow-x:clip 盖掉。
+   min-height:0 是必须的：flex item 默认 min-height:auto、不肯比内容矮 —— 画布一撑，
+   .body 就比 .app 高出去一截，丝线底下平白少一条。 */
+.body.fullbleed{padding-top:0;padding-bottom:0;min-height:0;overflow-y:clip;overflow-x:clip}
+/* 画布铺满后底沿就是屏幕底沿了，提示语原来的 bottom:4px 会缩到底栏底下 —— 抬到底栏上面。
+   84 = 底栏高 62 ＋ 它离底 10 ＋ 12 的余量，跟 .tabbar 那几个数对得上。 */
+.body.fullbleed .silkhint{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+
+/* 纸夹和散摞：左右内边距归零（440 的画布要铺满）、不翻页。
+   ★ .nopad 的 overflow 简写写在 .body 后面，会把上面那条 overflow-x 盖掉，
+     所以这里也得是 clip —— 不然 440 宽的画布照样能被推走二十几个像素。 */
+.body.nopad{padding-left:0;padding-right:0;padding-top:0;overflow:hidden;overflow:clip}
+
+/* 丝线的舞台要顶掉 .body 左右各 16px 的内边距（fullbleed 只归零上下那两边）。
+   ※ 原件那条是裸 `.silkstage{…margin:0 -16px…}`（proto 是整个应用的样式表，
+     舞台只有主页一处）。这儿限定在排法容器里：积木可能被塞进别的容器，
+     那时这 16px 是错的。physics/silk-rope.css 里的 .silkstage 没有这条边距，
+     所以 home.css 必须排在它后面加载。 */
+[data-home="silk"] .silkstage{margin:0 -16px}

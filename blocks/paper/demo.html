@@ -1,0 +1,114 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>纸感材质 · demo</title>
+<link rel="stylesheet" href="../base/tokens.css">
+<link rel="stylesheet" href="paper.css">
+<style>
+  /* ★ 顶部留出切换钮的位置 —— 它是 fixed 的，不留就会压住第一行字 */
+  body { margin:0; padding:58px 18px 60px; max-width:520px; margin-inline:auto; }
+  h2 { font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+       color:var(--hint); font-weight:600; margin:34px 0 14px; }
+  h2:first-of-type { margin-top:8px; }
+  .lead { color:var(--sub); font-size:13.5px; line-height:1.9; margin:0 0 6px; }
+  .lead b { color:var(--ink); }
+  .toggle { position:fixed; top:12px; right:12px; z-index:9; padding:7px 12px;
+            border:1px solid var(--line); border-radius:99px; background:var(--card);
+            color:var(--sub); font-size:12px; cursor:pointer; }
+</style>
+
+<!-- ★ 撕边纸要这个滤镜。放哪儿都行，它自己不显示。 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="pp-torn" x="-5%" y="-10%" width="110%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.014 0.36" numOctaves="3" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+
+<button class="toggle" id="t">切换明暗</button>
+
+<p class="lead">纸感材质，<b>纯 CSS，零 JavaScript</b>。这一页的内容全是编的，只为看质感。</p>
+
+<h2>撕边纸 ＋ 格纹胶带</h2>
+<div class="pp-note">
+  <div class="pp-paper"></div>
+  <span class="pp-tape a"></span>
+  <span class="pp-tape b blue"></span>
+  <p class="pp-eyebrow">10 月 12 日 · 阴</p>
+  <p class="pp-place">城南旧书店</p>
+  <div class="pp-meta"><span>走了 <b>4.2</b> 公里</span><span>待了 <b>1</b> 小时</span></div>
+  <p class="pp-text">下午去了那家旧书店。老板养的猫睡在收银台上，谁来都不睁眼。买了一本讲云的图册，
+封面折角，便宜了三块。回来的路上开始下雨，书塞进衣服里抱着走完了两条街。</p>
+</div>
+
+<h2>票根</h2>
+<a class="pp-ticket" href="#">
+  <svg viewBox="0 0 24 24"><path d="M12 21s7-6 7-11a7 7 0 1 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+  <b>城南旧书店</b><small>10-12</small>
+</a>
+
+<h2>明信片 · 航空邮件边</h2>
+<div class="pp-pc r1">
+  <div class="pp-front" style="height:150px;background:linear-gradient(160deg,var(--card2),var(--accent-soft))">
+    <div class="pp-seal"><b>NO.7</b>寄自<br>城南</div>
+    <svg class="pp-cancel" viewBox="0 0 96 26"><path d="M2 6c14 0 14 6 28 6s14-6 28-6 14 6 28 6"/><path d="M2 14c14 0 14 6 28 6s14-6 28-6 14 6 28 6"/></svg>
+  </div>
+  <div class="pp-back">
+    <p>今天见到的那只猫，尾巴尖是白的。我在门口站了很久，它一次也没抬头。</p>
+    <div class="pp-post">10 月 12 日 · 城南 · 阴转小雨 · 步行 4.2 km</div>
+  </div>
+</div>
+
+<h2>折起来的日记（点标题展开）</h2>
+<div class="pp-fold">
+  <div class="pp-item on">
+    <button class="pp-sum"><span class="pp-num">01</span>
+      <span class="pp-tt"><b>城南旧书店</b><small>10-12 · 城南 · 阴</small></span>
+      <span class="pp-thumb" style="background:var(--accent-soft)"></span>
+      <svg class="pp-chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <div class="pp-body"><p style="font-size:14px;line-height:1.9;margin:0;color:var(--ink)">
+      展开之后是整张明信片。收起来只占一行。</p></div>
+  </div>
+  <div class="pp-item">
+    <button class="pp-sum"><span class="pp-num">02</span>
+      <span class="pp-tt"><b>河堤，傍晚</b><small>10-09 · 城东 · 晴</small></span>
+      <span class="pp-thumb" style="background:var(--card2)"></span>
+      <svg class="pp-chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <div class="pp-body"><p style="margin:0;color:var(--sub)">（收着）</p></div>
+  </div>
+</div>
+
+<h2>去过的地方</h2>
+<div class="pp-rows">
+  <div class="pp-row"><span class="pp-num">01</span><span class="pp-n">城南旧书店 <em>买了一本云图</em></span><span class="pp-x">10-12</span></div>
+  <div class="pp-row"><span class="pp-num">02</span><span class="pp-n">河堤 <em>看落日</em></span><span class="pp-x">10-09</span></div>
+  <div class="pp-row"><span class="pp-num">03</span><span class="pp-n">北门夜市</span><span class="pp-x">10-05</span></div>
+</div>
+
+<h2>标本卡</h2>
+<div class="pp-specs">
+  <div class="pp-spec"><b>三花猫</b><i>Felis catus</i><u>旧书店 · 收银台</u></div>
+  <div class="pp-spec"><b>银杏</b><i>Ginkgo biloba</i><u>河堤 · 第三棵</u></div>
+  <div class="pp-spec"><b>白头鹎</b><i>Pycnonotus sinensis</i><u>北门 · 电线上</u></div>
+</div>
+
+<h2>小册标签</h2>
+<div class="pp-books">
+  <span class="pp-book"><b>12</b>种鸟</span>
+  <span class="pp-book"><b>5</b>棵树</span>
+  <span class="pp-book"><b>3</b>只猫</span>
+  <span class="pp-book"><b>1</b>场雨</span>
+</div>
+<button class="pp-rest">还有 6 枚 ›</button>
+
+<script>
+  // demo 自己的一点交互，paper.css 本身不需要 JS
+  document.querySelectorAll('.pp-sum').forEach(b =>
+    b.addEventListener('click', () => b.closest('.pp-item').classList.toggle('on')));
+  document.getElementById('t').addEventListener('click', () => {
+    const r = document.documentElement;
+    r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark';
+  });
+</script>

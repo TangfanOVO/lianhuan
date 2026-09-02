@@ -1,0 +1,389 @@
+/* ══════════════════════════════════════════════════════════════
+   聊天页 —— 一整页，不是几个气泡。
+
+   气泡只是最外面那一层。真正难做的是底下这些：
+     · 思考链    一条「Thought process」，点开是可拖的三档 bottom sheet
+     · 工具调用  他这轮动过手的痕迹：状态条一路走、一颗星在转、末了留一条脚注
+     · 加号菜单  左下角那颗 ＋，点开十五个入口
+     · 那排键    收藏 · 念 · 分享 · 更多 ＋ 时间戳 ＋ 来路标
+     · 输入条    暂存条、发送键回弹、他说话时变停止方块
+
+   ★ 这一份是从应用里那份**整段搬过来的，没有重画**。注释里的日期和出处
+     记的是当初为什么这么定，别当装饰删掉 —— 每一条都是真咬过人的。
+   ★ 只用 base/tokens.css 里的 token（--maple 是 --accent 的别名，桥在底座里搭好了）。
+   ══════════════════════════════════════════════════════════════ */
+
+/* ══════════════════ 一、外壳 ══════════════════ */
+
+/* iOS 上手指照样能把它推走（跟 html/body 那一跤同一个病理，只是换了一层）。
+   `overflow:clip` 才是「不产生滚动盒」的那个值 —— 手指和脚本都推不动。
+   两行并排写：不认 clip 的老浏览器停在 hidden，认的用 clip。 */
+.app{
+  display:flex; flex-direction:column;
+  height:100dvh;
+  overflow:hidden;
+  overflow:clip;
+  background:var(--bg); color:var(--ink);
+  transition:background .45s var(--e-out), color .45s var(--e-out);
+  font:15px/1.7 system-ui,-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;
+  position:relative;
+}
+@media (min-width:680px){
+  .app{
+    max-width:440px; height:min(894px,92dvh);   /* 跟画布同宽——412 比手机窄 28，会裁到卡片 */
+    margin:20px auto; border-radius:34px;
+    box-shadow:var(--shadow-lift);   /* 阴影和描边只留一个：1px 边压在宽软阴影下＝幽灵卡 */
+  }
+}
+
+/* 所有线条图标统一规格 —— Tabler 的原始设定 */
+svg.i{
+  width:20px; height:20px; flex:none;
+  stroke:currentColor; stroke-width:2; fill:none;
+  stroke-linecap:round; stroke-linejoin:round;
+}
+
+/* ── 顶栏 ── */
+.top{
+  flex:none; display:flex; align-items:center; gap:8px;
+  padding:calc(12px + env(safe-area-inset-top,0px)) 14px 10px;
+  /* 底纸背景板是 absolute z-index:0，顶栏原来 static＝不参与层叠，会被它整条盖住。 */
+  position:relative; z-index:9;
+}
+.iconbtn{
+  width:38px;height:38px;flex:none;border:0;border-radius:12px;
+  background:var(--card);box-shadow:var(--shadow);color:var(--ink);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:transform .16s;
+}
+.iconbtn:active{transform:scale(.93)}
+
+/* 顶栏那块是"我"，不是假天气 —— 名字和签名都能在美化里改。
+   ⚠️ 必须带 .top 限定。`me` 是个到处都在用的类名（聊天气泡 .msg.me、聊天记录 .dayrow.me、
+      书内对话 .bkmsg.me），裸写这条的话，那个 999px 圆角 ＋ 白底 ＋ display:flex ＋ flex:1
+      会全漏过去 —— 0806 那次顶栏「我」那一块长得像操场，就是这条胶囊漏到消息气泡上了，
+      顺带把「你 / 00:02」挤成了竖排（.tm 只剩 30px 宽）。
+      **写选择器先限定父级。** */
+.top .me{
+  flex:1;min-width:0;display:flex;align-items:center;gap:10px;
+  background:var(--card);box-shadow:var(--shadow);border:var(--card-border);
+  border-radius:999px;padding:6px 14px 6px 6px;cursor:pointer;
+  color:var(--ink);font-family:inherit;text-align:left;
+  transition:background .45s var(--e-out), box-shadow .2s;
+}
+.top .me:active{box-shadow:var(--shadow-lift)}
+.ava{
+  width:30px;height:30px;flex:none;border-radius:50%;
+  background:var(--maple);color:var(--on-maple,#fff);display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:600;font-family:var(--font-display);
+  transition:background .45s var(--e-out);
+  overflow:hidden;                      /* 换成真头像时，图得被那个圆剪住 */
+}
+.ava img{width:100%;height:100%;object-fit:cover;display:block}
+.metext{min-width:0;display:block;line-height:1.25}
+.metext b{display:block;font-size:13px;font-weight:600}
+.metext i{
+  display:block;font-size:11px;color:var(--sub);font-style:normal;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* ── 内容区 ── */
+/* 那条滚动条：三套皮下 .body 都是 overflow-y:auto，露出来就是一道脏东西。
+   内容照滚，只是那条不露脸 —— 手机 App 本来也不显示滚动条。 */
+*{scrollbar-width:none}
+*::-webkit-scrollbar{width:0;height:0;display:none}
+
+/* overscroll-behavior:contain —— 内容滚到头之后别把外面那层也拖走（滚动链） */
+/* ★ 只写了 overflow-y，另一轴的计算值就从 visible 被顶成 auto —— 等于白送一条横向滚动。
+   overflow-x 显式钉死（clip 优先，hidden 兜底），纵向照旧滚。 */
+.body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2px 16px 100px;
+  overflow-x:hidden; overflow-x:clip;
+  overscroll-behavior:contain}
+
+.page{display:none}
+.page.on{display:block;animation:fade .2s var(--e-out)}
+@keyframes fade{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+
+/* ══════════════════ 二、气泡 ══════════════════ */
+
+@keyframes bubbleHim{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes bubbleMe{from{opacity:0;transform:translateY(6px) scale(.97)}to{opacity:1;transform:none}}
+.page.on .msg.him{transform-origin:0% 100%;animation:bubbleHim .26s var(--spring-soft) backwards}
+.page.on .msg.me{transform-origin:100% 100%;animation:bubbleMe .22s var(--spring-soft) backwards}
+.page.on .msg:nth-of-type(2){animation-delay:.048s}
+.page.on .msg:nth-of-type(3){animation-delay:.096s}
+.msg{max-width:82%;padding:11px 14px;border-radius:15px;margin-bottom:10px;font-size:14.5px}
+.msg.me{margin-left:auto;background:var(--maple);color:var(--on-maple,#fff);border-bottom-right-radius:5px}
+.msg.him{background:var(--card);box-shadow:var(--shadow);border-bottom-left-radius:5px}
+/* 消息底下那排：收藏 · 念 · 分享 · 更多（没有踩） */
+/* 0807 定的：那排键卡在两个气泡正中间太扎眼，要缩短它跟自己那句气泡的间隔。
+   ★ 关键不是「变窄」，是**两边不对称**：紧贴上面那句（-9px），跟下一句拉开（16px）。
+     一样的东西离谁近，看的人就认为它是谁的。原来 -3/7 两边差不多，所以它看着谁都不属于。
+   （.msg 自己有 10px 的 margin-bottom，所以 -9 只是把那 10 收掉，不会压到气泡上。） */
+.acts{display:flex;gap:1px;margin:-9px 0 16px 3px}
+.acts button{
+  border:0;background:transparent;color:var(--hint);cursor:pointer;
+  width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  transition:background .18s, color .18s, transform .28s var(--spring-pop);
+}
+.acts button:hover{background:var(--card2);color:var(--sub)}
+.acts button:active{transform:scale(.86)}
+.acts button.on{color:var(--maple)}
+.acts button.on svg{fill:var(--maple);stroke:var(--maple)}
+.acts svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+/* 0811 定的：那排键（收藏 · 念 · 分享 · 更多）后面再挂个时间戳 —— 这句话是什么时候说的；
+   过完当天就改显示月日。
+   —— 口径就是 fmtTS（当天 21:30 ／ 隔天 8月4日 21:30）。
+   跟在第四颗键后面，不用 margin-left:auto 顶到屏幕最右 —— 那样它就不像是这句话的了。 */
+.acts time{
+  align-self:center;margin-left:7px;
+  font-size:11.5px;color:var(--hint);opacity:.85;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em;white-space:nowrap;
+}
+/* 用户自己那句底下没有那排键，时间就单挂一行。
+   ★ 两边不对称是 0807 定的：紧贴上面那句（-9px），跟下一句拉开（16px），
+     一样东西离谁近，看的人就认为它是谁的。 */
+.metime{
+  text-align:right;margin:-9px 3px 16px 0;
+  font-size:11.5px;color:var(--hint);opacity:.85;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em;
+}
+/* 来路标：在别处说的 / 电话里说的。0818 定的两个颜文字 */
+.srcmark{
+  font-size:11px;color:var(--hint);opacity:.9;letter-spacing:.5px;
+  margin:0 5px;align-self:center;white-space:nowrap;
+}
+.acts .srcmark{margin:0 0 0 7px}          /* 在那排键里紧跟在最后一颗键后面 */
+.acts .srcmark + time{margin-left:5px}
+
+/* 三个点弹出来的小菜单 */
+.popmenu{
+  position:absolute;z-index:12;background:var(--card);border-radius:13px;
+  box-shadow:var(--shadow-lift);border:var(--card-border);padding:5px;
+  display:none;min-width:132px;
+}
+/* 0807：加了 transform-origin —— 原来从正中缩放，跟长按的那条消息没有空间联系。
+   --po 由弹出时那几行 JS 顺手写（那儿本来就在算位置）。 */
+.popmenu.on{display:block;animation:popin .26s var(--spring-pop);transform-origin:var(--po,50% 0)}
+@keyframes popin{from{opacity:0;transform:scale(.9) translateY(-4px)}to{opacity:1;transform:none}}
+.popmenu button{
+  display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;
+  color:var(--ink);font-family:inherit;font-size:13.5px;padding:9px 11px;
+  border-radius:9px;cursor:pointer;text-align:left;
+}
+.popmenu button:hover{background:var(--card2)}
+.popmenu button:active{background:var(--card2)}
+.popmenu button svg{width:16px;height:16px;stroke:var(--sub);stroke-width:1.9;fill:none;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* 念出声的时候，播放键自己要看得出来 */
+.acts button.playing{color:var(--maple);background:var(--maple-soft)}
+.acts button.playing svg{animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.42}}
+
+/* 多选 */
+.msg{transition:opacity .3s var(--e-out), transform .3s var(--e-out)}
+/* 0818 定的：藏一条不能只让字消失、框还留着 —— 要整条从屏幕上撤走，聊天记录里照样翻得到。
+   原来 .gone 只把透明度压到 0 —— 泡泡没了，那排键、时间、思考链照旧占着位置，
+   屏幕上就剩一段空白配一行 21:06。现在整轮一起淡出，淡完从 DOM 里摘掉，位置也收回去。 */
+.msg.gone,.acts.gone,.metime.gone,.thinkbar.gone,.toolnote.gone,.timeline-t.gone{
+  opacity:0;transform:scale(.94);pointer-events:none}
+.metime,.thinkbar,.toolnote{transition:opacity .3s var(--e-out), transform .3s var(--e-out)}
+.acts{transition:opacity .3s var(--e-out), transform .3s var(--e-out)}
+.picking .msg{cursor:pointer}
+.picking .msg.picked{outline:2px solid var(--maple);outline-offset:3px}
+
+/* 发的文件名，跟在气泡里那句话下面 */
+.msg .fnames{display:block;font-style:normal;font-size:12px;line-height:1.6;opacity:.82;
+  margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.28);word-break:break-all}
+/* 发出去之后，那条气泡里的图。
+   ⚠ 气泡本身是 flex-row（皮肤那边定的），不改方向的话图和话会并排站着。
+      带图的这种单独改成竖排：图在上、配的话在下。 */
+.msg .shot{display:block;max-width:200px;border-radius:10px;margin:2px 0}
+.msg.hasshot{flex-direction:column;align-items:flex-start;gap:4px}
+.msg a{color:var(--maple);word-break:break-all}
+
+/* ══════════════════ 三、他在忙什么 · 工具调用 ══════════════════ */
+
+/* ── 他在忙什么：一行小字 ＋ 三个点。不是 loading 转圈，是「我在干嘛」 ── */
+.chatstat{display:flex;align-items:center;gap:8px;margin:2px 0 12px;font-size:12px;color:var(--sub)}
+/* ★ [hidden] 是 UA 样式的 display:none，会被上面这条 display:flex 盖掉 ——
+   于是没在忙的时候，那三个点还在原地跳，像在想事。一眼就看得出来。 */
+.chatstat[hidden]{display:none}
+.chatstat .dots{display:inline-flex;gap:3px}
+.chatstat .dots i{width:4px;height:4px;border-radius:50%;background:var(--hint);animation:statdot 1.2s infinite}
+.chatstat .dots i:nth-child(2){animation-delay:.16s}
+.chatstat .dots i:nth-child(3){animation-delay:.32s}
+@keyframes statdot{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
+/* ══ 那颗星（0820）══
+   ★ 先照抄了一套「一列字符 translateY」的做法，结果在手机上只露出小半朵
+     （容器高度靠一个隐形字符撑，各家行高不一样，窗口就对不上格）。
+     动画本身是 step-start ——**本来就是逐帧硬切**，那就干脆逐帧换字符，
+     不靠布局，多大字号都不会错位。字符和节奏（1.2s ÷ 10 帧）一个没改。 */
+.cspin{display:inline-block;flex:none;width:1em;text-align:center;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;line-height:1;
+  color:var(--maple);vertical-align:-.06em}
+/* 流式还在吐的那条：正文一句句往下接，先给个浅浅的呼吸 */
+.msg.him.streaming{opacity:.92}
+/* 工具脚注：这轮动过手的痕迹。一行、压在气泡底下、能点开看到底给了什么看到了什么。
+   （原来那排小胶囊只说了「做过」，说不出「做了什么」） */
+.toolnote{display:flex;align-items:center;gap:5px;margin:-4px 0 12px 3px;
+  font-size:10.5px;color:var(--hint);cursor:pointer;transition:color .18s}
+.toolnote:hover{color:var(--sub)}
+.toolnote svg{width:11px;height:11px;fill:currentColor;opacity:.55;flex:none}
+/* 一段话隔太久就插一条时间 —— 8 分钟以上 */
+.timeline-t{text-align:center;font-size:11px;color:var(--hint);margin:14px 0 6px;letter-spacing:.5px}
+/* 这轮做了什么 · 详情浮层 */
+.toolwrap{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:70;
+  display:flex;align-items:center;justify-content:center;padding:24px}
+.toolcard{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  max-width:420px;width:88vw;max-height:68vh;overflow-y:auto;padding:16px 18px;
+  font-size:12.5px;color:var(--ink);box-shadow:var(--shadow-lift)}
+.toolcard h5{margin:0 0 4px;font-size:14px;font-weight:650}
+.toolcard .one{margin-top:10px}
+.toolcard .lab{color:var(--maple)}
+.toolcard .gv{color:var(--hint);word-break:break-all;margin-top:2px}
+.toolcard .sw{color:var(--sub);word-break:break-all;margin-top:2px}
+.toolcard .bye{margin-top:12px;color:var(--hint);text-align:center;font-size:11px}
+
+/* ══════════════════ 四、思考链 ══════════════════ */
+
+.thinkbar{
+  display:flex;align-items:center;gap:7px;border:0;background:transparent;cursor:pointer;
+  color:var(--hint);font-family:inherit;font-size:13px;padding:4px 2px 8px;
+}
+.thinkbar svg.i{width:15px;height:15px}
+.thinkbar .cv{transition:transform .22s}
+/* 可拖的 bottom sheet：三档吸附，跟手，往下甩就关 */
+.sheet{
+  position:absolute;left:0;right:0;bottom:0;z-index:26;height:90%;
+  background:var(--card);border-radius:16px 16px 0 0;box-shadow:var(--shadow-lift);
+  transform:translateY(100%);transition:transform .42s var(--spring-soft);
+  display:flex;flex-direction:column;
+  will-change:transform;
+}
+.sheet.dragging{transition:none}
+.sheethead{flex:none;cursor:grab;touch-action:none;user-select:none;padding-bottom:2px}
+.sheethead:active{cursor:grabbing}
+.grabber{width:38px;height:4px;border-radius:99px;background:var(--line);margin:10px auto 2px}
+.sheet header{display:flex;align-items:center;gap:8px;padding:6px 14px 10px}
+.sheet header h4{flex:1;text-align:center;font-size:16px;font-weight:600;margin:0}
+.sheetbody{
+  overflow-y:auto;overscroll-behavior:contain;padding:2px 20px calc(28px + env(safe-area-inset-bottom,0px));
+  color:var(--sub);font-size:14.5px;line-height:1.9;
+}
+.sheetbody p{margin:0 0 14px}
+.sheetbody em{color:var(--ink);font-style:normal}
+.scrim{position:absolute;inset:0;background:rgba(20,17,15,.34);z-index:20;opacity:0;pointer-events:none;transition:opacity .24s var(--e-out)}
+.scrim.on{opacity:1;pointer-events:auto}
+
+/* ══════════════════ 五、加号菜单 ══════════════════ */
+
+/* 加号菜单那一格格 */
+.plusgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 0 2px}
+.pit{display:flex;flex-direction:column;align-items:center;gap:7px;padding:12px 2px 11px;
+  border:0;background:transparent;color:var(--ink);font-family:inherit;font-size:11.5px;
+  line-height:1.3;text-align:center;cursor:pointer;border-radius:14px;
+  transition:transform .28s var(--spring-pop),background .2s var(--e-out)}
+.pit:active{transform:scale(.955);background:var(--card2)}
+.pit .ic{width:44px;height:44px;flex:none;border-radius:15px;background:var(--maple-soft);
+  color:var(--maple);display:flex;align-items:center;justify-content:center}
+.pit[disabled]{opacity:.45;cursor:default}
+
+/* ══════════════════ 六、输入条 ══════════════════ */
+
+.composer{
+  position:absolute;left:12px;right:12px;
+  bottom:calc(84px + env(safe-area-inset-bottom,0px));
+  z-index:8;display:none;
+  background:var(--card);border-radius:16px;box-shadow:var(--shadow-lift);padding:12px 13px 8px;
+}
+.composer.on{display:block}
+.composer textarea{
+  width:100%;border:0;background:transparent;resize:none;color:var(--ink);
+  /* ★ 16px 是硬底线：再小 iOS Safari 一聚焦就自动放大整页 */
+  font-family:inherit;font-size:16px;line-height:1.55;outline:none;min-height:25px;max-height:104px;display:block;
+}
+.composer textarea::placeholder{color:var(--hint)}
+.crow{display:flex;align-items:center;gap:6px;margin-top:6px}
+.cbtn{
+  border:0;background:transparent;color:var(--sub);cursor:pointer;
+  display:flex;align-items:center;gap:5px;font-family:inherit;font-size:13px;
+  padding:6px 9px;border-radius:10px;transition:background .16s;
+}
+.cbtn:hover{background:var(--card2)}
+@keyframes sendPop{
+  0%{transform:scale(1)} 22%{transform:scale(.9)}
+  62%{transform:scale(1.06)} 100%{transform:scale(1)}
+}
+.send.pop{animation:sendPop .41s var(--e-out)}   /* .09s 按下 + .32s spring-pop */
+.send{
+  margin-left:auto;width:36px;height:36px;border-radius:50%;border:0;flex:none;
+  background:var(--maple);color:var(--on-maple,#fff);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.hintline{font-size:11px;color:var(--hint);margin-top:5px;text-align:center}
+
+/* 暂存条：选好的图/文件停在输入框上方，等配一句话 */
+.stagebar{padding:0 2px 8px;display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+.stagebar::-webkit-scrollbar{display:none}
+/* 0807：新贴进来的那张原来是直接蹦出来的（bar.hidden 一切就到位）。
+   只给**这一次新加的**播（drawStage 用 data-k 认新旧），撤掉一张时其余的不重播。 */
+@keyframes chipin{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
+.stagebar .chip.fresh{animation:chipin .18s var(--e-out) backwards}
+.stagebar .chip{display:inline-flex;align-items:center;gap:8px;flex:none;max-width:74%;
+  background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:5px 6px 5px 5px}
+.stagebar img{width:38px;height:38px;border-radius:8px;object-fit:cover;flex:none;display:none}
+.stagebar img[src]{display:block}
+.stagebar .fic{width:38px;height:38px;border-radius:8px;flex:none;display:flex;
+  align-items:center;justify-content:center;background:var(--maple-soft);color:var(--maple)}
+.stagebar .fic svg{width:19px;height:19px;stroke:currentColor;stroke-width:2;fill:none;
+  stroke-linecap:round;stroke-linejoin:round}
+.stagebar .nm{font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:130px}
+.stagebar .x{width:24px;height:24px;flex:none;border:0;background:transparent;cursor:pointer;
+  color:var(--hint);padding:0;display:flex;align-items:center;justify-content:center}
+.stagebar .x svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none;
+  stroke-linecap:round}
+
+/* ══════════════════ 七、底栏 · toast ══════════════════ */
+
+.tabbar{
+  position:absolute;left:12px;right:12px;
+  bottom:calc(10px + env(safe-area-inset-bottom,0px));
+  height:62px;background:var(--card);border-radius:16px;box-shadow:var(--shadow-lift);
+  display:flex;align-items:center;z-index:10;
+}
+.tab{
+  flex:1;border:0;background:transparent;cursor:pointer;color:var(--hint);
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-family:inherit;font-size:10.5px;padding:0;transition:color .18s;
+}
+.tab.on{color:var(--maple)}
+.leaf{
+  flex:none;width:56px;height:56px;margin:0 2px;border:0;border-radius:50%;
+  background:var(--card);box-shadow:var(--shadow-lift);cursor:pointer;
+  transform:translateY(-15px);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .22s cubic-bezier(.3,1.4,.5,1);
+}
+.leaf:active{transform:translateY(-15px) scale(.9)}
+.leaf svg{width:25px;height:25px;fill:var(--hint);transition:fill .22s}
+.leaf.on svg{fill:var(--maple)}
+
+.toast{
+  position:absolute;left:50%;bottom:calc(160px + env(safe-area-inset-bottom,0px));
+  transform:translate(-50%,10px);z-index:30;opacity:0;pointer-events:none;
+  background:var(--ink);color:var(--bg);font-size:13px;padding:10px 16px;border-radius:12px;
+  transition:opacity .24s var(--e-out), transform .34s var(--spring-soft);max-width:82%;text-align:center;
+}
+.toast.on{opacity:.94;transform:translate(-50%,0)}
+
+/* 降级：只动 transform/opacity 的东西一律停住，位置照旧对 */
+@media (prefers-reduced-motion: reduce){
+  .page.on .msg.him,.page.on .msg.me,.popmenu.on,.stagebar .chip.fresh,.send.pop{animation:none}
+  .chatstat .dots i{animation:none;opacity:.6}
+  .acts button.playing svg{animation:none}
+  .sheet{transition:transform .01s linear}
+}

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#f4f1ec">
+<title>打电话 · demo</title>
+<link rel="stylesheet" href="../base/tokens.css">
+<link rel="stylesheet" href="../thread/thread.css">
+<link rel="stylesheet" href="call.css">
+<!--
+  打电话页 · demo。整页照搬原项目 redesign/call.html 的 DOM（298–403 行），
+  只减了两处，都在下面注明：重演那条拉杆（要后端给录音）、家徽的 path（从 crest.js 取）。
+
+  ★ 这一页不申请麦克风、不连任何服务、不伪造接通。下面那通电话是编的剧本。
+-->
+<style>
+  /* ══ 只有 demo 自己的东西在这儿。上面三个 css 一个字没改 ══
+     一条顶上的小条：说清这一页是什么，外加手动切八个相位、演一遍剧本。
+     它盖在通话页上面（z-index 60，比贴耳黑屏那层 20 还高），按「收起」就让开。 */
+  .dm{position:fixed;left:0;right:0;top:0;z-index:60;
+      background:var(--card);border-bottom:1px solid var(--line);
+      box-shadow:0 6px 18px rgba(var(--cast),.10);
+      padding:calc(8px + env(safe-area-inset-top)) 12px 9px;
+      font:12px/1.55 system-ui,-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif}
+  .dm[hidden]{display:none}
+  .dm-say{margin:0 0 8px;color:var(--sub)}
+  .dm-say b{color:var(--ink);font-weight:600}
+  .dm-lab{color:var(--hint);letter-spacing:.16em;font-size:10.5px;margin:0 0 5px}
+  .dm-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px}
+  .dm-row:last-child{margin-bottom:0}
+  .dm-b{min-height:30px;padding:0 10px;border-radius:9px;background:var(--card2);
+        border:1px solid var(--line);color:var(--ink);font:inherit;font-size:12px;cursor:pointer}
+  .dm-b.on{border-color:var(--maple);color:var(--maple);background:var(--maple-soft);font-weight:600}
+  .dm-go{border-color:var(--maple);color:var(--maple);font-weight:600}
+  .dm-tab{position:fixed;z-index:60;top:calc(6px + env(safe-area-inset-top));right:8px;
+          min-height:30px;padding:0 11px;border-radius:9px;background:var(--card);
+          border:1px solid var(--line);color:var(--sub);font:inherit;font-size:12px;cursor:pointer;
+          box-shadow:0 2px 8px rgba(var(--cast),.10)}
+  .dm-tab[hidden]{display:none}
+</style>
+</head>
+<body data-phase="idle" data-pre="1" data-skin="talk" data-layout="stream" data-typing="0" data-ear="0">
+
+<div class="dm" id="dm">
+  <p class="dm-say">这一页<b>不申请麦克风、不连任何服务、不伪造接通</b>。
+    下面这通电话<b>整段都是编的</b> —— 那几句话谁都没说过；名字也是默认的中性名「伙伴」，
+    改 <code>call.js</code> 顶上的 <code>NAME</code> 就换成你自己的。
+    「回连环」那条退路是留给宿主自己首页的，预览里它不跳。</p>
+  <p class="dm-lab">相位</p>
+  <div class="dm-row" id="dmph"></div>
+  <div class="dm-row">
+    <button class="dm-b dm-go" id="dmplay">演一遍</button>
+    <button class="dm-b" id="dmcols">硬双栏</button>
+    <button class="dm-b" id="dmfold">收起</button>
+  </div>
+</div>
+<button class="dm-tab" id="dmtab" hidden>剧本</button>
+
+<div class="stage" id="stage">
+  <header class="head">
+    <!-- 名字：跟 call.js 顶上的 NAME 保持一致（默认「伙伴」）。这是静态文案，换名字时一起改 -->
+    <div class="who">伙伴</div>
+    <div class="meta">
+      <span class="dot" aria-hidden="true"></span>
+      <!-- ★ 那颗「在想」的星。它不是图，是五个字符 · ✢ ✶ ✻ ✽ 排成一列上下滚
+           （codeSpinnerSpin 1.2s step-start —— step-start 是关键：一格一格跳，不是滑）。
+           只在「在想」那一相位露出来，别的时候左边那颗小圆点照旧。 -->
+      <span class="cspin" aria-hidden="true"><i class="gh">✽</i><span class="col"><i>·</i><i>✢</i><i>✶</i><i>✻</i><i>✽</i></span></span>
+      <span id="word">待机</span>
+      <span id="timer">00:00</span>
+    </div>
+  </header>
+
+  <main class="field" id="field">
+    <!-- ── 皮一 · 对话 ── -->
+    <section class="skin talk" aria-label="通话转写">
+      <div class="tl" id="tl" aria-live="polite"><div class="seam" aria-hidden="true"></div></div>
+      <div class="typebar">
+        <button class="typehint" id="typeopen">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px"><path d="M4 20h4l10.5-10.5a2.83 2.83 0 0 0-4-4L4 16v4"></path><path d="M13.5 6.5l4 4"></path></svg>
+          不方便说话？在这儿打字
+        </button>
+        <form class="typerow" id="typerow">
+          <!-- placeholder 里那个名字＝call.js 顶上的 NAME -->
+          <input id="draft" placeholder="打字说给伙伴" enterkeyhint="send" aria-label="打字说话">
+          <button type="submit" class="sendbtn" id="send" aria-label="发送">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" style="width:21px;height:21px"><path d="M12 19V5M6 11l6-6 6 6"></path></svg>
+          </button>
+          <button type="button" class="closebtn" id="typeclose" aria-label="收起">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ── 皮二 · 瞥一眼 ── -->
+    <section class="skin glance" aria-label="通话状态">
+      <div id="big"></div>
+      <div id="glanceline"></div>
+    </section>
+
+    <!-- ── 待机 / 来电 / 呼叫中 ── -->
+    <section class="pre">
+      <!-- 家徽。★ path **不在这儿贴** —— 运行时由 call.js 从 ../base/crest.js 的
+           Crest.def('maple') 取（Font Awesome Free 6 · canadian-maple-leaf · Icons CC BY 4.0，
+           署名见 UPSTREAM.md）。那条线读的也是同一份，全仓库只有这一片枫叶。 -->
+      <svg class="crest" id="crest" viewBox="0 0 512 512" aria-hidden="true"><path d=""></path></svg>
+      <h1 id="pretitle">给伙伴打电话</h1>
+      <p id="presub">接通之后，外放看着，或者贴到耳边</p>
+      <button class="lethim" id="lethim">让对面打过来</button>
+      <!-- (0818 接线) 从连环加号菜单跳进来的，得给条回去的路。只在待机时露出来 -->
+      <a class="backhome" id="backhome" href="#">回连环</a>
+      <!-- (0819) 嵌在连环里时这个链接换成「回聊天框」：只把通话层推出去，线不断 ——
+           不然一回首页电话就跟着挂了。 -->
+    </section>
+  </main>
+
+  <div class="threadwrap"><canvas id="thread" aria-hidden="true"></canvas></div>
+
+  <div class="pager">
+    <button id="toTalk" aria-label="对话版"><i></i></button>
+    <button id="toGlance" aria-label="瞥一眼版"><i></i></button>
+  </div>
+
+  <footer class="controls">
+    <div class="keywrap">
+      <button class="key" id="mute" aria-pressed="false" aria-label="静音">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0z"></path><path d="M5 10a7 7 0 0 0 14 0"></path><path d="M8 21h8M12 17v4"></path><path class="slash" d="M4 4l16 16"></path></svg>
+      </button>
+      <span class="keylabel">静音</span>
+    </div>
+
+    <button class="primary" id="primary" aria-label="拨号">
+      <svg class="icon icon-lg dialicon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>
+      <svg class="icon icon-lg hangicon" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(135 12 12)"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></g></svg>
+    </button>
+
+    <button class="answer" id="answer" aria-label="接听">
+      <svg class="icon icon-lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>
+    </button>
+
+    <div class="keywrap">
+      <button class="key" id="earbtn" aria-pressed="false" aria-label="贴耳">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5a6 6 0 1 1 12 0c0 2.4-1.5 3.4-2.5 4.4s-1.9 1.9-1.9 3.3a2.6 2.6 0 0 1-5.1 0"></path><path d="M9.6 9.4a2.4 2.4 0 0 1 4.8 0c0 1-.5 1.5-1.1 2"></path></svg>
+      </button>
+      <span class="keylabel">贴耳</span>
+    </div>
+  </footer>
+
+  <div class="ear" id="ear">
+    <i aria-hidden="true"></i>
+    <div class="earhint">拿开手机唤醒</div>
+  </div>
+</div>
+
+<script src="../base/crest.js"></script>
+<script src="../thread/thread.js"></script>
+<script src="call.js"></script>
+<script>
+  /* demo 自己的那条小条。真界面一行都没改 —— 全走 window.__call 那个接线口。 */
+  var PH = [['idle','待机'],['incoming','来电'],['ringing','呼叫中'],['connecting','接通中'],
+            ['listening','在听'],['thinking','在想'],['speaking','在说'],['ended','已挂断']];
+  var box = document.getElementById('dmph');
+  PH.forEach(function (x) {
+    var b = document.createElement('button');
+    b.className = 'dm-b'; b.textContent = x[1];
+    b.onclick = function () {
+      window.__call.setPhase(x[0]);
+      box.querySelectorAll('button').forEach(function (o) { o.classList.toggle('on', o === b); });
+    };
+    box.appendChild(b);
+  });
+
+  var dm = document.getElementById('dm'), tab = document.getElementById('dmtab');
+  function fold(v) { dm.hidden = v; tab.hidden = !v; }
+  document.getElementById('dmfold').onclick = function () { fold(true); };
+  tab.onclick = function () { fold(false); };
+
+  /* 演一遍＝先回待机（把上一趟掐干净），再按主键 —— 走的就是界面自己那条拨号路。
+     顺手收起小条：这一页本来就该整屏看。 */
+  document.getElementById('dmplay').onclick = function () {
+    window.__call.setPhase('idle');
+    box.querySelectorAll('button').forEach(function (o) { o.classList.remove('on'); });
+    fold(true);
+    setTimeout(function () { document.getElementById('primary').click(); }, 60);
+  };
+
+  var cols = false, cb = document.getElementById('dmcols');
+  cb.onclick = function () {
+    cols = !cols;
+    window.__call.setLayout(cols ? 'columns' : 'stream');
+    cb.classList.toggle('on', cols);
+  };
+</script>
+</body>
+</html>

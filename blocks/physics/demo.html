@@ -1,0 +1,148 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>丝线叠卡 · demo</title>
+<link rel="stylesheet" href="../base/tokens.css">
+<link rel="stylesheet" href="silk-rope.css">
+<style>
+  /* ════════════════════════════════════════════════════════════════════
+     ★ 0902：这一套壳是照原件主页的壳整段搬来的（.app / .app.homefull > .top /
+       .body.fullbleed / .tabbar 四条）。**不是装饰** —— 丝线的几何是问宿主要的：
+       rebuild() 里 stageH 取 bodyEl 的净高、卡片下界取 navTop-12。
+       壳摆错了，卡片就会掉到底栏和控制条底下（原来这个 demo 就是这样）。
+     ════════════════════════════════════════════════════════════════════ */
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg)}
+
+  /* = 原件的 .app：定位框 ＋ 一台手机的宽 ＋ 不产生滚动盒 */
+  .wrap{position:relative;max-width:440px;margin:0 auto;height:100dvh;
+        display:flex;flex-direction:column;overflow:hidden;overflow:clip}
+
+  /* = 原件的 .app.homefull > .top：顶栏浮起来。
+     ★ 这一条是几何的一部分，不是好看：rebuild() 的上下两个界（top = headH+12，
+       bot = navTop-12）量的都是**宿主坐标**，顶栏留在流里的话舞台顶就不等于壳顶，
+       两个界会整体下移一个顶栏高，最底下那张卡正好落进底栏里。 */
+  .top{position:absolute;left:0;right:0;top:0;z-index:11;
+       padding:14px 18px;display:flex;align-items:center;gap:10px;
+       border-bottom:1px solid var(--line);background:var(--card)}
+  .top b{font-size:15px}
+  .top .s{margin-left:auto;font-size:11.5px;color:var(--hint)}
+
+  /* = 原件的 .body.fullbleed：上下内边距归零、min-height:0、不滚。
+     ★ class 名 `fullbleed` 不能改：silk-rope.js 的 rebuild() 用
+       `bodyEl.classList.contains('fullbleed')` 判断要不要把卡片收进安全区。 */
+  .stagewrap{flex:1 1 auto;min-height:0;position:relative;
+             overflow-y:clip;overflow-x:clip}
+
+  /* 底下那一坨（控制条＋底栏）合成一个盒子，整体当"底栏"交给积木 ——
+     原件那个位置只有 .tabbar 一条，demo 多一条控制条。
+     absolute 是照原件的 .tabbar 来的：底栏浮在画布上，丝线从它后面穿过去。 */
+  .btm{position:absolute;left:0;right:0;bottom:0;z-index:10}
+  .ctl{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:10px 12px;
+       background:color-mix(in srgb,var(--bg) 88%,transparent);
+       backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+       border-top:1px solid var(--line)}
+  .ctl button,.ctl label{font-size:12px;padding:6px 11px;border-radius:99px;
+       border:1px solid var(--line);background:var(--card);color:var(--sub);cursor:pointer}
+  .ctl input{vertical-align:middle;width:74px;margin-left:6px}
+  .tabbar{height:56px;border-top:1px solid var(--line);background:var(--card);
+          display:flex;align-items:center;justify-content:space-around;font-size:11.5px;color:var(--hint)}
+
+  /* = 原件的 `.body.fullbleed .silkhint{bottom:calc(84px + safe)}`：
+     画布铺满后底沿就是壳的底沿了，提示语原来的 bottom:4px 会缩到底栏底下。
+     原件底栏高度是定的（62+10+12=84），这儿控制条会换行，所以量出来写进 --btmh。 */
+  .stagewrap .silkhint{bottom:calc(var(--btmh,105px) + 12px)}
+
+  #said{position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:12;
+        padding:7px 14px;border-radius:99px;background:var(--accent);color:var(--on-accent);
+        font-size:12.5px;opacity:0;transition:opacity .3s var(--e-out);pointer-events:none}
+  #said.on{opacity:1}
+
+  /* ── 短屏（SE、横屏）──────────────────────────────────────────
+     舞台有个写死的 540 下限（silk-rope.js 的 `Math.max(540, avail)`），
+     原件在那儿的注释是「短屏不压扁，改成整页滚」—— 但原件的 .body.fullbleed 是
+     clip，其实滚不动。demo 这边真的放开：窗口矮到 559 以下就让页面自己长出来、能滚，
+     舞台钉在 540（正好等于那个下限，一个像素都不裁），底下那一坨回到流里
+     （静态元素的 offsetTop 照样是相对 .wrap 的，navTop 那条不受影响）。
+     ★ 阈值取 559 不是 540：540 是「舞台开始比壳高」那条线，再往上留 19px，
+       是给最底下那张卡和控制条之间的余量——实测 520 那一档余量只剩 0.1px。 */
+  @media (max-height:559px){
+    html,body{height:auto;overflow:visible}
+    .wrap{height:auto;min-height:100dvh}
+    .stagewrap{flex:0 0 auto;height:540px;overflow:visible}
+    .stagewrap .silkhint{bottom:4px}
+    .btm{position:static}
+  }
+</style>
+
+<div class="wrap">
+  <div class="top"><b>丝线叠卡</b><span class="s">扫一下线 · 点两下进去 · 卡上的字都是编的</span></div>
+  <!-- fullbleed 是给 silk-rope.js 认的，别当成样式类删掉（见上面注释） -->
+  <div class="stagewrap fullbleed">
+    <div class="silkstage" data-stage>
+      <svg data-svg aria-hidden="true"></svg>
+      <div class="silkcard" data-card="0"><b>今天</b><i>10 月 12 日 · 阴</i></div>
+      <div class="silkcard" data-card="1"><b>正在听</b><i>某首歌</i></div>
+      <div class="silkcard" data-card="2"><b>共读</b><i>某本书 38%</i></div>
+      <div class="silkcard" data-card="3"><b>碎碎念</b><i>12 条</i></div>
+      <div class="silkcard" data-card="4"><b>信 <em>3</em></b><i>最近一封 · 昨夜</i></div>
+      <div class="silkcard" data-card="5"><b>相册</b><i>41 张</i></div>
+      <div class="silkcard" data-card="6"><b>日历</b><i>这个月</i></div>
+      <div class="silkcard" data-card="7"><b>心情</b><i>还行</i></div>
+      <div class="silkcard" data-card="8"><b>收集</b><i>16 / 81</i></div>
+      <div class="silkcard" data-card="9"><b>词条</b><i>15 条</i></div>
+      <div class="silkcard" data-card="10"><b>小玩意</b><i>7 个</i></div>
+      <div class="silkcard" data-card="11"><b>步数</b><i>3,240</i></div>
+      <div class="silkcard" data-card="12"><b>在哪</b><i>窗边</i></div>
+      <div class="silkhint" data-hint></div>
+    </div>
+  </div>
+  <div class="btm">
+    <div class="ctl">
+      <button data-mode="drape">垂丝</button>
+      <button data-mode="blinds">横渡</button>
+      <button data-mode="lantern">灯串</button>
+      <button id="drag">拖动：关</button>
+      <button id="reset">复位</button>
+      <label>风<input type="range" id="wind" min="0" max="2.4" step=".1" value=".7"></label>
+    </div>
+    <div class="tabbar"><span>主页</span><span>聊天</span><span>记事</span><span>书房</span></div>
+  </div>
+</div>
+
+<div id="said"></div>
+
+<script src="silk-rope.js"></script>
+<script>
+  /* 底下那一坨的实际高度 —— 提示语靠它让位（控制条会换行，写死会错）。 */
+  const btm = document.querySelector('.btm');
+  const setBtm = () => document.documentElement.style.setProperty('--btmh', btm.offsetHeight + 'px');
+  setBtm(); addEventListener('resize', setBtm);
+
+  const said = document.getElementById('said');
+  let t;
+  const silk = SilkRope(document.querySelector('[data-stage]'), {
+    /* ★ body 和 footer 是这次修的重点：
+       - body（滚动容器）不给 → rebuild() 走「顶栏+底栏+26」的估算路，
+         对浮在上面的控制条一无所知，最底下那张卡被压住。
+       - footer 要给的是**真实的底沿**（控制条＋底栏那一整坨），
+         卡片下界 bot = footer.offsetTop - 12 就是从它量的。 */
+    chrome: { header: document.querySelector('.top'),
+              footer: document.querySelector('.btm'),
+              shell:  document.querySelector('.wrap'),
+              body:   document.querySelector('.stagewrap') },
+    storage: 'silkdemo',
+    onOpen(el) {
+      said.textContent = '进去了：' + el.querySelector('b').textContent;
+      said.classList.add('on');
+      clearTimeout(t); t = setTimeout(() => said.classList.remove('on'), 1400);
+    }
+  });
+  document.querySelectorAll('[data-mode]').forEach(b =>
+    b.addEventListener('click', () => silk.setMode(b.dataset.mode)));
+  document.getElementById('wind').addEventListener('input', e => silk.setWind(e.target.value));
+  document.getElementById('reset').addEventListener('click', () => silk.reset());
+  let dm = false;
+  document.getElementById('drag').addEventListener('click', e => {
+    dm = !dm; silk.setDrag(dm); e.target.textContent = '拖动：' + (dm ? '开' : '关');
+  });
+</script>

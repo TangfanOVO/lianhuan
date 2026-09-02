@@ -1,0 +1,291 @@
+/* ══════════════════════════════════════════════════════════════
+   纸感材质 —— 横向积木的第二层。
+
+   一套「东西是贴在纸上的」的质感：撕边纸、格纹胶带、票根、明信片
+   （航空邮件斜条边 ＋ 邮票齿孔 ＋ 盖销波浪）、标本卡、小册标签。
+
+   **纯 CSS，零 JavaScript，零后端。** 想要这套质感的人，拿走这一个文件
+   ＋ 下面那个 SVG 滤镜就够了。
+
+   ── 依赖 ──────────────────────────────────────────────
+   只依赖底座（`base/tokens.css`）的这几个变量：
+     --card  --card2  --ink  --sub  --hint  --line  --accent  --spring-pop
+   没有底座也能跑，自己给这几个变量赋值即可。
+
+   ── 撕边纸要一个 SVG 滤镜 ──────────────────────────────
+   `.pp-paper` 用 feTurbulence + feDisplacementMap 把纸边扭出撕口。
+   把这段贴进页面里（放哪儿都行，它不显示）：
+
+     <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+       <filter id="pp-torn" x="-5%" y="-10%" width="110%" height="120%">
+         <feTurbulence type="fractalNoise" baseFrequency="0.014 0.36"
+                       numOctaves="3" seed="7" result="n"/>
+         <feDisplacementMap in="SourceGraphic" in2="n" scale="6"
+                            xChannelSelector="R" yChannelSelector="G"/>
+       </filter>
+     </svg>
+
+   ★ 滤镜只加在**底层那张纸**上，不加在文字上 —— 文字被 displacement
+     扭过之后会糊得没法读。所以 `.pp-note` 里纸是绝对定位的一层，
+     内容在它上面另起一层。
+
+   ── 字体 ──────────────────────────────────────────────
+   正文那几处指定了 LXGW WenKai（霞鹜文楷，SIL OFL 1.1）。
+   没装就自动落到后面的宋体 / Georgia，不影响布局。要装自己去拿。
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 撕边纸：底层被滤镜扭，文字在上层不受影响 ── */
+.pp-note{position:relative;padding:16px 15px 14px;margin:0 2px}
+.pp-note .pp-paper{
+  position:absolute;inset:-2px;z-index:0;
+  background:var(--card);
+  filter:url(#pp-torn);
+  box-shadow:0 2px 9px rgba(0,0,0,.055);
+}
+.pp-note > *{position:relative;z-index:1}
+
+/* ── 格纹胶带：斜着压在角上 ── */
+.pp-tape{
+  position:absolute;z-index:2;width:74px;height:23px;
+  background:
+    repeating-linear-gradient(90deg,color-mix(in srgb,var(--accent) 20%,transparent) 0 4px,transparent 4px 9px),
+    repeating-linear-gradient(0deg,color-mix(in srgb,var(--accent) 20%,transparent) 0 4px,transparent 4px 9px),
+    color-mix(in srgb,var(--card) 78%,transparent);
+  box-shadow:0 1px 3px rgba(0,0,0,.07);
+  /* 两端撕口 */
+  -webkit-mask:linear-gradient(90deg,transparent 0 2px,#000 4px calc(100% - 4px),transparent calc(100% - 2px));
+          mask:linear-gradient(90deg,transparent 0 2px,#000 4px calc(100% - 4px),transparent calc(100% - 2px));
+}
+.pp-tape.a{top:-10px;left:20px;transform:rotate(-6deg)}
+.pp-tape.b{top:-9px;right:18px;transform:rotate(5deg);width:62px}
+.pp-tape.blue{
+  background:
+    repeating-linear-gradient(90deg,rgba(90,125,153,.22) 0 4px,transparent 4px 9px),
+    repeating-linear-gradient(0deg,rgba(90,125,153,.22) 0 4px,transparent 4px 9px),
+    color-mix(in srgb,var(--card) 78%,transparent);
+}
+
+/* ── 此刻在哪 ── */
+.pp-eyebrow{
+  font-size:10.5px;font-weight:400;letter-spacing:.17em;
+  color:var(--sub);margin:0 0 7px;
+  font-variant-numeric:tabular-nums;
+}
+.pp-place{
+  font-size:23px;font-weight:650;line-height:1.2;color:var(--ink);
+  letter-spacing:-.015em;margin:0 0 8px;
+}
+.pp-meta{
+  display:flex;flex-wrap:wrap;gap:4px 8px;
+  font-size:11.5px;color:var(--sub);
+  font-variant-numeric:tabular-nums;margin:0 0 12px;
+}
+.pp-meta span{
+  padding:2px 7px;border-radius:4px;
+  background:color-mix(in srgb,var(--ink) 4%,transparent);
+}
+.pp-meta b{color:var(--ink);font-weight:650}
+.pp-text{
+  font-size:14px;line-height:1.9;color:var(--ink);
+  font-family:"LXGW WenKai","Songti SC","Noto Serif CJK SC",Georgia,serif;
+  margin:0;
+  display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;
+}
+.pp-text.open{-webkit-line-clamp:unset;overflow:visible}
+/* 「读全文」跟主页那个「还有 3 条 ›」是同一件事，就用同一个写法：
+   细体、枫叶红（这是**可点的动作**，红色用在这儿才合规矩）、后面跟一个 › */
+.pp-more{
+  display:block;width:100%;min-height:44px;margin:2px 0 0;padding:0;
+  border:0;background:none;text-align:left;cursor:pointer;
+  font:400 13px/44px inherit;color:var(--accent);letter-spacing:.01em;
+}
+
+/* ── 票根：左右打孔，撕线在中间 ── */
+.pp-ticket{
+  position:relative;display:flex;align-items:center;gap:10px;
+  min-height:46px;margin:10px 2px 0;padding:0 15px;
+  background:var(--card);color:var(--ink);text-decoration:none;
+  box-shadow:0 2px 8px rgba(0,0,0,.05);
+  transform:rotate(-.5deg);
+  -webkit-mask:
+    radial-gradient(circle 6px at 0 50%,transparent 98%,#000 100%),
+    radial-gradient(circle 6px at 100% 50%,transparent 98%,#000 100%);
+  -webkit-mask-composite:source-in;
+          mask:
+    radial-gradient(circle 6px at 0 50%,transparent 98%,#000 100%),
+    radial-gradient(circle 6px at 100% 50%,transparent 98%,#000 100%);
+          mask-composite:intersect;
+}
+.pp-ticket svg{flex:none;width:15px;height:15px;stroke:var(--accent);
+  stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.pp-ticket b{font-size:13px;font-weight:650}
+.pp-ticket small{
+  margin-left:auto;font-size:10.5px;color:var(--sub);font-weight:400;
+  letter-spacing:.17em;
+}
+
+/* ── 明信片：贴在页上的样子，白边＋歪一点＋两角胶带 ── */
+.pp-front img{width:100%;height:auto;display:block}
+.pp-front .pp-seal{
+  position:absolute;right:10px;bottom:10px;
+  width:60px;height:60px;border-radius:50%;
+  border:1.5px solid color-mix(in srgb,var(--accent) 60%,transparent);
+  color:var(--accent);opacity:.92;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:8px;line-height:1.35;text-align:center;font-weight:700;
+  transform:rotate(-11deg);
+  background:color-mix(in srgb,var(--card) 52%,transparent);
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+}
+.pp-front .pp-seal b{font-size:9.5px;font-weight:800;display:block}
+.pp-back{padding:13px 7px 14px}
+.pp-back p{
+  margin:0 0 10px;white-space:pre-wrap;
+  font-family:"LXGW WenKai","Songti SC","Noto Serif CJK SC",Georgia,serif;
+  font-size:14px;line-height:1.95;color:var(--ink);
+}
+.pp-post{
+  border-top:1px dashed var(--line);padding-top:8px;
+  font-size:10px;line-height:1.75;color:var(--hint);
+  font-variant-numeric:tabular-nums;letter-spacing:.02em;
+}
+
+/* ── 明信片：折起来是一行日记，点开才是整张 ────────────────
+   一页上摊开十几张明信片会变成一堵墙。所以默认每张只留一行
+   （编号 · 标题 · 地点日期 · 缩略图），点开才展开整张。 */
+.pp-fold{margin:0 2px}
+.pp-item{
+  border-bottom:1px dashed var(--line);
+}
+.pp-item:last-child,.pp-item:last-child{border-bottom:0}
+.pp-sum{
+  display:flex;align-items:center;gap:11px;width:100%;
+  min-height:62px;padding:9px 12px;
+  background:var(--card);border:0;text-align:left;cursor:pointer;
+  font:inherit;color:inherit;
+}
+.pp-sum .pp-num{flex:none;width:22px}
+.pp-sum .pp-tt{flex:1;min-width:0}
+.pp-sum .pp-tt b{
+  display:block;font-size:14.5px;font-weight:650;color:var(--ink);
+  line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.pp-sum .pp-tt small{
+  display:block;margin-top:3px;font-size:11px;color:var(--sub);
+  font-variant-numeric:tabular-nums;letter-spacing:.02em;
+}
+.pp-thumb{
+  flex:none;width:46px;height:34px;border-radius:2px;overflow:hidden;
+  background:var(--card2);box-shadow:0 1px 3px rgba(0,0,0,.12);
+  transform:rotate(2deg);
+}
+.pp-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.pp-chev{
+  flex:none;width:15px;height:15px;stroke:var(--hint);stroke-width:2.2;
+  fill:none;stroke-linecap:round;stroke-linejoin:round;
+  transition:transform .22s var(--spring-pop,ease);
+}
+.pp-item.on .pp-chev,.pp-item.on .pp-chev{transform:rotate(90deg)}
+.pp-body{display:none;padding:0 4px 16px}
+.pp-item.on .pp-body,.pp-item.on .pp-body{display:block}
+
+/* ── 真明信片：航空邮件斜条边 ＋ 邮票齿孔 ＋ 盖销波浪 ── */
+.pp-pc{
+  position:relative;margin:8px 4px 4px;padding:10px;
+  /* ★ 层序要紧：CSS 背景第一层在**最上面**。纸必须写在斜条前面，
+     否则航空条纹会铺满整张、把信压在底下（0822 当场栽了一次）。 */
+  background:
+    linear-gradient(var(--card),var(--card)) padding-box,
+    repeating-linear-gradient(45deg,
+      color-mix(in srgb,var(--accent) 62%,transparent) 0 7px,
+      transparent 7px 14px,
+      rgba(74,102,138,.5) 14px 21px,
+      transparent 21px 28px) border-box;
+  border:7px solid transparent;
+  box-shadow:0 3px 14px rgba(0,0,0,.10);
+}
+.pp-pc.r1{transform:rotate(-.9deg)}
+.pp-pc.r2{transform:rotate(.7deg)}
+.pp-front{
+  position:relative;display:block;width:100%;line-height:0;
+  background:var(--card2);
+}
+/* 邮票齿孔：★ 不用 mask —— 五层 mask-composite 在手机上会把整张图咬没（栽过）。
+   改成用纸的颜色在四边叠一圈半圆，视觉一样，图一定在。 */
+.pp-front::after{
+  content:"";position:absolute;inset:-5px;pointer-events:none;
+  background:
+    radial-gradient(circle 5px at 50% 0,var(--card) 97%,transparent 100%) 0 0/13px 13px repeat-x,
+    radial-gradient(circle 5px at 50% 100%,var(--card) 97%,transparent 100%) 0 100%/13px 13px repeat-x,
+    radial-gradient(circle 5px at 0 50%,var(--card) 97%,transparent 100%) 0 0/13px 13px repeat-y,
+    radial-gradient(circle 5px at 100% 50%,var(--card) 97%,transparent 100%) 100% 0/13px 13px repeat-y;
+}
+.pp-cancel{      /* 盖销：邮戳旁边那几道波浪 */
+  position:absolute;right:6px;bottom:34px;width:96px;height:26px;
+  opacity:.42;pointer-events:none;
+}
+.pp-cancel path{stroke:var(--accent);stroke-width:1.6;fill:none}
+
+/* ── 去过的地方：一条条票根线 ── */
+.pp-rows{margin:0 2px;background:var(--card);
+  box-shadow:0 2px 8px rgba(0,0,0,.05);padding:2px 14px}
+.pp-row{
+  display:flex;align-items:center;gap:10px;min-height:46px;
+  border-bottom:1px dashed var(--line);
+}
+.pp-row:last-child{border-bottom:0}
+.pp-num{
+  flex:none;width:22px;font-size:10px;font-weight:700;color:var(--hint);
+  font-variant-numeric:tabular-nums;letter-spacing:.04em;
+}
+.pp-row .pp-n{flex:1;min-width:0;font-size:14px;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-row .pp-n em{font-style:italic;color:var(--sub);font-size:11.5px;margin-left:6px}
+.pp-row .pp-x{flex:none;font-size:10.5px;color:var(--hint);
+  font-variant-numeric:tabular-nums;letter-spacing:.03em}
+
+/* ── 标本卡：路上遇见的那些，贴纸样 ── */
+.pp-specs{display:flex;flex-wrap:wrap;gap:9px;margin:0 2px}
+.pp-spec{
+  position:relative;flex:1 1 46%;min-width:0;min-height:46px;
+  padding:9px 11px;background:var(--card);
+  box-shadow:0 2px 7px rgba(0,0,0,.055);
+  border-left:2.5px solid color-mix(in srgb,var(--accent) 55%,transparent);
+}
+.pp-spec:nth-child(3n){transform:rotate(-.7deg)}
+.pp-spec:nth-child(3n+2){transform:rotate(.6deg)}
+.pp-spec b{display:block;font-size:13px;font-weight:650;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-spec i{display:block;font-style:italic;font-size:10.5px;color:var(--sub);
+  margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-spec u{display:block;text-decoration:none;font-size:9.5px;color:var(--hint);
+  margin-top:4px;letter-spacing:.05em;font-variant-numeric:tabular-nums}
+
+/* ── 自然志：五枚小册标签 ── */
+.pp-books{display:flex;flex-wrap:wrap;gap:8px;margin:0 2px}
+.pp-book{
+  display:flex;align-items:baseline;gap:6px;min-height:36px;
+  padding:0 13px;line-height:36px;
+  background:var(--card);box-shadow:0 2px 6px rgba(0,0,0,.05);
+  border-radius:2px 2px 8px 8px;
+  font-size:12px;color:var(--sub);
+}
+.pp-book:nth-child(even){transform:rotate(.8deg)}
+.pp-book b{color:var(--ink);font-weight:700;font-size:13px;
+  font-variant-numeric:tabular-nums}
+/* 列表被截断时那一行：文字链、13px、重点色、后缀 ›。
+   ★ 这跟「打开一整件东西」是两路，别混用 ——
+     截断用文字链，打开一整件用「整行 ＋ 右侧 chevron」。混着用，
+     人就分不清哪些能点开、哪些只是展开更多。 */
+.pp-hid{display:none}
+.pp-rest{
+  display:block;width:100%;min-height:44px;padding:0 14px;margin:0;
+  border:0;background:none;text-align:left;cursor:pointer;
+  font:400 13px/44px inherit;color:var(--accent);
+}
+.pp-empty{padding:16px 4px;font-size:13px;color:var(--hint)}
+
+@media (prefers-reduced-motion:reduce){
+  .pp-pc,.pp-ticket,.pp-spec,
+  .pp-book,.pp-h{transform:none}
+}

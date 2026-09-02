@@ -1,0 +1,104 @@
+/* 记忆字云 —— 样式
+   ★ 跟应用 index.html 里那一段是同一份，tests 钉着，改一处要改两处。
+   ★ 要 base/tokens.css 里的：--card --card2 --ink --sub --hint --line --maple
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ══ 记忆字云（0827）══════════════════════════════════════════════════
+   记忆库可视化的设计出自本项目，上游作者帮着完善了实现，这边接的是真记忆。
+   摆在记忆总览那四栏**上面**：字云看总量、密度和关系，点一条在底下显示，
+   要翻列表、要改，再点四栏进去 —— 定下的分工，记忆本来就是列表。
+   ★ 数据口径跟 /api/memory/overview 完全一致（同一组 LAYER_MAP、同样含 distilled），
+     两个数字必须对得上：用户逮到过一次总览 1080 / 字云 1071。 */
+#glyphwrap{
+  position:relative;height:min(52vh,392px);margin:0 -16px;overflow:hidden;
+  background:var(--card2);border-bottom:1px solid var(--line);
+  /* ★ touch-action 要写在**容器**上，不能只写在 canvas 上。
+     上游那版画布是 position:fixed 全屏、头上没有能滚的祖先；我们这版塞在
+     .subwrap（overflow-y:auto）里 —— iOS 上双指落在可滚祖先内部时，
+     手势先被滚动容器抢走，只在 canvas 上写 touch-action 按不住它。
+     这就是「预览页能捏、原项目捏不动」的差别。 */
+  touch-action:none;overscroll-behavior:none;
+}
+/* 第二层保险：手指真落到画布上了，就把外头那层滚动直接锁死，抬手再放开。
+   光靠 touch-action 在个别 webview / PWA 壳里仍会漏。 */
+.subwrap[data-glyph-lock]{overflow:hidden!important}
+/* touch-action:none 不能省 —— 少了它，手机上的手势会先被浏览器吞掉 */
+#glyphcv{position:absolute;inset:0;width:100%;height:100%;display:block;
+         touch-action:none;cursor:grab}
+/* 画布下沿那一条：左边是把手（拖它调高矮），右边是按钮。
+   ★ 0827 定的：这条下沿做成能拖的滑杆，要不要往下拉看更多由使用者自己选 ——
+     想看大图就往下拽，想看列表就往上推。高度存 PREF，下次进来还是定下的那个。 */
+#glyphrow{
+  position:relative;display:flex;align-items:center;gap:8px;
+  margin:0 -16px 12px;padding:0 12px 0 16px;
+  border-bottom:1px solid var(--line);touch-action:none;
+}
+#glyphgrab{
+  flex:1;min-height:44px;display:flex;align-items:center;
+  cursor:ns-resize;-webkit-user-select:none;user-select:none;
+}
+/* 抓握指示：一小道横杠，跟 iOS 那套 grabber 同一个意思 */
+#glyphgrab::before{
+  content:'';width:34px;height:4px;border-radius:2px;background:var(--thread);
+  transition:background .18s,width .18s;
+}
+#glyphrow[data-drag] #glyphgrab::before{background:var(--maple);width:46px}
+#glyphtip{
+  font-size:11px;font-weight:400;color:var(--maple);
+  display:none;align-items:center;min-height:44px;cursor:pointer;
+}
+/* 平时不占地方，只有出事了才冒出来 —— 静默的失败等于把故障藏起来 */
+#glyphwrap[data-err="1"] ~ #glyphrow #glyphtip{display:flex}
+#glyphwrap[data-err="1"] ~ #glyphrow #glyphgrab::before{background:var(--maple)}
+/* ★ 缩放给按钮，不只给手势：手势在 PWA / 各家 webview 里都可能被壳先吃掉
+   （0827 在 PWA 里就是捏不动），按钮是唯一不会失灵的那条路。 */
+#glyphbar{display:flex;align-items:center;gap:2px;flex:0 0 auto}
+#glyphbar button{
+  min-width:44px;min-height:44px;padding:0 10px;border:0;background:none;
+  color:var(--maple);font:500 13px/1 inherit;cursor:pointer;border-radius:8px;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+#glyphbar button:active{background:color-mix(in srgb,var(--maple) 16%,transparent)}
+#glyphbar .z{font-size:19px;font-weight:400}
+/* 回到默认。图标照 DESIGN.md §4 的规格：Tabler、stroke-width 2、圆头圆角。
+   ★ 换掉了原来那个 `rotate`（`M19.95 11a8 8 0 1 0 -.5 4m.5 5v-5h-5`）——
+     它的 path **上下不对称**：圆弧在中间，可箭头那一折伸到 y=20，
+     边界框 3→20，居中之后圆环被顶得偏上，一眼就看得出位置不对。
+     换成 `refresh` 那一对弧，边界 5→19，上下对称。 */
+/* ⚠ 这儿原来写的是 `class="ic"` —— **`.ic` 是连环自己就有的类**（设置页每个图标容器都用它），
+   它自带的尺寸/外边距把整条 bar 撑到 54 高，刷新键顶在上沿、比别的高 5px，用户一眼看出来。
+   ★ 一天里第三次栽在「裸类名」上（前两次是 hidden 被 display 盖）：
+     抄进宿主的东西**一律带前缀或直接用 id**，别赌哪个名字没被占。 */
+#glyphrst{padding:0 11px}
+#glyphrst svg{width:18px;height:18px;fill:none;stroke:currentColor;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block}
+/* 高度写死，不靠 min-height —— 靠 min-height 时任何一个子项被撑大都会让整排失准 */
+#glyphbar{height:44px}
+#glyphbar button{height:44px;align-self:center}
+#glyphmode.on{box-shadow:inset 0 0 0 1px var(--maple)}
+
+#glyphpick{
+  background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);
+  border:var(--card-border);padding:13px 14px;margin:0 0 14px;
+}
+#glyphpick .gk{
+  font-size:10.5px;font-weight:400;letter-spacing:.17em;color:var(--sub);margin-bottom:5px;
+}
+#glyphpick .gt{font-size:13.5px;line-height:1.7;color:var(--ink);white-space:pre-wrap}
+#glyphpick .gmore{
+  display:inline-block;margin-top:6px;font-size:13px;color:var(--maple);
+  background:none;border:0;padding:4px 0;cursor:pointer;
+}
+#glyphpick .grh{
+  font-size:10.5px;font-weight:400;letter-spacing:.17em;color:var(--sub);
+  margin:12px 0 7px;padding-top:11px;border-top:1px solid var(--line);
+}
+#glyphpick .gri{
+  display:block;width:100%;text-align:left;border:0;background:var(--card2);
+  border-radius:10px;padding:9px 11px;margin-bottom:6px;cursor:pointer;font:inherit;
+  min-height:44px;
+}
+#glyphpick .gri:active{transform:scale(.99)}
+#glyphpick .gri b{display:block;font-size:12.5px;font-weight:400;color:var(--ink);
+  line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#glyphpick .gri i{display:block;font-style:normal;font-size:10.5px;color:var(--hint);margin-top:3px}

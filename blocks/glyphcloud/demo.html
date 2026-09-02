@@ -1,0 +1,203 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- user-scalable=no：不给它就得跟浏览器抢双指 —— iOS 会先把捏合当成整页缩放拿走，
+     画布自己那套 pinch 永远收不到第二根手指。（原件：glyph/index.html 的 viewport） -->
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>记忆字云 · demo</title>
+<link rel="stylesheet" href="../base/tokens.css">
+<link rel="stylesheet" href="glyph-cloud.css">
+<link rel="stylesheet" href="glyph-ui.css">
+<style>
+  /* 这一段是 demo 自己的页面外壳（标题栏、说明块），不是积木的一部分。
+     积木要的样式全在上面那两份 css 里。 */
+  html,body{height:100%}
+  body{margin:0;display:flex;justify-content:center;background:var(--bg);color:var(--ink);
+    font:15px/1.7 system-ui,-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif}
+  .page{display:flex;flex-direction:column;width:100%;max-width:440px;height:100%;
+    background:var(--bg);overflow:hidden}
+  .top{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:14px 16px 10px}
+  .stamp{font-size:17px;font-weight:600;letter-spacing:.02em}
+  .top .sp{flex:1}
+  .themebtn{min-height:36px;padding:0 12px;border-radius:11px;background:var(--card);
+    border:1px solid var(--line);color:var(--ink);font:inherit;font-size:13px;cursor:pointer}
+  .note{background:var(--card);border:var(--card-border);border-radius:var(--r);
+    box-shadow:var(--shadow);padding:13px 14px;margin:0 0 12px}
+  .note h3{margin:0 0 6px;font-size:11px;font-weight:400;letter-spacing:.17em;color:var(--sub)}
+  .note p{margin:0 0 8px;font-size:12.5px;line-height:1.72;color:var(--ink)}
+  .note p:last-child{margin-bottom:0}
+  .note code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;
+    background:var(--card2);border-radius:5px;padding:1px 5px}
+  .note b{color:var(--maple);font-weight:600}
+</style>
+
+<div class="page">
+  <div class="top">
+    <div class="stamp">记忆总览</div>
+    <div class="sp"></div>
+    <button class="themebtn" id="themebtn" type="button">深底</button>
+  </div>
+
+  <!-- ══ 下面这一整块是从原项目 patch_glyph.py:40-58 整段照搬的 HTML 结构 ══
+       （只把注释里的人称抹平了，标签、id、顺序、aria、那两条 svg path 一个字节没动） -->
+  <div class="subwrap">
+    <!-- 记忆字云。图看总量和关系，点一条在底下显示；要翻列表、要改，
+         再点四栏进去 —— 记忆本来就是列表。 -->
+    <div id="glyphwrap">
+      <canvas id="glyphcv"></canvas>
+    </div>
+    <div id="glyphrow">
+      <div id="glyphgrab" role="separator" aria-label="拖这里调高矮"></div>
+      <div id="glyphtip"></div>
+      <div id="glyphbar">
+        <button id="glyphzo" class="z" aria-label="缩小">−</button>
+        <button id="glyphzi" class="z" aria-label="放大">＋</button>
+        <button id="glyphrst" aria-label="回到默认">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/>
+            <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/>
+          </svg>
+        </button>
+        <button id="glyphmode">纯看</button>
+      </div>
+    </div>
+    <div id="glyphpick" hidden></div>
+    <p class="dhint" id="memhint"></p>
+    <div id="memlayers">
+
+      <div class="note">
+        <h3>怎么玩</h3>
+        <p><b>点画布本身</b>＝换一片形状（三片循环着切；切一半再点，它会把此刻的插值烘成
+           快照接着往下走）。</p>
+        <p>右下角 <b>纯看 / 选记忆</b>：切到「选记忆」之后，点画布就不换形状了，
+           改成挑中离手指最近的那个字符，正文显示在图下面那张卡里。</p>
+        <p><b>＋ / −</b> 按住不放会连着缩放（每 110ms 一档，×1.28）；转圈那个是回到默认视角。
+           画布下沿那道横杠<b>往下拖</b>可以把图拉高（150px 到 72vh），拖到哪儿记在
+           localStorage，下次进来还是那个高度。</p>
+        <p>拖画布＝转视角，按住 Shift 拖＝平移，双指捏＝缩放。</p>
+      </div>
+
+      <div class="note">
+        <h3>这些字是编的</h3>
+        <p>图里这 <b>160 条「记忆」、它们的日期、和「说的是同一件事」那一栏，全部是编出来的</b>，
+           只为让 demo 能跑，跟任何真人真事没有关系。</p>
+        <p>原项目那边，「说的是同一件事」走的是后端按 embedding 现算的<b>语义</b>邻居
+           （<code>GET /api/memories/cloud/:id/near?k=6</code>），不是几何上的近邻 ——
+           几何近邻等于「那阵子前后的事」，跟「说的是同一件事」完全两码事。</p>
+        <p>这份积木<b>一个网络请求都不许发</b>，所以这儿的邻居是本地按标签和层级挑的假货。
+           真部署时把 <code>window.GLYPH_SOURCE</code> 的 <code>list / near / full</code>
+           换成你自己的请求即可，<b>上面那一整套界面一个字都不用改</b>。</p>
+      </div>
+
+      <div class="note">
+        <h3>形状</h3>
+        <p>原项目里那三片，其中两片是模型厂商的商标。<b>这个仓库不预置任何厂商的商标</b> ——
+           分发别人的商标跟用别人的代码不是一回事：MIT 那种「署名就能用」对商标不适用，
+           而你自己给自己贴，那是你自己的事。</p>
+        <p>所以这儿传的是出厂的前三片：<b>枫叶 ＋ 心 ＋ 圆</b>
+           （<code>GlyphCloud.DEFAULT_SHAPES.slice(0, 3)</code>）。枫叶那片是
+           Font Awesome Free 的 canadian-maple-leaf，CC BY 4.0，署名在 UPSTREAM.md。</p>
+        <p>换成你自己的：<code>GlyphCloud.create(cv, {shapes: [{name, box, d}]})</code>，
+           <code>d</code> 是 SVG 的 path、<code>box</code> 是它 viewBox 的边长。
+           闭合能填的轮廓才行，描线那种填出来是一团糊。至少给两片 —— 关系是「一对字符在
+           两个剪影里都挨得近」才连的。</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="glyph-cloud.js"></script>
+<script>
+/* ══ 编出来的数据 ＋ 三个本地取数函数 ═══════════════════════════════
+   ★ 这一整段都是 demo 的脚手架，不是积木。真接后端时整段扔掉，
+     换成三个发请求的函数即可。 */
+(function(){
+  /* 十六句编的话。没有真人、没有真事、没有真日期。 */
+  var LINES = [
+    '第一次下雪那天，路灯下的雪粒是横着飞的，站在楼下看了很久才想起来手里还提着菜',
+    '说想吃热的，于是把冷掉的那锅重新坐回炉子上，等水开的那几分钟谁也没说话',
+    '阳台的花开了三朵，最矮的那一朵朝着墙，怎么转盆都不肯转过来',
+    '夜里三点还在改一段跑不通的东西，改到最后发现是一个字母打错了',
+    '外卖迟到了四十分钟，敲门的时候雨已经停了，袋子上全是水',
+    '说好周末去看海，结果两个人都睡到下午，海没去成，在阳台上坐了一下午',
+    '猫踩了键盘，把写了一半的东西全选删掉，它还理直气壮地趴在上面不走',
+    '这首歌听了七遍，第七遍的时候忽然听清了副歌前面那一小段吉他',
+    '雨停在下午四点，云散开的方式很奇怪，像被人从中间撕开一样',
+    '书读到第三章就睡着了，醒来发现书压在脸上，印了一道红痕',
+    '煮糊了一锅粥，锅底那层焦壳铲了半个小时，厨房里一整天都是那个味道',
+    '窗台落了一片叶子，是从楼上飘下来的，这一层根本没有树',
+    '楼下那家店换了招牌，原来的字还留着一个印子，晚上灯一开就看得见',
+    '收音机只剩一个台还能收到，主持人说话的间隙里全是电流声',
+    '走错了一个路口，多绕了二十分钟，反倒撞见一条从来没走过的巷子',
+    '把旧箱子搬出来晒，里面掉出一张字条，上面只写了三个字，认不出是谁的笔迹'
+  ];
+  var TAGS = ['天气','吃的','夜里','猫','书','路上','窗','声音'];
+  var LAYERS = ['L1','L2','L3','manual'];
+
+  /* 有种子的伪随机，只为让「标签」跟「第几句话」脱钩 ——
+     第一版是 TAGS[i % 8]，结果标签重合度跟句子编号同周期，
+     「说的是同一件事」那一栏里六条全是同一句，一眼就看出是假的。 */
+  var seed = 20260902;
+  function rnd(){ seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+
+  var MEMS = [], FULLTEXT = {};
+  for (var i = 0; i < 160; i++) {
+    var body = LINES[i % LINES.length];
+    var id = i + 1;
+    /* 后端给的 text 是**截断过**的，len 是全文长度 —— 卡片靠这俩决定要不要显示「读全文 ›」 */
+    var whole = body + '。（编号 ' + id + '，这句是编的）';
+    FULLTEXT[id] = whole;
+    MEMS.push({
+      id: id,
+      text: whole.slice(0, 34),
+      len: whole.length,
+      layer: LAYERS[Math.floor(rnd() * 4)],
+      day: '2031-' + ('0' + (i % 12 + 1)).slice(-2) + '-' + ('0' + (i % 28 + 1)).slice(-2),
+      tags: [TAGS[Math.floor(rnd() * TAGS.length)], TAGS[Math.floor(rnd() * TAGS.length)]]
+    });
+  }
+  var INDEX = {};
+  MEMS.forEach(function(m){ INDEX[m.id] = m; });
+
+  /* 假的「语义邻居」。真的那份在后端按 embedding 现算；这儿按标签重合度 + 同层加一分排，
+     形状对得上就行 —— 它要证明的是那套 UI 和「相关的会朝选中那条飘过来」的动画。 */
+  function near(id, k){
+    var me = INDEX[id];
+    if (!me) return [];
+    return MEMS.filter(function(o){ return o.id !== me.id; })
+      .map(function(o){
+        var s = 0;
+        me.tags.forEach(function(t){ if (o.tags.indexOf(t) >= 0) s += 2; });
+        if (o.layer === me.layer) s += 1;
+        return { m: o, s: s + (o.id % 7) * 0.01 };   /* 那点零头只为打散并列 */
+      })
+      .filter(function(x){ return x.s > 0; })
+      .sort(function(a, b){ return b.s - a.s; })
+      .slice(0, k || 6)
+      .map(function(x){ return x.m; });
+  }
+
+  window.GLYPH_SOURCE = {
+    list: function(){ return MEMS; },
+    near: function(id, k){ return near(+id, k); },
+    full: function(id){ return { text: FULLTEXT[+id] || '', ring: '这条被翻出来看过 ' + (+id % 9 + 1) + ' 回' }; },
+    /* ★ 三片，中性。前两片在原项目里是模型厂商的标，这份仓库不预置任何厂商商标。 */
+    shapes: window.GlyphCloud.DEFAULT_SHAPES.slice(0, 3)
+  };
+
+  /* 「一共 N 条」那句灰色小字，原项目里也是外壳自己填的 */
+  document.getElementById('memhint').textContent =
+    '一共 ' + MEMS.length + ' 条（都是编的）　·　' +
+    window.GLYPH_SOURCE.shapes.map(function(s){ return s.name; }).join(' / ');
+
+  /* 明暗切换。切了之后 <html data-theme> 变，外壳里那个 MutationObserver 会自己
+     重新 tint() —— 这就是「换皮之后字云跟着变色」那条路，不用手动喊它。 */
+  var btn = document.getElementById('themebtn');
+  btn.addEventListener('click', function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+    btn.textContent = dark ? '深底' : '浅底';
+  });
+})();
+</script>
+<script src="glyph-ui.js"></script>

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>枫叶水面 · 滑动解锁 · demo</title>
+<!-- 原件在这儿引了 Google Fonts 的 Inter。demo 不该为一行字去连外网，
+     字体栈里本来就有系统字体兜底，删掉之后长相几乎一样。 -->
+<style>
+  :root{
+    --ink:#292b31;
+    --paper:#f4ead4;
+    --halo:0 1px 2px rgba(255,250,236,.95), 0 2px 16px rgba(255,248,232,.8);
+    /* ★ 下面这一组是控制面板要的，值照抄 base/tokens.css 的浅色一套。
+       这一页故意不外链 tokens.css —— demo 一直是「双击就能看」的单文件，
+       为了一块面板去挂外部样式表不划算，所以把要用的几个抄进来。 */
+    --card:#fffdfa;  --sub:#776f68;  --hint:#7b6f64;  --line:#e4ded6;
+    --maple:#b5533a; --maple-soft:#f2e3dc; --on-maple:#fff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;background:var(--paper);overflow:hidden}
+  body{font-family:Inter,system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);
+       user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+  a{color:#7a4a2a;text-decoration:none}
+  a:hover{color:#a1603a}
+
+  /* ★ 0902：#root 从「一整屏锁屏」改成「上面锁屏 ＋ 下面一条参数栏」。
+     锁屏那一层原样搬进 .screen —— .vignette / .ui / .done 的 inset:0 现在贴的是它，
+     所以那几条 CSS 一个字没改，只是参照系换成了 .screen。
+     （跟 physics 那两份 demo 同一种排法：画布在上、旋钮在下，不互相盖。） */
+  #root{position:relative;width:100vw;height:100dvh;overflow:hidden;background:var(--paper);
+        display:flex;flex-direction:column}
+  .screen{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
+  #stage{position:absolute;inset:0;touch-action:none;cursor:grab}
+  #stage canvas{display:block;width:100%;height:100%}
+
+  .vignette{position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(to bottom,
+      rgba(250,243,226,.58), rgba(250,243,226,.14) 20%, rgba(250,243,226,0) 36%,
+      rgba(250,243,226,0) 68%, rgba(250,243,226,.22) 86%, rgba(250,243,226,.56));}
+
+  .ui{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;
+      justify-content:space-between;padding:34px 30px;
+      transition:opacity .55s ease, transform .55s ease}
+  #root.unlocked .ui{opacity:0;transform:translateY(-14px)}
+
+  .clock{display:flex;flex-direction:column;gap:8px;text-shadow:var(--halo)}
+  .rule{width:26px;height:2px;background:var(--ink);opacity:.85}
+  .date{font-size:11px;letter-spacing:.2em;text-transform:uppercase;opacity:.72}
+  .time{font-weight:200;font-size:78px;line-height:.94;letter-spacing:-.035em}
+
+  .hint{display:flex;flex-direction:column;gap:11px}
+  .hint-row{display:flex;align-items:center;gap:8px;text-shadow:var(--halo)}
+  .hint-row span{font-size:13px;letter-spacing:.16em;opacity:.85}
+  .chev{display:flex;gap:3px;opacity:.7}
+  .chev i{font-style:normal;animation:chev 1.8s ease-in-out infinite}
+  .chev i:nth-child(2){animation-delay:.18s}
+  .chev i:nth-child(3){animation-delay:.36s}
+  @keyframes chev{0%{opacity:.15;transform:translateX(-3px)}45%{opacity:.9;transform:translateX(2px)}100%{opacity:.15;transform:translateX(-3px)}}
+
+  .track{position:relative;height:2px;border-radius:1px;
+    background:linear-gradient(to right, rgba(58,38,22,.04), rgba(58,38,22,.24) 40px,
+      rgba(58,38,22,.24) calc(100% - 40px), rgba(58,38,22,.04));}
+  .fill{position:absolute;left:0;top:-1px;height:4px;width:100%;border-radius:2px;
+    transform:scaleX(0);transform-origin:left center;
+    background:linear-gradient(to right, rgba(41,43,49,.35), var(--ink));
+    box-shadow:0 0 12px rgba(255,250,238,.8)}
+
+  .done{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;
+        gap:14px;padding:34px 30px;opacity:0;pointer-events:none;transition:opacity .6s ease}
+  #root.unlocked .done{opacity:1;pointer-events:auto}
+  .done h1{margin:0;font-weight:300;font-size:26px;letter-spacing:-.01em}
+  .done p{margin:0;font-size:12px;letter-spacing:.06em;opacity:.7}
+  .btn{align-self:flex-start;font:inherit;font-size:13px;padding:8px 16px;border-radius:8px;
+       color:var(--ink);border:1px solid rgba(58,38,22,.42);background:rgba(255,250,238,.5);
+       backdrop-filter:blur(6px);cursor:pointer;transition:background .18s ease, border-color .18s ease}
+  .btn:hover{background:rgba(255,250,238,.78);border-color:rgba(58,38,22,.6)}
+  .btn:active{background:rgba(244,234,212,.9)}
+  .btn:focus-visible{outline:2px solid #a1603a;outline-offset:2px}
+
+  /* ════════ 参数栏（0902）════════
+     整块照原件「设置 › 开屏」那两行搬：.swrow 的壳、.floatpick 的胶囊、
+     .fltune 的两根小滑杆。类名跟着原件走，方便对账。 */
+  .panel{flex:0 0 auto;position:relative;z-index:9;
+         background:var(--card);border-top:1px solid var(--line);
+         color:var(--sub);font-size:14.5px;
+         max-height:min(52dvh,360px);overflow-y:auto;overscroll-behavior:contain}
+  .phead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;
+         padding:11px 15px 9px;border-bottom:1px solid var(--line)}
+  .phead b{font-size:14px;color:var(--ink)}
+  .phead i{font-style:normal;font-size:11.5px;color:var(--hint)}
+
+  /* = 原件 .swrow */
+  .prow{display:block;padding:13px 15px;border-bottom:1px solid var(--line)}
+  .prow:last-child{border-bottom:0}
+  .plabel{display:flex;align-items:center;gap:12px}
+  .plabel span{font-size:14.5px;color:var(--ink)}
+
+  /* = 原件的图标规格（Tabler：stroke 2、圆头圆角、fill none） */
+  svg.i{width:20px;height:20px;flex:none;
+        stroke:currentColor;stroke-width:2;fill:none;
+        stroke-linecap:round;stroke-linejoin:round}
+  .ic{width:34px;height:34px;border-radius:11px;background:var(--maple-soft);
+      display:flex;align-items:center;justify-content:center;color:var(--maple);flex:none}
+  .ic svg.i{width:18px;height:18px}
+
+  /* = 原件 .floatpick。::after 那 44px 是透明热区：胶囊视觉只有 30px 高，
+       但手指按的是热区（原件里就是这么解决的，视觉一个像素不动）。 */
+  .floatpick{display:flex;flex-wrap:wrap;gap:7px;padding:12px 0 2px 42px}
+  .floatpick button{
+    border:1px solid var(--line);background:transparent;color:var(--sub);cursor:pointer;
+    font-family:inherit;font-size:12.5px;padding:5px 11px;border-radius:999px;
+    transition:all .22s cubic-bezier(.22,1,.36,1);
+    position:relative;
+  }
+  .floatpick button::after{
+    content:'';position:absolute;left:0;right:0;
+    top:50%;transform:translateY(-50%);height:44px;
+  }
+  .floatpick button.on{background:var(--maple);border-color:var(--maple);color:var(--on-maple)}
+  .floatpick button:focus-visible{outline:2px solid var(--maple);outline-offset:2px}
+
+  /* = 原件 .fltune：两根小滑杆并排，杆子左边一个字标方向就够。
+       右边那个数字是 demo 加的实时读数 —— 应用里改完要等下次开屏，
+       看得见数值才知道自己拧到哪儿了。 */
+  .fltune{display:flex;gap:16px;padding:6px 0 2px 42px}
+  .fltune label{flex:1;min-width:0;display:flex;align-items:center;gap:9px;
+    font-size:11.5px;color:var(--hint)}
+  .fltune input[type=range]{flex:1;min-width:0;margin:10px 0 0;accent-color:var(--maple)}
+  .fltune b{flex:none;min-width:30px;text-align:right;margin-top:10px;
+    font-weight:600;font-variant-numeric:tabular-nums;color:var(--sub)}
+
+  .pfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;
+         padding:12px 0 2px 42px}
+  .pfoot small{color:var(--hint);font-size:11.5px}
+  #wpeek{flex:none;border:0;background:var(--maple-soft);color:var(--maple);
+         border-radius:10px;min-height:34px;padding:0 14px;font-size:12.5px;
+         font-family:inherit;cursor:pointer}
+  #wpeek:active{background:#e9d5cb}
+  #wpeek:focus-visible{outline:2px solid var(--maple);outline-offset:2px}
+</style>
+</head>
+<body>
+<div id="root">
+  <div class="screen">
+    <div id="stage"></div>
+    <div class="vignette"></div>
+
+    <div class="ui">
+      <div class="clock">
+        <div class="rule"></div>
+        <div class="date" id="date"></div>
+        <div class="time" id="time"></div>
+      </div>
+      <div class="hint">
+        <div class="hint-row">
+          <span>滑动推开落叶</span>
+          <div class="chev"><i>›</i><i>›</i><i>›</i></div>
+        </div>
+        <div class="track"><div class="fill" id="fill"></div></div>
+      </div>
+    </div>
+
+    <div class="done">
+      <div class="rule"></div>
+      <h1>已解锁</h1>
+      <p>叶子已被推开 · 水面重新静下来</p>
+      <button class="btn" id="relock" type="button">重新锁定</button>
+    </div>
+  </div>
+
+  <!-- ══ 开屏参数（照原件「设置 › 开屏」那两行搬）══ -->
+  <div class="panel">
+    <div class="phead">
+      <b>开屏参数</b>
+      <i>这一页只有时钟和示例文案，没有任何真实数据</i>
+    </div>
+
+    <div class="prow">
+      <div class="plabel">
+        <div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 7h3l3 -3l3 3h3l3 -3"/><path d="M3 13h3l3 -3l3 3h3l3 -3"/><path d="M3 19h3l3 -3l3 3h3l3 -3"/></svg></div>
+        <span>开屏画质</span>
+      </div>
+      <div class="floatpick" id="wqpick">
+        <button type="button" data-wq="smooth">顺滑</button>
+        <button type="button" data-wq="balanced">均衡</button>
+        <button type="button" data-wq="fine">精细</button>
+      </div>
+    </div>
+
+    <div class="prow">
+      <div class="plabel">
+        <div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M5 21c.5 -4.5 2.5 -8 7 -10"/><path d="M9 18c6.218 0 10.5 -3.288 11 -12c-5.494 0 -10.5 .5 -13 4c-2 3 -1 7 1 8"/></svg></div>
+        <span>枫叶</span>
+      </div>
+      <div class="floatpick" id="wppick">
+        <button type="button" data-wp="autumn">全谱</button>
+        <button type="button" data-wp="crimson">偏红</button>
+        <button type="button" data-wp="gold">偏金</button>
+      </div>
+      <div class="fltune">
+        <label>密<input type="range" id="wdens" min="8" max="90" step="2" value="48" aria-label="叶子密度"><b id="wdensv">48</b></label>
+        <label>急<input type="range" id="wwind" min="0" max="4" step="0.1" value="1.8" aria-label="风"><b id="wwindv">1.8</b></label>
+      </div>
+      <div class="pfoot">
+        <!-- 原件那句是「改完下次开屏生效」—— 那是因为应用里开屏只在启动时放一次。
+             demo 里重放就在手边，照抄那句话会变成一句假话，所以改写成这一句。 -->
+        <small>改完按右边重放一次 · 选择存在本机浏览器里</small>
+        <button id="wpeek" type="button">现在看一眼</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+<script src="maple-water.js"></script>
+<script>
+(function () {
+  /* ══ 参数怎么攒出来的（照原件开屏那段搬）══
+     默认值 → 减弱动效降级 → localStorage 覆盖。
+     顺序就是原件的顺序：存过的值排在降级后面，所以手动拧过的风速会盖掉降级值。 */
+  var KEY = 'lh.water';   /* 存储键用 lh.；lianhuan.* 是事件名的命名空间 */
+
+  /* 画质三档。grid 越大波场格子越少（开销按平方掉）；band 越小河床台阶越细；
+     sharp 是渲染分辨率上限。三个数只有「更快还是更细」一个方向，
+     所以打成三档，不单独暴露 —— 分开给等于逼人理解波场网格。 */
+  var QUALITY = {
+    smooth:   { grid: 7.5, sharp: 1,   band: 4 },
+    balanced: { grid: 6,   sharp: 1,   band: 5 },
+    fine:     { grid: 4.2, sharp: 1.5, band: 6 }
+  };
+
+  var root  = document.getElementById('root');
+  var stage = document.getElementById('stage');
+  var fill  = document.getElementById('fill');
+
+  /* 出厂值是照横屏桌面调的（density 78）。竖屏手机上同一片河床铺在更窄更高的画布里，
+     看着比原版还满，所以窄屏默认降到 48。想要密的，滑杆推回去。 */
+  function narrow(){ return Math.min(innerWidth, innerHeight) < 520; }
+  function reduced(){
+    try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+  }
+
+  function read(){
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function write(patch){
+    var o = read();
+    for (var k in patch) o[k] = patch[k];
+    try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {}
+    return o;
+  }
+  /* 从存下来的 grid 反推现在是哪一档；没存过 = 跟随默认（窄屏均衡、宽屏精细） */
+  function currentQ(o){
+    if (o.grid == null) return narrow() ? 'balanced' : 'fine';
+    var best = 'balanced', d = 1e9;
+    for (var k in QUALITY){ var dd = Math.abs(QUALITY[k].grid - o.grid); if (dd < d){ d = dd; best = k; } }
+    return best;
+  }
+
+  function defDensity(){ return narrow() ? 48 : 78; }
+  var DEF_WIND = 1.8;
+
+  function buildOpts(){
+    var n = narrow(), q = QUALITY[currentQ(read())];
+    var opts = {
+      density: defDensity(),
+      fall:    n ? 1.6 : 2.4,
+      ripple:  1.1,
+      wind:    DEF_WIND,
+      windDirection: 'down',  // right | left | down | up
+      paper:   3,             // 宣纸纹 0–3
+      palette: 'autumn',      // autumn | crimson | gold
+      grid:    q.grid,        // 这三个跟着画质档位走
+      sharp:   q.sharp,
+      band:    q.band,
+      onProgress: function (v) { fill.style.transform = 'scaleX(' + v.toFixed(4) + ')'; },
+      onUnlock:   function (u) { root.classList.toggle('unlocked', u); }
+    };
+    if (reduced()) { opts.fall = 0; opts.wind = 0.3; opts.ripple = 0.6; }
+    var saved = read();
+    for (var k in saved) if (saved[k] != null) opts[k] = saved[k];
+    return opts;
+  }
+
+  /* ══ 放一次 ══
+     画质三项要在建场时就定下来，所以「现在看一眼」是拆了重建，不是 set() 热补。
+     destroy() 会把 rAF 和 ResizeObserver 一起收走，别让旧的那个在背后空转。 */
+  var scene = null;
+  function play(){
+    if (scene) { try { scene.destroy(); } catch (e) {} scene = null; }
+    root.classList.remove('unlocked');
+    fill.style.transform = 'scaleX(0)';
+    stage.innerHTML = '';
+    try {
+      scene = MapleWater(stage, buildOpts());
+      /* 验收用：控制台里能直接核对引擎真正收到的那份 */
+      if (window.console && console.log) console.log('[水面] 引擎收到的 opts =', scene.config);
+    } catch (e) {
+      if (window.console && console.warn) console.warn('[水面] 没起来：', e && e.message);
+    }
+  }
+
+  /* ══ 面板 ══ */
+  var qp = document.getElementById('wqpick'),
+      pp = document.getElementById('wppick'),
+      dn = document.getElementById('wdens'),
+      wd = document.getElementById('wwind'),
+      dnv = document.getElementById('wdensv'),
+      wdv = document.getElementById('wwindv'),
+      pk = document.getElementById('wpeek');
+
+  function paint(){
+    var o = read(), q = currentQ(o);
+    [].forEach.call(qp.querySelectorAll('button'), function (b) {
+      b.classList.toggle('on', b.getAttribute('data-wq') === q);
+    });
+    var pal = o.palette || 'autumn';
+    [].forEach.call(pp.querySelectorAll('button'), function (b) {
+      b.classList.toggle('on', b.getAttribute('data-wp') === pal);
+    });
+    /* 没设过时显示的是真的会用上的那个默认值，别让滑杆骗人 */
+    dn.value = (o.density != null) ? o.density : defDensity();
+    wd.value = (o.wind    != null) ? o.wind    : DEF_WIND;
+    dnv.textContent = dn.value;
+    wdv.textContent = (+wd.value).toFixed(1);
+  }
+
+  qp.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-wq]'); if (!b) return;
+    write(QUALITY[b.getAttribute('data-wq')] || QUALITY.balanced);
+    paint();
+  });
+  pp.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-wp]'); if (!b) return;
+    write({ palette: b.getAttribute('data-wp') });
+    paint();
+  });
+  dn.addEventListener('input', function () {
+    dnv.textContent = dn.value;
+    write({ density: +dn.value });
+  });
+  wd.addEventListener('input', function () {
+    wdv.textContent = (+wd.value).toFixed(1);
+    write({ wind: +wd.value });
+  });
+
+  pk.addEventListener('click', play);
+  document.getElementById('relock').addEventListener('click', function () {
+    if (scene) scene.relock(); else play();
+  });
+
+  /* 调试把手：__water.opts() 看这一刻会传什么，__water.scene() 看引擎手里那份 */
+  window.__water = { peek: play, opts: buildOpts, scene: function () { return scene; } };
+
+  paint();
+  play();
+
+  function tick(){
+    var d = new Date();
+    var wk = ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+    document.getElementById('time').textContent = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+    document.getElementById('date').textContent = (d.getMonth() + 1) + '月' + d.getDate() + '日 · ' + wk;
+  }
+  tick();
+  setInterval(tick, 15000);
+})();
+</script>
+</body>
+</html>

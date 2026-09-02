@@ -1,0 +1,92 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>那条线 · demo</title>
+<link rel="stylesheet" href="../base/tokens.css">
+<link rel="stylesheet" href="thread.css">
+<style>
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hidden;
+    font:15px/1.7 system-ui,-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif}
+  .wrap{max-width:440px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;
+    padding:0 18px 22px}
+  h2{font-size:20px;margin:22px 0 2px}
+  .lede{font-size:13px;color:var(--sub);margin:0 0 4px}
+  /* ★ 别用 margin-top:auto 把线推到底 —— 一台高一点的手机上，
+     线掉到最下面、控件全被挤出屏幕，就得上下滑。这一屏本来该一眼看完。 */
+  .who{display:flex;justify-content:space-between;font-size:11.5px;letter-spacing:.18em;
+    color:var(--hint);margin:14px 0 0}
+  .threadwrap{height:96px;flex:none}
+  .said{min-height:2.6em;font-size:14px;color:var(--sub);text-align:center;margin:2px 0 14px}
+  .said b{color:var(--ink);font-weight:600}
+  .row{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+  .row button{min-height:36px;padding:0 13px;border-radius:11px;background:var(--card);
+    border:1px solid var(--line);color:var(--ink);font:inherit;font-size:13px;cursor:pointer}
+  .row button.on{border-color:var(--maple);color:var(--maple);background:var(--maple-soft);font-weight:600}
+  .knob{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--sub);margin:0 0 16px}
+  .knob input{flex:1}
+  .knob b{min-width:34px;text-align:right;font-variant-numeric:tabular-nums;color:var(--maple)}
+  .lab{font-size:11px;letter-spacing:.16em;color:var(--hint);margin:0 0 6px}
+</style>
+<div class="wrap">
+  <h2>那条线</h2>
+  <p class="lede">谁在说，线就往谁那头写。他在想的时候，线在他那头一笔写出一片叶子。</p>
+
+  <div class="who"><span>他</span><span>你</span></div>
+  <div class="threadwrap"><canvas id="thread" aria-hidden="true"></canvas></div>
+  <p class="said" id="said"><b>在听你说</b><br>线往你那头写，一颗字一个小齿</p>
+
+  <p class="lab">相位</p>
+  <div class="row" id="phases"></div>
+
+  <p class="lab">叶子</p>
+  <p class="lede" style="margin:0 0 14px">
+    就是家徽那片枫叶 —— <code>Thread(cv, { leaf: Crest.def('maple') })</code>，没有第二份 path。
+    想换成别的：<code>t.setLeaf({ viewBox, path })</code>。得是<b>一笔能绕完的闭合轮廓</b>；
+    描线画的那种（屋子、结、一张纸）在这儿绕出来是一团乱麻，所以这儿不列它们。
+  </p>
+
+  <div class="knob">
+    <span>音量</span><input id="lv" type="range" min="0" max="100" value="0"><b id="lvv">自动</b>
+  </div>
+</div>
+
+<script src="../base/crest.js"></script>
+<script src="thread.js"></script>
+<script>
+  var t = Thread(document.getElementById('thread'), { leaf: Crest.def('maple') });
+  var said = document.getElementById('said');
+
+  /* 每个相位配一句话，说清这时候线在干什么 —— 不然只看见线在动，不知道在说什么 */
+  var PH = [
+    ['listening', '在听你说', '线往你那头写，一颗字一个小齿'],
+    ['thinking',  '在想',     '一支笔从左往右编叶子。笔走到哪儿＝想了多久'],
+    ['speaking',  '在说',     '线往他那头写，是连着的一道涌'],
+    ['incoming',  '他打来了', '一遍遍从他那头推过来，两下一组'],
+    ['ringing',   '打过去',   '慢慢的一下，等对面接'],
+    ['connecting','接通中',   '线松着，中间垂一点'],
+    ['idle',      '没在通话', '一条安静的线'],
+  ];
+  var pr = document.getElementById('phases');
+  PH.forEach(function (x, i) {
+    var b = document.createElement('button');
+    b.textContent = x[1];
+    if (i === 0) b.className = 'on';
+    b.onclick = function () {
+      t.setPhase(x[0]);
+      said.innerHTML = '<b>' + x[1] + '</b><br>' + x[2];
+      pr.querySelectorAll('button').forEach(function (o) { o.classList.toggle('on', o === b); });
+    };
+    pr.appendChild(b);
+  });
+  t.setPhase('listening');
+
+  var lv = document.getElementById('lv'), lvv = document.getElementById('lvv'), timer = 0;
+  lv.addEventListener('input', function () {
+    var v = +lv.value;
+    lvv.textContent = v ? (v / 100).toFixed(2) : '自动';
+    if (!v) return;                       /* 拖回 0 ＝ 松手，落回合成包络 */
+    t.setLevel(v / 100);
+    clearInterval(timer);
+    timer = setInterval(function () { if (+lv.value) t.setLevel(+lv.value / 100); }, 120);
+  });
+</script>

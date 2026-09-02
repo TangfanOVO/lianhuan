@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>机器人 · demo</title>
+<link rel="stylesheet" href="../base/tokens.css">
+<link rel="stylesheet" href="robot.css">
+<style>
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.7 system-ui,-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif}
+  .wrap{max-width:440px;margin:0 auto;padding:22px 16px 40px}
+  h2{font-size:21px;margin:0 0 2px}
+  .lede{font-size:13px;color:var(--sub);margin:0 0 18px}
+  .knobs{display:flex;gap:10px;align-items:center;margin:16px 0 6px;font-size:12px;color:var(--sub)}
+  .knobs input{flex:1}
+</style>
+<div class="wrap">
+  <h2>机器人</h2>
+  <p class="lede">桌上那台的样子。这块积木<b>只有前端</b> —— 后端你自己接。</p>
+  <div id="robot"></div>
+
+  <div class="knobs"><span>往哪边看</span><input id="y" type="range" min="-85" max="85" value="-3"><b id="yv">-3°</b></div>
+  <div class="knobs"><span>抬头低头</span><input id="p" type="range" min="-20" max="88" value="-8"><b id="pv">-8°</b></div>
+  <div class="knobs"><label><input id="on" type="checkbox" checked> 当它醒着</label></div>
+</div>
+<script src="robot.js"></script>
+<script>
+  /* 这份数据是**占位的**：形状照真机的 get_device_status，数字随便填的 */
+  var data = {
+    online: true, why: '', engine: '（你自己接的那个）',
+    volume: 25, brightness: 75, theme: 'light',
+    battery: { level: 100, charging: false },
+    network: { type: 'wifi', ssid: 'your-wifi', signal: 'strong' },
+    head: { yaw: -3, pitch: -8 },
+  };
+  var host = document.getElementById('robot');
+  function draw(){
+    RobotPage(host, { data: data, live: false, onSend: function(body){
+      if (body.head){ data.head = body.head;
+        document.getElementById('y').value = body.head.yaw;
+        document.getElementById('p').value = body.head.pitch;
+        sync(); }
+    }});
+  }
+  function sync(){
+    document.getElementById('yv').textContent = data.head.yaw + '°';
+    document.getElementById('pv').textContent = data.head.pitch + '°';
+    draw();
+  }
+  document.getElementById('y').addEventListener('input', function(){ data.head.yaw = +this.value; sync(); });
+  document.getElementById('p').addEventListener('input', function(){ data.head.pitch = +this.value; sync(); });
+  document.getElementById('on').addEventListener('change', function(){ data.online = this.checked; draw(); });
+  draw();
+</script>

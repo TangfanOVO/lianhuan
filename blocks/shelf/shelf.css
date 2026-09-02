@@ -1,0 +1,134 @@
+/* 书房 · 书脊 —— 一本书就是一个入口
+   ════════════════════════════════════════════════════════════════
+   ★ 这份 CSS 跟应用里 index.html 那一段是**同一份**（那边是单文件、零构建，
+     所以没法引外链）。改任何一处都要两边一起改 —— tests 里钉了一条防漂移。
+   ★ 尺寸（58/50/46… 190/168/178…）是设计定的比例，单独改一个就失真。
+     原稿按 440 画布画的（内容宽 408），手机上只有 361～398，所以整块等比 zoom，
+     **这里的数字一个都不要动**，缩放交给 shelf.js。
+   ★ 依赖 base/tokens.css 里的：--card --card2 --ink --sub --hint --line --maple
+     --thread --cast --shadow --pull --press --spring-pop --r
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── 书房 · 书脊（0807 那一版设计稿）──
+   九格 tile 换成三排真书架 ——
+   一本书＝一个入口，`data-sub`/`data-open` 一个没改，所以所有的门照旧开。
+   ★ 花纹全是从 proto 自己那批纸样里挑的，没有一枚是新造的。
+   ★ 类名一律带 `sf-` 前缀：0806 一晚上撞了六次裸类名（`.me`/`.sw`/`.acts`…），不再犯。
+   ★ 尺寸（58/50/46… 和 190/168/178…）是定的比例，单独改哪一个都失真 ——
+     原稿按 440 画布画的（内容宽 408），手机上只有 361～398，所以整块等比 zoom，
+     宽度换算交给 JS 那几行，**这里的数字一个不动**。 */
+.sf-bay{margin-bottom:24px}
+.sf-row{display:flex;align-items:flex-end;gap:4px;padding-left:2px}
+.sf-row2{display:flex;gap:15px;align-items:flex-end;margin-bottom:26px}
+.sf-spine{
+  position:relative;flex:none;border:0;padding:0;border-radius:4px 4px 2px 2px;
+  background-color:var(--card);cursor:pointer;color:var(--ink);font:inherit;
+  display:flex;flex-direction:column;align-items:center;overflow:hidden;
+  box-shadow:0 1px 2px rgba(var(--cast),.12), 0 12px 20px -10px rgba(var(--cast),.3);
+  transform-origin:50% 100%;
+  transition:transform .34s var(--spring-pop), box-shadow .2s;
+}
+/* 按下＝把书抽出来一点（定的手感：--pull 抽出，带 1.4 度的歪） */
+.sf-spine:active{
+  transform:translateY(calc(var(--pull) * -1)) rotate(-1.4deg);
+  box-shadow:0 1px 2px rgba(var(--cast),.12), 0 24px 28px -14px rgba(var(--cast),.34);
+}
+@media (hover:hover){ .sf-spine:hover{transform:translateY(-7px)} }
+.sf-hd{width:100%;flex:none;border-bottom:1px solid var(--line);background:var(--hc)}
+.sf-hd2{width:100%;height:4px;flex:none;margin-top:5px;background:var(--hc);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.sf-nm{writing-mode:vertical-rl;font-size:14.5px;font-weight:600;letter-spacing:.09em;
+  margin-top:15px;line-height:1}
+.sf-tag{position:absolute;bottom:10px;left:8px;right:8px;height:3px;border-radius:2px;
+  background:var(--maple);opacity:.8}
+/* 在读那本露在外面的书签 */
+.sf-rib{position:absolute;top:-9px;right:11px;width:8px;height:30px;background:var(--maple);
+  border-radius:1px;clip-path:polygon(0 0,100% 0,100% 100%,50% 78%,0 100%)}
+/* 横躺的那本：外壳是 长×厚，里头那层还是 厚×长 再转 90 度（书倒下来不会变短） */
+.sf-laid{position:relative;margin-left:auto;margin-right:12px;flex:none;border:0;padding:0;
+  background:transparent;cursor:pointer;color:var(--ink);font:inherit;
+  transform-origin:50% 100%;transition:transform .34s var(--spring-pop)}
+.sf-laid:active{transform:translateY(calc(var(--pull) * -.65)) rotate(-.9deg)}
+@media (hover:hover){ .sf-laid:hover{transform:translateY(-6px)} }
+.sf-laid>span{position:absolute;transform:rotate(90deg);border-radius:4px 4px 2px 2px;
+  background-color:var(--card);display:flex;flex-direction:column;align-items:center;overflow:hidden;
+  box-shadow:0 1px 2px rgba(var(--cast),.12), 0 9px 15px -8px rgba(var(--cast),.3)}
+/* ★ 0902 撤掉了一条自作主张的 `.sf-laid .sf-nm{writing-mode:horizontal-tb;transform:rotate(-90deg)}`。
+   原稿没有这条：躺着那本靠「竖排 ＋ 名字倒着串 ＋ 整本转 90 度」读顺，
+   再加一层反转就是双重反转，字反而认不出。名字倒串在 shelf.js 里，别两边都改。 */
+/* 板子：厚度是原稿一格一格手写的（13 / 10 / 9 / 9），木纹是三层渐变叠出来的 */
+.sf-plank{border-radius:2px;
+  background-image:
+    linear-gradient(90deg,rgba(var(--cast),.05) 0,rgba(var(--cast),0) 14%,rgba(var(--cast),.035) 41%,rgba(var(--cast),0) 63%,rgba(var(--cast),.045) 88%,rgba(var(--cast),.02) 100%),
+    linear-gradient(180deg,rgba(var(--cast),0) 0 2px,rgba(var(--cast),.05) 2px 3px,rgba(var(--cast),0) 3px 5px,rgba(var(--cast),.03) 5px 6px,rgba(var(--cast),0) 6px 9px,rgba(var(--cast),.042) 9px 10px,rgba(var(--cast),0) 10px 100%),
+    linear-gradient(180deg,color-mix(in srgb,var(--thread) 74%,var(--card)) 0 2px,var(--thread) 2px 60%,color-mix(in srgb,var(--thread) 68%,var(--ink)) 100%);
+  box-shadow:0 4px 11px -4px rgba(var(--cast),.34), inset 0 -1px 0 rgba(var(--cast),.1)}
+.sf-lab{font-size:10.5px;letter-spacing:.16em;color:var(--hint);padding:7px 0 0 2px}
+/* 0822 架子上的机器人。它不是书，所以不套 .sf-spine 那套「抽出来」的手感：
+   书是被抽出书架，它是被戳了一下 —— 歪头再弹回来。曲线仍走 --spring-pop（跟发送键同一条），
+   位移比书小（书 --pull 18px，它只抬 5px），因为它是摆件不是抽屉。 */
+.sf-bot{
+  position:relative;flex:none;width:46px;height:46px;border:0;padding:0;
+  border-radius:5px;background-color:var(--card);background-image:var(--sf-shade);
+  cursor:pointer;color:var(--ink);font:inherit;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 1px 2px rgba(var(--cast),.12), 0 10px 16px -9px rgba(var(--cast),.3);
+  transform-origin:50% 100%;
+  transition:transform .34s var(--spring-pop), box-shadow .2s;
+}
+.sf-bot:active{
+  transform:translateY(-5px) rotate(-7deg);
+  box-shadow:0 1px 2px rgba(var(--cast),.12), 0 18px 22px -12px rgba(var(--cast),.34);
+}
+@media (hover:hover){ .sf-bot:hover{transform:translateY(-4px)} }
+.sf-botface{width:31px;height:31px;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;color:var(--ink);opacity:.82}
+.sf-todo{position:relative;width:46px;height:152px;flex:none;border:1.5px dashed var(--thread);
+  border-radius:4px;color:var(--hint);display:flex;flex-direction:column;align-items:center;
+  transform:rotate(3.5deg);transform-origin:50% 100%}
+/* 书头那道色带：一起做的那格用重点色兑出来的实色（半透明压不住花纹），其余用 card2 */
+.sf-hsoft{--hc:color-mix(in srgb,var(--maple) 16%,var(--card))}
+.sf-hc2{--hc:var(--card2)}
+/* 纸样：底噪那层斜光（--sf-shade）＋ 各自的纹 */
+.sf-spine, .sf-laid>span, .sf-bot{
+  --sf-shade:linear-gradient(90deg,rgba(var(--cast),.055),rgba(var(--cast),0) 20%,rgba(var(--cast),0) 76%,rgba(var(--cast),.05));
+}
+.sf-plain{background-image:var(--sf-shade)}
+.sf-rule{background-image:repeating-linear-gradient(to bottom,transparent 0 13px,var(--line) 13px 14px),var(--sf-shade)}
+.sf-rule2{background-image:repeating-linear-gradient(to bottom,transparent 0 9px,var(--line) 9px 10px),var(--sf-shade)}
+.sf-dot{background-image:radial-gradient(color-mix(in srgb,var(--line) 72%,var(--ink)) 1px,transparent 1.4px),var(--sf-shade);background-size:11px 11px,auto}
+.sf-hatch{background-image:repeating-linear-gradient(135deg,transparent 0 7px,var(--line) 7px 8px),var(--sf-shade)}
+.sf-grid{background-image:repeating-linear-gradient(to bottom,transparent 0 15px,var(--line) 15px 16px),repeating-linear-gradient(to right,transparent 0 15px,var(--line) 15px 16px),var(--sf-shade)}
+/* 摊在桌上：当前在读那本，一按直接进正文（不用先过书架） */
+.sf-desk{width:100%;border:0;padding:14px 15px;border-radius:var(--r) 6px 6px var(--r);
+  background:var(--card);box-shadow:var(--shadow);cursor:pointer;color:var(--ink);font:inherit;
+  text-align:left;display:flex;align-items:center;gap:13px;position:relative;
+  transition:transform .28s var(--spring-pop), box-shadow .18s}
+.sf-desk:active{transform:translateY(var(--press)) scale(.99)}
+@media (hover:hover){ .sf-desk:hover{box-shadow:var(--shadow-lift)} }
+.sf-desk .edge{position:absolute;left:0;top:0;bottom:0;width:4px;
+  border-radius:var(--r) 0 0 var(--r);background:var(--maple)}
+.sf-desk b{display:block;font-size:15.5px;font-weight:600}
+.sf-desk i{display:block;font-size:12px;color:var(--sub);font-style:normal}
+/* 别处的门：描边，不跟书房自己的东西抢 */
+.sf-out{width:100%;border:1px solid var(--line);padding:13px 15px;border-radius:var(--r);
+  background:transparent;cursor:pointer;color:var(--ink);font:inherit;text-align:left;
+  display:flex;align-items:center;gap:12px;
+  transition:transform .28s var(--spring-pop), background .18s}
+.sf-out:active{transform:translateY(var(--press)) scale(.99)}
+@media (hover:hover){ .sf-out:hover{background:var(--card)} }
+
+/* ── .sf-desk / .sf-out 里那几枚图标 ──
+   原项目靠全局 `svg.i`（proto.html:207-211）和 `.ic`（proto.html:413-417）撑着。
+   积木不能注册裸类名（0806 一晚上撞了六次），所以**原样照搬那两条，只在前面加了
+   `.sf-desk` / `.sf-out` 作用域**，规格一个数没改。 */
+.sf-desk svg.i, .sf-out svg.i{
+  width:20px; height:20px; flex:none;
+  stroke:currentColor; stroke-width:2; fill:none;
+  stroke-linecap:round; stroke-linejoin:round;
+}
+.sf-desk .ic{
+  width:34px;height:34px;border-radius:11px;background:var(--maple-soft);
+  display:flex;align-items:center;justify-content:center;margin-bottom:10px;color:var(--maple);
+}
+.sf-desk .ic svg.i{width:18px;height:18px}

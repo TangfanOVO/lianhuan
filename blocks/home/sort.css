@@ -1,0 +1,57 @@
+/*!
+ * sort.css —— 「排一排主页」那一页
+ *
+ * 方块排法底下那颗按钮进来的：一条一条按住往上下拖，松手就是新顺序。
+ * 拖的是**行**，不是单张卡 —— 一个大纸条、一张独占的卡、或者并排两块的 grid 各算一行，
+ * 每行连同它后面那根 thread 连线一起搬，版式（哪些成对、哪些独占、线怎么穿）一点不散。
+ *
+ * 逻辑在 home.js。这儿只有样式，全部从原件 proto.html 整段搬的：
+ *   .sub / .sub.on / .subwrap  ← proto.html:862-868（滑上来的二级页）
+ *   .stamp                     ← proto.html:283-289（顶栏中间那块牌子）
+ *   .sortlist / .sortitem / .grip ← proto.html:2027-2039
+ *
+ * 依赖：base/tokens.css，以及 home.css 里的 .top / .iconbtn / .lede / .ic / svg.i。
+ * MIT（见同目录 LICENSE）。
+ */
+
+/* ── 滑上来的二级页 ── 原件 proto.html:862-868 ═══════════════════════════
+   停在右边一屏处等着划进来。
+   ⚠ 它是 .app 的直接子元素、贴着 .app 定位 —— .app 必须 position:relative（home.css 里有）。
+   ⚠ 被 transform 推到画外的盒子**照样算进父级的可滚动区**，所以 .app 那边的
+     `overflow:clip` 不能少（只写 hidden 挡不住，手指能把整页推走一屏）。 */
+.sub{
+  position:absolute;inset:0;z-index:15;background:var(--bg);
+  transform:translateX(100%);transition:transform .22s var(--e-in);
+  display:flex;flex-direction:column;
+}
+/* 进 .3s e-out，退 .22s e-in —— 退比进快，照 Motion Spec 里「抽屉／二级页」那一行 */
+.sub.on{transform:none;transition:transform .3s var(--e-out)}
+.subwrap{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:0 16px calc(30px + env(safe-area-inset-bottom,0px))}
+
+/* 顶栏中间那块牌子 ── 原件 proto.html:283-289 */
+.stamp{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
+  background:var(--card);box-shadow:var(--shadow);
+  border-radius:999px;padding:8px 12px;font-size:12.5px;color:var(--sub);
+  white-space:nowrap;overflow:hidden;
+}
+.stamp b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* 排主页：可拖 ── 原件 proto.html:2027-2039 ═══════════════════════════════
+   ★ touch-action:none 不是可选的：不写它，手指在条目上一竖着划，
+     浏览器会先把这一下判成滚页面，pointermove 直接断掉，拖不动。
+   ★ user-select:none 同理 —— 不写，长按会选中条目上的字、弹出选择手柄。 */
+.sortlist{margin-top:8px;display:flex;flex-direction:column;gap:9px}
+.sortitem{
+  display:flex;align-items:center;gap:12px;background:var(--card);
+  border-radius:13px;box-shadow:var(--shadow);padding:13px 14px;
+  cursor:grab;touch-action:none;user-select:none;
+  transition:box-shadow .18s, transform .18s;
+}
+.sortitem.drag{box-shadow:var(--shadow-lift);transform:scale(1.025);cursor:grabbing;position:relative;z-index:3}
+.sortitem .ic{width:30px;height:30px;margin:0;border-radius:9px}
+.sortitem .ic svg.i{width:16px;height:16px}
+.sortitem span{flex:1;font-size:14.5px}
+/* 右边那三条横杠（抓手）。三个空的 <i>，没有图标文件。 */
+.grip{display:flex;flex-direction:column;gap:3px}
+.grip i{display:block;width:15px;height:1.6px;background:var(--hint);border-radius:2px}

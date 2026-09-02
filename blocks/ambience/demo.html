@@ -1,0 +1,63 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>漂浮物 · demo</title>
+<link rel="stylesheet" href="../base/tokens.css">
+<link rel="stylesheet" href="ambience.css">
+<style>
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font:15px/1.7 system-ui,-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif}
+  .stage{position:relative;height:100%;overflow:hidden}
+  .ui{position:relative;z-index:1;max-width:420px;margin:0 auto;padding:26px 18px}
+  h2{font-size:20px;margin:0 0 2px}
+  .lede{font-size:13px;color:var(--sub);margin:0 0 18px}
+  .pick{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+  .pick button{min-height:36px;padding:0 13px;border-radius:11px;background:var(--card);
+    border:1px solid var(--line);color:var(--ink);font:inherit;font-size:13px;cursor:pointer;
+    transition:transform .28s var(--spring-pop)}
+  .pick button:active{transform:scale(.96)}
+  .pick button.on{border-color:var(--maple);color:var(--maple);background:var(--maple-soft);font-weight:600}
+  .knob{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--sub);margin:8px 0}
+  .knob input{flex:1}
+  .knob b{min-width:34px;text-align:right;font-variant-numeric:tabular-nums;color:var(--maple)}
+</style>
+<div class="stage">
+  <div id="fly"></div>
+  <div class="ui">
+    <h2>漂浮物</h2>
+    <p class="lede">飘什么 · 落多密 · 飘多快。可以多选 —— 多选时轮着来，不是随机。</p>
+    <div class="pick" id="pick"></div>
+    <div class="knob"><span>密</span><input id="num" type="range" min="0" max="30" value="9"><b id="nv">9</b></div>
+    <div class="knob"><span>快</span><input id="spd" type="range" min="0.3" max="2.6" step="0.1" value="1"><b id="sv">1</b></div>
+  </div>
+</div>
+<script src="ambience.js"></script>
+<script>
+  var picked = ['maple'];
+  var fly = Ambience(document.getElementById('fly'), {kinds: picked, count: 9, speed: 1});
+  var pick = document.getElementById('pick');
+  pick.innerHTML = fly.kinds.map(function(k){
+    return '<button data-f="' + k[0] + '">' + k[1] + '</button>';
+  }).join('') + '<button data-f="none">不要</button>';
+  function paint(){
+    pick.querySelectorAll('button').forEach(function(b){
+      b.classList.toggle('on', b.dataset.f === 'none' ? !picked.length : picked.indexOf(b.dataset.f) >= 0);
+    });
+  }
+  pick.addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    var k = b.dataset.f;
+    /* 点一下加进来，再点一下拿掉；「不要」＝清空。全拿掉就等于不要 —— 不留中间态 */
+    if (k === 'none') picked = [];
+    else if (picked.indexOf(k) >= 0) picked = picked.filter(function(x){ return x !== k; });
+    else picked = picked.concat([k]);
+    fly.set({kinds: picked}); paint();
+  });
+  document.getElementById('num').addEventListener('input', function(){
+    document.getElementById('nv').textContent = this.value; fly.set({count: +this.value});
+  });
+  document.getElementById('spd').addEventListener('input', function(){
+    document.getElementById('sv').textContent = this.value; fly.set({speed: +this.value});
+  });
+  paint();
+</script>
