@@ -1,0 +1,12 @@
+# 自己的服务器：docker compose up -d
+# 口令和 key 写在同目录的 .env 里（照 .env.example，多加一行 LIANHUAN_PASSWORD=…）。
+# 数据落在 ./data，备份就是拷这个目录。前面自己挂 Caddy / nginx 做 https。
+services:
+  lianhuan:
+    build: .
+    ports:
+      - "8420:8420"
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

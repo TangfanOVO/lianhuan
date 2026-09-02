@@ -1,0 +1,30 @@
+# 一键部署那份 Dockerfile 能不能真的建出来、起得来 —— 每次动到它就验一遍，别等用户点按钮才发现。
+name: docker
+on:
+  push:
+    branches: [main]
+    paths: [Dockerfile, .dockerignore, requirements.txt, "core/**", "optional/**", render.yaml, docker-compose.yml]
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  build-and-boot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t lianhuan:ci .
+      - name: 没口令必须拒绝启动
+        run: |
+          set +e
+          docker run --rm -e LIANHUAN_PASSWORD= lianhuan:ci; code=$?
+          set -e
+          test "$code" = 2 && echo "拒了，对的（退出码 2）"
+      - name: 有口令能起来、首页要拦去登录
+        run: |
+          docker run -d --name lh -p 8420:8420 -e LIANHUAN_PASSWORD=ci-only lianhuan:ci
+          for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:8420/ && break; sleep 1; done
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8420/)
+          echo "GET / → $code"
+          test "$code" = 307 || test "$code" = 200
+          curl -s -o /dev/null -w 'login page → %{http_code}\n' -L http://127.0.0.1:8420/
+          docker logs lh | tail -5
+          docker rm -f lh

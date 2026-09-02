@@ -22,6 +22,22 @@
 
 ---
 
+## 一键部署
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/TangfanOVO/lianhuan) &nbsp; [![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/TangfanOVO/lianhuan&branch=main&name=lianhuan&builder=dockerfile&ports=8420;http;/&env[PORT]=8420&env[LIANHUAN_PASSWORD]=改成你的口令)
+
+点一颗，用 GitHub 登录，填两样：**进门口令**（自己定）和**模型的 key**（可以先空着，起来后在 设置 › 功能包 › 引擎 里贴）。
+几分钟后得到一个 https 地址，iPhone 用 Safari 打开它「添加到主屏幕」就是 app，安卓装 Releases 里的壳填这个地址也行。
+
+| 说清楚 | |
+| --- | --- |
+| 免费档会休眠 | 十几分钟没人用就睡，再打开要等几十秒 |
+| 免费档不保数据 | 记忆存在容器里的 SQLite，**重新部署会丢**。要保住：定期在设置里导出 JSON，或换付费档挂一块持久盘（`render.yaml` 里那段放开就行） |
+| 口令是必须的 | 容器一律按「开到网络上」起，没口令拒绝启动 |
+| 两样只在本机 | 登记 MCP、一键装 Engawa 这两件会在机器上起进程，云上不开放 |
+
+自己的服务器：`docker compose up -d`（口令和 key 写在 `.env` 里，数据落在 `./data`）。细节见 [docs/DEPLOY.md](docs/DEPLOY.md)。
+
 ## 魔改很多的后端
 
 **记忆在主链路上。** 每次说话之前都会先过一遍记忆：

@@ -360,6 +360,7 @@
     if (REPO) {
       go("下载安卓壳 APK ↗", REPO + "/releases/tag/apk");
       go("仓库 ↗", REPO);
+      go("一键部署 ↗", REPO + "#一键部署");
     }
   })();
 })();

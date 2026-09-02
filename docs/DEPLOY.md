@@ -64,3 +64,25 @@ python -m core.server --port 8420
 | 自建服务器 | 你服务器上 | **要** |
 
 搬家：`GET /api/export` 拿一个 JSON，`POST /api/import` 灌回去。就一个文件。
+
+## 一键部署到云上
+
+仓库根目录有 `Dockerfile` 和 `render.yaml`。README 顶上那两颗按钮：
+
+- **Render**：`https://render.com/deploy?repo=https://github.com/TangfanOVO/lianhuan` —— 读 `render.yaml`，问你口令和 key，起一个免费的 web service
+- **Koyeb**：`https://app.koyeb.com/deploy?type=git&repository=github.com/TangfanOVO/lianhuan&branch=main&name=lianhuan&builder=dockerfile&ports=8420;http;/…` —— 照 Dockerfile 建，环境变量在它的页面上填
+
+两家免费档都是**休眠 ＋ 不持久磁盘**：够试、够给朋友玩，要长期住就换付费档并把 `/app/data` 挂成持久盘。
+不管在哪儿，数据都在 `/app/data`（SQLite、上传、`secrets.json`），备份就是这个目录。
+
+容器一律按 `--lan` 起：所有请求都当成「从网络来的」，进门要 `LIANHUAN_PASSWORD`。
+登记 MCP 和一键装 Engawa 这两条只认本机，云上不开放 —— 它们会在机器上起进程。
+
+## Docker（自己的服务器）
+
+```bash
+cp .env.example .env        # 填 key；再加一行 LIANHUAN_PASSWORD=你的口令
+docker compose up -d        # 数据落在 ./data
+```
+
+前面挂 Caddy / nginx 做 https，iPhone 才能把它加成带离线壳的主屏 app。
