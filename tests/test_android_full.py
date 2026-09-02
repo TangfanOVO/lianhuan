@@ -14,6 +14,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 BOOT_DIR = ROOT / "android-full" / "app" / "src" / "main" / "python"
 
 
+@unittest.skipUnless(BOOT_DIR.exists(), "create.py 的产物不带 android-full/，这条只在源码仓库里跑")
 class TestAndroidBoot(unittest.TestCase):
     def test_start_serves_the_app_on_loopback(self):
         with socket.socket() as s:

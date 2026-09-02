@@ -103,7 +103,7 @@ const binaryExt = new Set([
 const reviewedBinaries = [
   /^core\/web\/icons\/icon-(?:180|192|512|512-maskable)\.png$/,
   /^core\/web\/favicon\.ico$/,
-  /^android\/app\/src\/main\/(?:res\/(?:mipmap|drawable)[^/]*|assets\/public)\/[^/]+\.(?:png|xml|webp)$/,
+  /^android(?:-full)?\/app\/src\/main\/(?:res\/(?:mipmap|drawable)[^/]*|assets\/public)\/[^/]+\.(?:png|xml|webp)$/,   // 完整体那份图标是从壳那边原样拷的
   /^android\/gradle\/wrapper\/gradle-wrapper\.jar$/,
   /\.svg$/,                       // 图标是我们自己画的向量，扫内容那一遍会看到它
 ];
