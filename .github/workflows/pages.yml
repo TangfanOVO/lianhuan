@@ -1,6 +1,7 @@
 # 把两样静态的东西发到 GitHub Pages：
 #   /          积木预览站（apps/showcase/dist）
 #   /app/      应用的空壳预览（apps/preview/dist —— 没有后端，页面顶上明写着）
+#   /local/    浏览器版（apps/local/dist —— 后端在页面里跑，家在这台设备的浏览器里）
 # ★ dist 永远不进仓库：这里从源码现构建、直接上传。不走 /docs 目录 —— 那里已经有文档。
 # ★ 公开仓库每次 push 到 main 都重建；也可手动触发。
 name: pages
@@ -18,10 +19,12 @@ jobs:
         with: { node-version: '20' }
       - run: node apps/showcase/scripts/build.mjs
       - run: node apps/preview/scripts/build.mjs
+      - run: node apps/local/scripts/build.mjs
       - run: |
-          mkdir -p site/app
+          mkdir -p site/app site/local
           cp -R apps/showcase/dist/. site/
           cp -R apps/preview/dist/.  site/app/
+          cp -R apps/local/dist/.    site/local/
           touch site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

@@ -7,15 +7,17 @@
   "description": "连环 —— 完整应用 AGPL-3.0-only；blocks/ 那几块纯前端积木单独 MIT。",
   "workspaces": [
     "blocks",
-    "apps/showcase"
+    "apps/showcase",
+    "apps/local"
   ],
   "scripts": {
     "packs:list": "node scripts/take-pack.mjs --list",
     "pack:take": "node scripts/take-pack.mjs",
     "check:privacy": "node scripts/check-public-boundary.mjs --worktree",
     "check:privacy:release": "PUBLIC_RELEASE=1 node scripts/check-public-boundary.mjs",
-    "build": "npm run build -w lianhuan-blocks && npm run build -w lianhuan-showcase",
-    "test": "npm test -w lianhuan-blocks && npm test -w lianhuan-showcase && node --test scripts/tests/*.test.mjs",
-    "dev:showcase": "npm run dev -w lianhuan-showcase"
+    "build": "npm run build -w lianhuan-blocks && npm run build -w lianhuan-showcase && npm run build -w lianhuan-local",
+    "test": "npm test -w lianhuan-blocks && npm test -w lianhuan-showcase && npm test -w lianhuan-local && node --test scripts/tests/*.test.mjs",
+    "dev:showcase": "npm run dev -w lianhuan-showcase",
+    "dev:local": "npm run dev -w lianhuan-local"
   }
 }

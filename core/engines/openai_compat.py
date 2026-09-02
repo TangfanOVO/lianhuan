@@ -28,6 +28,7 @@ DeepSeek、Kimi、智谱、通义、MiniMax、硅基流动、OpenRouter、Ollama
 from __future__ import annotations
 
 import json
+import sys
 import os
 import re
 from typing import AsyncIterator
@@ -42,6 +43,14 @@ MIN_SAY = 6
 #: 一句最多攒多长，超了强行断（防止模型一口气不打标点）
 MAX_SAY = 180
 
+
+
+def _browser_transport():
+    """浏览器版（Pyodide）没有 socket：让 httpx 走页面的 fetch。电脑上回 None ＝ httpx 默认，行为一字不变。"""
+    if sys.platform != "emscripten":
+        return None
+    from core.browser import transport
+    return transport()
 
 class OpenAICompatEngine(Engine):
     name = "openai"
@@ -176,7 +185,7 @@ class OpenAICompatEngine(Engine):
         if self.tools and self.exec_tool and not self._reasoner_only():
             import httpx as _hx
             rounds = 0
-            client = _hx.AsyncClient(timeout=_hx.Timeout(180.0, connect=15.0))
+            client = _hx.AsyncClient(timeout=_hx.Timeout(180.0, connect=15.0), transport=_browser_transport())
             try:
                 while rounds < 5:
                     rounds += 1
@@ -238,7 +247,7 @@ class OpenAICompatEngine(Engine):
             return
 
         try:
-            self._client = httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=15.0))
+            self._client = httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=15.0), transport=_browser_transport())
             async with self._client.stream(
                 "POST", f"{self.base}/v1/chat/completions",
                 headers={"Authorization": f"Bearer {self._key}", "Content-Type": "application/json"},

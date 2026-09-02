@@ -62,3 +62,6 @@ android-full/.gradle/
 android-full/app/build/
 android-full/build/
 android-full/local.properties
+
+# 浏览器版：从 PyPI 下的轮子缓存
+apps/local/.wheels/
