@@ -1,0 +1,488 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- ★ 这两行不是装饰。少了 charset，file:// 打开时中文变方块；
+     少了 viewport，iOS Safari 按 980px 宽渲染再整页缩放，
+     100dvh / env(safe-area-inset-*) 全按错的视口算，手机上会缩成中间一小块。 -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>连环</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<!-- ★ iOS 加到主屏要这三行。少了 apple-mobile-web-app-capable，
+     从主屏点开还是带地址栏的普通网页，不是 app。 -->
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="连环">
+<meta name="theme-color" content="#f4f1ec">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="/blocks/base/tokens.css">
+<link rel="stylesheet" href="/blocks/parts/parts.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; overscroll-behavior:none; }
+  body { display:flex; flex-direction:column; }
+
+  header {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 18px calc(14px) 18px; padding-top:calc(14px + env(safe-area-inset-top));
+    border-bottom:1px solid var(--line); background:var(--card); flex:0 0 auto;
+  }
+  header .leaf { width:20px; height:20px; color:var(--accent); flex:0 0 auto;
+                 display:inline-flex; align-items:center; }
+  header .leaf svg { width:100%; height:100%; }
+  header .who { font-weight:600; }
+  header .eng { margin-left:8px; font-size:11.5px; color:var(--hint); }
+  .hdrbtn { margin-left:auto; width:34px; height:34px; padding:0; border:0; background:none;
+            color:var(--sub); cursor:pointer; display:flex; align-items:center; justify-content:center;
+            transition:transform .28s var(--spring-pop); }
+  .hdrbtn:active { transform:scale(.9); }
+  .hdrbtn svg { width:19px; height:19px; }
+  header .eng.warn { color:var(--accent); }
+
+  #log { flex:1 1 auto; overflow-y:auto; overflow-x:hidden; padding:20px 18px 8px; }
+
+  .msg { max-width:82%; margin:0 0 10px; padding:10px 14px; border-radius:16px;
+         white-space:pre-wrap; word-break:break-word; animation:rise .26s var(--e-out) both; }
+  .msg.them { background:var(--card); border:1px solid var(--line); transform-origin:left bottom; }
+  .msg.me   { background:var(--accent); color:var(--on-accent); margin-left:auto;
+              transform-origin:right bottom; animation-duration:.22s; }
+  @keyframes rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+
+  .think { max-width:82%; margin:0 0 10px; padding:8px 12px; font-size:13px; color:var(--sub);
+           background:var(--card2); border-left:2px solid var(--thread); border-radius:0 10px 10px 0;
+           white-space:pre-wrap; }
+
+  /* 他在干嘛 —— 一行人话，不是转圈菊花 */
+  #stage { display:none; align-items:center; gap:7px; margin:0 0 10px; font-size:13px; color:var(--hint); }
+  #stage.on { display:flex; }
+  #stage i { width:4px; height:4px; border-radius:50%; background:var(--hint); animation:blip 1.4s infinite; }
+  #stage i:nth-child(3){animation-delay:.2s} #stage i:nth-child(4){animation-delay:.4s}
+  @keyframes blip { 0%,60%,100%{opacity:.25} 30%{opacity:1} }
+
+  /* 空的时候就说空的 —— 不拿假数据把界面填满装热闹 */
+  .empty { color:var(--hint); font-size:14px; line-height:2; padding:34px 4px; }
+  .empty b { color:var(--sub); font-weight:600; display:block; margin-bottom:6px; }
+
+  #composer { flex:0 0 auto; display:flex; gap:10px; padding:12px 14px;
+              padding-bottom:calc(12px + env(safe-area-inset-bottom));
+              border-top:1px solid var(--line); background:var(--card); }
+  #box { flex:1; resize:none; max-height:120px; padding:10px 14px; border-radius:20px;
+         border:1px solid var(--line); background:var(--bg); color:var(--ink); line-height:1.5; }
+  #box:focus { outline:none; border-color:var(--accent); }
+  #send { flex:0 0 auto; width:42px; height:42px; border:0; border-radius:50%;
+          background:var(--accent); color:var(--on-accent); cursor:pointer; }
+  #send:disabled { opacity:.4; cursor:default; }
+  #send svg { width:19px; height:19px; fill:currentColor; vertical-align:middle; }
+  /* ★ 发送键这条曲线是手调出来的：.9 →(.09s)→ 1.06 →(.32s spring-pop)→ 1。别改。 */
+  @keyframes sendpop { 0%{transform:scale(.9)} 22%{transform:scale(1.06)} 100%{transform:scale(1)} }
+  #send.pop { animation:sendpop .41s var(--spring-pop); }
+
+  /* 首次引导 */
+  /* ★ 返回键在**左**。.hdrbtn 上有 margin-left:auto（顶栏那颗要靠右），
+     这儿必须显式扳回来，不然返回键会跑到标题右边 —— 中文习惯里那是「完成」的位置。 */
+  .subtop .hdrbtn { margin-left:0; }
+  .subtop { flex:0 0 auto; display:flex; align-items:center; gap:8px;
+            padding:14px 14px; padding-top:calc(14px + env(safe-area-inset-top));
+            border-bottom:1px solid var(--line); background:var(--card); }
+  .subtop b { font-size:15px; }
+  .memadd { display:flex; gap:8px; margin:16px 0 18px; }
+  .memadd input { flex:1; padding:9px 12px; border:1px solid var(--line);
+                  border-radius:10px; background:var(--card); color:var(--ink); }
+  .memadd button { flex:0 0 auto; padding:0 14px; border:0; border-radius:10px;
+                   background:var(--accent); color:var(--on-accent); font-weight:600; cursor:pointer; }
+  .memitem { padding:12px 0; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:flex-start; }
+  .memitem:last-child { border-bottom:0; }
+  .memitem .body { flex:1; min-width:0; line-height:1.75; word-break:break-word; }
+  .memitem .meta { display:block; margin-top:4px; font-size:11px; color:var(--hint);
+                   font-variant-numeric:tabular-nums; }
+  .memitem .del { flex:0 0 auto; width:30px; height:30px; border:0; background:none;
+                  color:var(--hint); cursor:pointer; font-size:15px; line-height:1; }
+  .memitem .del:active { color:var(--accent); }
+  #onboard { position:fixed; inset:0; z-index:50; background:var(--bg); overflow-y:auto;
+             padding:calc(40px + env(safe-area-inset-top)) 22px 40px; display:none; }
+  #onboard.on { display:block; }
+  #onboard h1 { font-size:22px; margin:0 0 6px; font-weight:700; }
+  #onboard p.lead { color:var(--sub); margin:0 0 28px; line-height:1.8; }
+  .field { margin-bottom:20px; }
+  .field label { display:block; font-size:13px; color:var(--sub); margin-bottom:6px; }
+  .field input, .field textarea, .field select {
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
+    background:var(--card); color:var(--ink); }
+  .field textarea { min-height:88px; resize:vertical; line-height:1.6; }
+  .field .note { font-size:12px; color:var(--hint); margin-top:5px; line-height:1.6; }
+  .field .note.err { color:var(--accent); }
+  .field input.bad { border-color:var(--accent); }
+  #go { width:100%; padding:13px; border:0; border-radius:12px; background:var(--accent);
+        color:var(--on-accent); font-weight:600; cursor:pointer; }
+</style>
+
+<!-- ══ 首次引导：只问三件必须问的。功能选择在装的时候就问完了，不在这儿 ══ -->
+<div id="onboard">
+  <h1>先认识一下</h1>
+  <p class="lead">填完就能开聊。<b>只有名字必填</b>，其余空着也行，以后都能改。</p>
+
+  <div class="field">
+    <label>他叫什么</label>
+    <input id="ai-name" placeholder="给他起个名字" autocomplete="off">
+    <div class="note err" id="ai-name-err" hidden>先给他起个名字吧，一个字也行。</div>
+  </div>
+  <div class="field">
+    <label>他是谁</label>
+    <textarea id="ai-text" placeholder="性格、说话的样子、你希望他怎么对你。写多写少都行，以后能改。"></textarea>
+    <div class="note">这段会在每次说话前交给他。空着也能跑，只是他会比较没有性格。</div>
+  </div>
+  <div class="field">
+    <label>你叫什么</label>
+    <input id="me-name" placeholder="他怎么称呼你">
+  </div>
+  <div class="field">
+    <label>关于你</label>
+    <textarea id="me-text" placeholder="你想让他记住的事。也可以空着——聊着聊着他自己会记。"></textarea>
+  </div>
+  <div class="field">
+    <label>用哪个引擎</label>
+    <select id="engine"></select>
+    <div class="note" id="engine-note"></div>
+  </div>
+  <button id="go">开始</button>
+</div>
+
+<header>
+  <!-- 家徽。默认枫叶，设置里能换（Crest.list() 看有哪些）。
+       Font Awesome Free 6 · CC BY 4.0 —— 用了要署名，见 UPSTREAM.md -->
+  <span class="leaf" id="crest"></span>
+  <span class="who" id="hdr-name">连环</span>
+  <button class="hdrbtn" data-open="mempage" aria-label="记忆">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+         stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v18H6.5A2.5 2.5 0 0 1 4 18.5z"/><path d="M8 7.5h7M8 11h5"/></svg>
+  </button>
+  <span class="eng" id="hdr-eng"></span>
+</header>
+
+<div id="log"></div>
+
+<!-- ══ 记忆页 ══ 用的是 blocks/parts 那块积木：.sub 滑上来、data-close 返回 ══ -->
+<div class="sub" id="mempage">
+  <div class="subtop">
+    <button class="hdrbtn" data-close aria-label="返回">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <b>记忆</b><span class="eng" id="memcount" style="margin-left:auto"></span>
+  </div>
+  <div class="subwrap">
+    <div class="memadd">
+      <input id="memnew" placeholder="记一件事…" enterkeyhint="done">
+      <button id="memsave">记下</button>
+    </div>
+    <div id="memlist"></div>
+  </div>
+</div>
+<div class="scrim"></div>
+
+<div id="composer">
+  <textarea id="box" rows="1" placeholder="说点什么" enterkeyhint="send"></textarea>
+  <button id="send" class="pressable" aria-label="发送">
+    <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+  </button>
+</div>
+
+<script src="/blocks/base/accent.js"></script>
+<script src="/blocks/base/crest.js"></script>
+<script src="/blocks/parts/parts.js"></script>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const log = $('#log'), box = $('#box'), send = $('#send'), stage = $('#stage');
+let persona = null, settings = null, sessionId = null, busy = false;
+
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* ★★ 跟后端 protocol.py 的 SEP / split_say() 是同一个约定 ——
+   **改一边必须改另一边**，不然刷新前后的气泡对不上。 */
+const SEP = '|||';
+const splitSay = t => String(t || '').split(SEP).map(s => s.trim()).filter(Boolean);
+
+function atBottom() { return log.scrollHeight - log.scrollTop - log.clientHeight < 60; }
+function toBottom(force) { if (force || atBottom()) log.scrollTop = log.scrollHeight; }
+
+function bubble(cls, text) {
+  const d = document.createElement('div');
+  d.className = cls; d.textContent = text;
+  log.appendChild(d); toBottom(cls === 'msg me');
+  return d;
+}
+
+function showStage(text) {
+  let s = $('#stage');
+  if (!s) {
+    s = document.createElement('div'); s.id = 'stage';
+    s.innerHTML = '<span></span><i></i><i></i><i></i>';
+    log.appendChild(s);
+  }
+  s.firstElementChild.textContent = text;
+  s.classList.add('on'); log.appendChild(s); toBottom();
+}
+function hideStage() { const s = $('#stage'); if (s) s.classList.remove('on'); }
+
+/* 空态：不写「暂无数据」。第一天本来就该是空的，那不是缺陷 */
+function drawEmpty() {
+  const name = (persona?.ai?.name) || '他';
+  log.innerHTML = '<div class="empty"><b>还没有东西，你们才刚认识。</b>'
+    + '说第一句话吧。' + esc(name) + '记住的事会一点点长出来，'
+    + '记忆页那时候才会有内容 —— 现在是空的，是对的。</div>';
+}
+
+/* ── 收流 ──────────────────────────────────────────────
+   一条回复由**好几句**组成，一句一个气泡，边想边冒。       */
+async function consume(res) {
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = '', thinkEl = null, jobId = null, seen = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const parts = buf.split('\n\n'); buf = parts.pop();
+
+    for (const p of parts) {
+      if (!p.startsWith('data: ')) continue;
+      let ev; try { ev = JSON.parse(p.slice(6)); } catch { continue; }
+      seen++;
+      switch (ev.type) {
+        case 'hb': break;
+        case 'stage': showStage(ev.text); break;
+        case 'os':
+          if (!thinkEl) { thinkEl = document.createElement('div'); thinkEl.className = 'think'; log.appendChild(thinkEl); }
+          thinkEl.textContent += ev.delta || ''; toBottom(); break;
+        case 's': hideStage(); bubble('msg them', ev.text); break;
+        case 'error': hideStage(); bubble('msg them', ev.text); break;
+        case 'gone':
+          bubble('msg them', '（那条我跟丢了。刷新一下看看，说过的话都还在。）'); break;
+        case 'done':
+          hideStage(); sessionId = ev.session_id || sessionId; break;
+      }
+    }
+  }
+  hideStage();
+}
+
+async function say() {
+  const text = box.value.trim();
+  if (!text || busy) return;
+  busy = true; send.disabled = true;
+  send.classList.remove('pop'); void send.offsetWidth; send.classList.add('pop');
+
+  if (log.querySelector('.empty')) log.innerHTML = '';
+  bubble('msg me', text);
+  box.value = ''; box.style.height = 'auto';
+
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, session_id: sessionId })
+    });
+    if (!res.ok) { bubble('msg them', '（没送出去：' + res.status + '。你说的那句我留着了。）'); }
+    else await consume(res);
+  } catch (e) {
+    /* ★ 老实说断了，别装作在想 —— 装在想的话人会一直等 */
+    bubble('msg them', '（连不上了。你说的那句已经存下来了，网络回来再叫我。）');
+  } finally {
+    busy = false; send.disabled = false; box.focus();
+  }
+}
+
+send.addEventListener('click', say);
+box.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); say(); }
+});
+box.addEventListener('input', () => {
+  box.style.height = 'auto';
+  box.style.height = Math.min(box.scrollHeight, 120) + 'px';
+});
+
+/* ── 引导 ────────────────────────────────────────────── */
+async function fillEngines() {
+  const sel = $('#engine'), note = $('#engine-note');
+  sel.innerHTML = '';
+  for (const [k, v] of Object.entries(settings.engines)) {
+    const o = document.createElement('option');
+    o.value = k;
+    /* ★ 没接通的照样列出来，但要说清楚。藏起来 = 假装这回事不存在 */
+    o.textContent = (v.label || k) + (v.ready ? '' : ' · 待接');
+    sel.appendChild(o);
+  }
+  sel.value = settings.engine;
+  const upd = () => { note.textContent = settings.engines[sel.value]?.needs || ''; };
+  sel.addEventListener('change', upd); upd();
+}
+
+$('#go').addEventListener('click', async () => {
+  /* ★ 校验不过就地停住 —— 而且**一个字节都不写库**。
+     原来这儿是先写库再 boot()，boot 发现没名字又把引导页弹回来：
+     屏幕上闪一下就回到原样，人不知道自己做错了什么，
+     库里还多了一条空人设。这是「死按钮」加「静默写脏数据」两个问题叠在一起。 */
+  const nameEl = $('#ai-name'), errEl = $('#ai-name-err');
+  if (!nameEl.value.trim()) {
+    errEl.hidden = false; nameEl.classList.add('bad');
+    nameEl.focus(); nameEl.scrollIntoView({ block:'center', behavior:'smooth' });
+    return;
+  }
+  errEl.hidden = true; nameEl.classList.remove('bad');
+
+  persona = {
+    ai:    { name: $('#ai-name').value.trim(), text: $('#ai-text').value.trim() },
+    human: { name: $('#me-name').value.trim(), text: $('#me-text').value.trim() }
+  };
+  await fetch('/api/persona', { method:'POST', headers:{'Content-Type':'application/json'},
+                                body: JSON.stringify(persona) });
+  await fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'},
+                                 body: JSON.stringify({ engine: $('#engine').value }) });
+  $('#onboard').classList.remove('on');
+  await Crest.mount(document.getElementById('crest'));
+const parts = Parts();
+
+/* ── 记忆页 ──────────────────────────────────────────
+   ★ 列表是记忆的**正常样子**：一条一条看得见、能加、能删。
+     好看的可视化是锦上添花，替代不了它。 */
+async function loadMem() {
+  const d = await (await fetch('/api/memories?limit=200')).json();
+  $('#memcount').textContent = d.total ? d.total + ' 条' : '';
+  const box = $('#memlist');
+  if (!d.memories.length) {
+    box.innerHTML = '<div class="empty"><b>还没有记住什么。</b>'
+      + '聊着聊着会长出来 —— 也可以现在就自己记一条。</div>';
+    return;
+  }
+  box.innerHTML = d.memories.map(m =>
+    '<div class="memitem" data-id="' + m.id + '"><div class="body">' + esc(m.content)
+    + '<span class="meta">' + esc(m.layer)
+    + (m.tags && m.tags.length ? ' · ' + m.tags.map(esc).join(' · ') : '')
+    + (m.ts ? ' · ' + new Date(m.ts * 1000).toLocaleDateString() : '')
+    + '</span></div><button class="del" aria-label="删掉">×</button></div>').join('');
+}
+
+$('#memsave').addEventListener('click', async () => {
+  const v = $('#memnew').value.trim();
+  if (!v) return;
+  await fetch('/api/memories', { method:'POST', headers:{'Content-Type':'application/json'},
+                                 body: JSON.stringify({ content: v }) });
+  $('#memnew').value = '';
+  loadMem();
+});
+$('#memnew').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); $('#memsave').click(); }
+});
+$('#memlist').addEventListener('click', async e => {
+  const b = e.target.closest('.del'); if (!b) return;
+  const id = b.closest('.memitem').dataset.id;
+  /* ★ 删记忆要问一句。这是唯一一个「删了就真没了」的地方 */
+  if (!confirm('删掉这条记忆？删了就没了。')) return;
+  await fetch('/api/memories/' + id + '/delete', { method:'POST' });
+  loadMem();
+});
+document.addEventListener('click', e => {
+  if (e.target.closest && e.target.closest('[data-open="mempage"]')) loadMem();
+});
+boot();
+
+/* Service Worker：让壳能离线出来。装不上也不影响用，所以只是 catch 掉。 */
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+});
+
+$('#ai-name').addEventListener('input', () => {
+  $('#ai-name-err').hidden = true;
+  $('#ai-name').classList.remove('bad');
+});
+
+async function boot() {
+  persona  = await (await fetch('/api/persona')).json();
+  settings = await (await fetch('/api/settings')).json();
+
+  if (!persona?.ai?.name) { await fillEngines(); $('#onboard').classList.add('on'); return; }
+
+  $('#hdr-name').textContent = persona.ai.name;
+  /* ★ ready 和 stub 是两件事：ready 说「点了有反应吗」，stub 说「那个反应是真的吗」。
+     两种都要标，但话不一样 —— 不许让人以为自己已经在跟模型说话了。 */
+  const e = settings.engines[settings.engine] || {};
+  $('#hdr-eng').textContent = !e.ready ? (e.label || settings.engine) + ' · 待接'
+                                       : (e.label || settings.engine);
+  $('#hdr-eng').classList.toggle('warn', !e.ready || !!e.stub);
+
+  const { turns } = await (await fetch('/api/turns?limit=50')).json();
+  log.innerHTML = '';
+  if (!turns.length) drawEmpty();
+  else {
+    for (const t of turns) {
+      if (t.role === 'user') { bubble('msg me', t.content); continue; }
+      if (t.think) { const d = document.createElement('div'); d.className = 'think'; d.textContent = t.think; log.appendChild(d); }
+      /* ★ 一条回复要拆回几个气泡 —— 跟流式时看到的一模一样 */
+      for (const line of splitSay(t.content)) bubble('msg them', line);
+    }
+    toBottom(true);
+  }
+
+  /* 回前台先问一嘴：有没有还没说完的话 —— 有就坐回观众席续播 */
+  const { jobs } = await (await fetch('/api/chat/active')).json();
+  const live = (jobs || []).find(j => !j.done);
+  if (live) {
+    showStage('接着刚才那句');
+    try { await consume(await fetch('/chat/attach?job=' + live.job + '&after=0')); } catch {}
+  }
+}
+
+Crest.mount(document.getElementById('crest'));
+const parts = Parts();
+
+/* ── 记忆页 ──────────────────────────────────────────
+   ★ 列表是记忆的**正常样子**：一条一条看得见、能加、能删。
+     好看的可视化是锦上添花，替代不了它。 */
+async function loadMem() {
+  const d = await (await fetch('/api/memories?limit=200')).json();
+  $('#memcount').textContent = d.total ? d.total + ' 条' : '';
+  const box = $('#memlist');
+  if (!d.memories.length) {
+    box.innerHTML = '<div class="empty"><b>还没有记住什么。</b>'
+      + '聊着聊着会长出来 —— 也可以现在就自己记一条。</div>';
+    return;
+  }
+  box.innerHTML = d.memories.map(m =>
+    '<div class="memitem" data-id="' + m.id + '"><div class="body">' + esc(m.content)
+    + '<span class="meta">' + esc(m.layer)
+    + (m.tags && m.tags.length ? ' · ' + m.tags.map(esc).join(' · ') : '')
+    + (m.ts ? ' · ' + new Date(m.ts * 1000).toLocaleDateString() : '')
+    + '</span></div><button class="del" aria-label="删掉">×</button></div>').join('');
+}
+
+$('#memsave').addEventListener('click', async () => {
+  const v = $('#memnew').value.trim();
+  if (!v) return;
+  await fetch('/api/memories', { method:'POST', headers:{'Content-Type':'application/json'},
+                                 body: JSON.stringify({ content: v }) });
+  $('#memnew').value = '';
+  loadMem();
+});
+$('#memnew').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); $('#memsave').click(); }
+});
+$('#memlist').addEventListener('click', async e => {
+  const b = e.target.closest('.del'); if (!b) return;
+  const id = b.closest('.memitem').dataset.id;
+  /* ★ 删记忆要问一句。这是唯一一个「删了就真没了」的地方 */
+  if (!confirm('删掉这条记忆？删了就没了。')) return;
+  await fetch('/api/memories/' + id + '/delete', { method:'POST' });
+  loadMem();
+});
+document.addEventListener('click', e => {
+  if (e.target.closest && e.target.closest('[data-open="mempage"]')) loadMem();
+});
+boot();
+
+/* Service Worker：让壳能离线出来。装不上也不影响用，所以只是 catch 掉。 */
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+</script>
