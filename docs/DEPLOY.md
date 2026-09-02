@@ -1,4 +1,30 @@
-# 装到手机上
+# 装到哪儿 · 家在哪
+
+连环的「家」是 `data/` 那个文件夹（聊天、记忆、信、日记、心情、空间、日历、共读批注，一份 SQLite）。
+手机上装的只是窗口。先决定家放哪，再看下面对应的那一节。
+
+| 装法 | 家在哪 | 要不要口令 | 怎么更新 |
+| --- | --- | --- | --- |
+| 浏览器版（打开链接就用） | 这台设备的浏览器（IndexedDB） | 不要 | 打开就是最新 |
+| 一键托管（Render / Koyeb） | 平台上你那份 `data/` | 要，部署时填 | 平台从仓库重建 |
+| 自己的服务器（Docker） | 服务器上的 `./data` | 要 | 拉新代码重建 |
+| 电脑上跑，手机同一个 Wi-Fi | 电脑上的 `data/` | `--lan` 时要 | 拉新代码 |
+| 安卓完整体 APK | 手机上应用的沙箱 | 不要 | 装新包 |
+| 安卓壳 APK | 家在电脑或云上 | 看家那边 | 壳不用动 |
+
+家之间搬：设置里导出 JSON，另一边导入。
+
+## 浏览器版
+
+线上：https://tangfanovo.github.io/lianhuan/local/ 。同一份 Python 后端在页面里跑（Pyodide），没有服务器。
+iPhone 用 Safari 打开，分享 → 添加到主屏幕；安卓用 Chrome，菜单 → 安装应用。
+第一次打开从 CDN 拿十几 MB，之后由 Service Worker 缓存，第二次几秒就开。
+模型直接从浏览器连：DeepSeek、OpenAI、智谱、硅基流动、OpenRouter 都允许浏览器直连；key 在 设置 › 功能包 › 引擎 里填，存在这台设备里。
+颜文字抽屉和通话这一版不带。源码在 `apps/local/`，自己出一份：`cd apps/local && npm run build`，把 `dist/` 整个放到任何静态托管上。
+
+## 安卓完整体
+
+后端和前端都在 APK 里，家在应用沙箱。装法和细节见 [android-full/README.md](../android-full/README.md)。
 
 ## iOS · 加到主屏
 
@@ -56,33 +82,6 @@ python -m core.server --port 8420
 
 ★ 部署脚本里**别把 token 写进命令行**。`ps` 就能看见。用环境变量文件或者系统密钥库。
 
-## 数据在哪
+## 搬家
 
-| 装法 | 数据 | 要密码吗 |
-|---|---|---|
-| 纯本地（默认） | 你手机 / 你机器上的一个 `.db` 文件 | 不要 |
-| 自建服务器 | 你服务器上 | **要** |
-
-搬家：`GET /api/export` 拿一个 JSON，`POST /api/import` 灌回去。就一个文件。
-
-## 一键部署到云上
-
-仓库根目录有 `Dockerfile` 和 `render.yaml`。README 顶上那两颗按钮：
-
-- **Render**：`https://render.com/deploy?repo=https://github.com/TangfanOVO/lianhuan` —— 读 `render.yaml`，问你口令和 key，起一个免费的 web service
-- **Koyeb**：`https://app.koyeb.com/deploy?type=git&repository=github.com/TangfanOVO/lianhuan&branch=main&name=lianhuan&builder=dockerfile&ports=8420;http;/…` —— 照 Dockerfile 建，环境变量在它的页面上填
-
-两家免费档都是**休眠 ＋ 不持久磁盘**：够试、够给朋友玩，要长期住就换付费档并把 `/app/data` 挂成持久盘。
-不管在哪儿，数据都在 `/app/data`（SQLite、上传、`secrets.json`），备份就是这个目录。
-
-容器一律按 `--lan` 起：所有请求都当成「从网络来的」，进门要 `LIANHUAN_PASSWORD`。
-登记 MCP 和一键装 Engawa 这两条只认本机，云上不开放 —— 它们会在机器上起进程。
-
-## Docker（自己的服务器）
-
-```bash
-cp .env.example .env        # 填 key；再加一行 LIANHUAN_PASSWORD=你的口令
-docker compose up -d        # 数据落在 ./data
-```
-
-前面挂 Caddy / nginx 做 https，iPhone 才能把它加成带离线壳的主屏 app。
+`GET /api/export` 拿一个 JSON，`POST /api/import` 灌回去。就一个文件；设置里有按钮。

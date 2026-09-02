@@ -356,6 +356,7 @@
       if (href.indexOf("http") === 0) { a.rel = "noopener"; a.target = "_blank"; }
       box.appendChild(a);
     }
+    go("直接用（浏览器版） ↗", "local/");
     go("打开应用预览 ↗", "app/");
     if (REPO) {
       go("下载安卓壳 APK ↗", REPO + "/releases/tag/apk");

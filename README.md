@@ -14,6 +14,7 @@
 >
 > **先看再装，点开就是：**
 >
+> - 直接用，家在你这台设备的浏览器里：**https://tangfanovo.github.io/lianhuan/local/**
 > - 积木一块块看（一台假手机，十一块）：**https://tangfanovo.github.io/lianhuan/**
 > - 整个应用的样子（没有后端的空壳，空状态是真的空）：**https://tangfanovo.github.io/lianhuan/app/**
 >
@@ -22,21 +23,50 @@
 
 ---
 
-## 一键部署
+## 怎么装 · 家在哪
+
+连环的「家」就是 `data/` 那个文件夹：聊天、记忆、信、日记、心情、空间、日历、共读批注，全在里面一份 SQLite 里。
+手机上装的东西只是窗口。所以选装法，其实是在选**家放在哪**：
+
+| 你有什么 | 这么开始 | 家在哪 | 怎么更新 |
+| --- | --- | --- | --- |
+| 什么都没有，想马上用 | 打开[浏览器版](https://tangfanovo.github.io/lianhuan/local/)。iPhone 用 Safari「添加到主屏幕」，安卓用 Chrome「安装应用」 | 这台设备的浏览器里（IndexedDB） | 打开就是最新 |
+| 没有服务器，想手机电脑共用一个家 | 点下面的按钮，一键托管到 Render 或 Koyeb | 托管平台上你自己的那份 `data/` | 平台从仓库重建 |
+| 有自己的云或服务器 | `docker compose up -d`，前面挂 HTTPS | 你服务器上的 `./data` | 拉新代码重建 |
+| 有一台常开的电脑 | `python3 create.py`，双击 `start.command`；加 `--lan` 手机同一个 Wi-Fi 也能连 | 电脑上的 `data/` | 拉新代码 |
+| 安卓，不想连任何东西 | 装 Releases 里的[完整体 APK](https://github.com/TangfanOVO/lianhuan/releases/tag/apk-full) | 应用自己的沙箱里 | 装新包，不自动更新 |
+| 安卓，家在电脑或云上 | 装 [壳 APK](https://github.com/TangfanOVO/lianhuan/releases/tag/apk)，填家的地址 | 电脑或云上 | 壳不用动，家更新就行 |
+
+我们自己的建议：**有云的装进自己的云**，记忆和信息都在云上，换手机、换电脑都是同一个家；
+没云的先点一键托管；只是想现在就试一下的，开浏览器版。
+不同的家之间搬家：设置里导出一个 JSON，到另一边导入，聊天、记忆、信、日记这些都跟着走。
+
+### 一键托管
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/TangfanOVO/lianhuan) &nbsp; [![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/TangfanOVO/lianhuan&branch=main&name=lianhuan&builder=dockerfile&ports=8420;http;/&env[PORT]=8420&env[LIANHUAN_PASSWORD]=改成你的口令)
 
-点一颗，用 GitHub 登录，填两样：**进门口令**（自己定）和**模型的 key**（可以先空着，起来后在 设置 › 功能包 › 引擎 里贴）。
-几分钟后得到一个 https 地址，iPhone 用 Safari 打开它「添加到主屏幕」就是 app，安卓装 Releases 里的壳填这个地址也行。
+Render 和 Koyeb 是云托管平台：别人的机器替你二十四小时跑着这份后端。按钮做的事是读仓库里的 `Dockerfile`，
+把连环建成一个容器跑起来，给你一个固定的 https 地址。用 GitHub 账号登录就能开，不用买服务器，不用配 nginx。
 
-| 说清楚 | |
-| --- | --- |
-| 免费档会休眠 | 十几分钟没人用就睡，再打开要等几十秒 |
-| 免费档不保数据 | 记忆存在容器里的 SQLite，**重新部署会丢**。要保住：定期在设置里导出 JSON，或换付费档挂一块持久盘（`render.yaml` 里那段放开就行） |
-| 口令是必须的 | 容器一律按「开到网络上」起，没口令拒绝启动 |
-| 两样只在本机 | 登记 MCP、一键装 Engawa 这两件会在机器上起进程，云上不开放 |
+点下去会问两样：**进门口令**（自己定一个，之后手机上进门用）和**模型的 key**（可以先空着，起来后在 设置 › 功能包 › 引擎 里贴）。
+拿到地址之后，iPhone 用 Safari 打开它「添加到主屏幕」；安卓装壳 APK 填这个地址，或者 Chrome 直接「安装应用」。
 
-自己的服务器：`docker compose up -d`（口令和 key 写在 `.env` 里，数据落在 `./data`）。细节见 [docs/DEPLOY.md](docs/DEPLOY.md)。
+免费档的样子：十几分钟没人用会休眠，再打开等几十秒；磁盘不持久，重新部署会把 `data/` 重置，想留着就定期在设置里导出。
+要长期住，换付费档，把 `render.yaml` 里 `disks` 那段放开，挂到 `/app/data`。
+登记 MCP、一键装 Engawa 这两件会在机器上起进程，只在本机开放。
+
+### 浏览器版
+
+同一份 Python 后端跑在页面里（Pyodide），没有服务器，也不用注册任何账号。
+第一次打开要从 CDN 拿十几 MB，之后缓存起来，第二次几秒就开。
+家在这台设备的浏览器里；换设备用设置里的导出 / 导入搬。
+模型直接从浏览器连：DeepSeek、OpenAI、智谱、硅基流动、OpenRouter 都允许浏览器直连，key 存在这台设备里。
+颜文字抽屉和通话这一版不带。源码在 `apps/local/`。
+
+### 安卓完整体
+
+后端和前端都在 APK 里，装上就是一整个连环，不连电脑也不连云。家在应用自己的沙箱里，卸载就没了，搬家先导出。
+装新版本要重新装包。详见 [android-full/README.md](android-full/README.md)。
 
 ## 魔改很多的后端
 
@@ -122,8 +152,11 @@ python -m core.server        # 加 --lan 让同一个 wifi 的手机也能连
 |---|---|---|
 | **本机薄后端**（默认） | 电脑上的 `data/lianhuan.db` | 本机用不用；`--lan` 会生成口令 |
 | 自建后端 | 你自己的服务器 | **要**。服务开在公网上必须加 HTTPS 与鉴权 |
+| 一键托管（Render / Koyeb） | 平台上你那份 `data/` | **要**。部署时填的口令 |
+| 浏览器版 | 这台设备的浏览器（IndexedDB） | 不要。设备锁屏就是锁 |
+| 安卓完整体 | 手机上应用自己的沙箱 | 不要 |
 
-**iOS 不要求使用我们的云。** 当前 PWA 仍要连接你自己运行的薄后端；纯浏览器 IndexedDB 版尚未实现。
+**iOS 三条路**：浏览器版（家在手机里）、连自己的后端（电脑或云）、一键托管。都是 Safari 打开「添加到主屏幕」。
 
 唯一绕不开联网的是跟模型说话（除非你跑本地模型）。所以 key 放哪儿是另一件事：
 
@@ -131,6 +164,7 @@ python -m core.server        # 加 --lan 让同一个 wifi 的手机也能连
   不到 1MB，自己不持有 key、也不能脱离服务独立运行（README 在 `android/` 里，
   实话都写在那）。key 一直待在电脑那份服务的 `data/secrets.json`（0600）
 - **网页 / iOS PWA** —— 同理，key 留在你自己跑的服务端，不塞进浏览器
+- **安卓完整体（`android-full/`）和浏览器版（`apps/local/`）** —— 没有服务端，key 存在这台设备自己的 `data/secrets.json` 里，不出设备
 - **绝不做的事**：接管任何消费级订阅的 Cookie。要接订阅只走官方客户端或正规服务端会话。
 
 ---
@@ -154,7 +188,7 @@ python -m core.server        # 加 --lan 让同一个 wifi 的手机也能连
 | ✅ 共看入口 | 聊天或空间里的小红书 / GitHub 链接回到同一聊天账本讨论；它不是同步浏览器，不冒充双方同屏 |
 | ✅ Engawa 阅读侧廊 | 固定 MIT 上游版本、一键本机安装、12 项工具白名单与檐廊入口都在；网页 / RSS / 书架 / 诗画 / 天象免 key，失败不拿演示数据顶替 |
 | 🧩 共读 / 网易云共听 | 保留这套前端；因自家需求很轻，分别诚实推荐 [Readest](https://github.com/readest/readest) 与 [music-together](https://github.com/Yueby/music-together) 的完整实现 |
-| ⏸ 纯浏览器存储 | **还没写**（现在最少也要跑这个薄后端） |
+| ✅ 浏览器版 | 同一份后端跑在页面里（Pyodide），家在这台设备的浏览器里：`apps/local/`，线上在 `/local/` |
 | ✅ 蒸馏（对话→记忆） | 聊够了自己提候选 → **你点头才入库** → 撞车了标出来（不自动合并）→ 常被翻到的自己升层 |
 | ⏸ sheet 的三档吸附拖动 | **尚未实现**，规格在 `blocks/parts/README.md` |
 
@@ -177,7 +211,8 @@ python -m core.server        # 加 --lan 让同一个 wifi 的手机也能连
 
 - [docs/MEMORY.md](docs/MEMORY.md) —— 记忆怎么工作、想换成别的记忆系统看这儿
 - [docs/API.md](docs/API.md) —— 后端契约。照着做能把后端换成任何东西
-- [docs/DEPLOY.md](docs/DEPLOY.md) —— iOS 加主屏 · 安卓封 APK · 自己的服务器
+- [docs/DEPLOY.md](docs/DEPLOY.md) —— 每种装法怎么装、家在哪
+- [android-full/README.md](android-full/README.md) —— 安卓完整体：后端在包里，家在手机沙箱
 - [docs/LAYERS.md](docs/LAYERS.md) —— 两把尺子怎么分层
 
 ## 许可证
