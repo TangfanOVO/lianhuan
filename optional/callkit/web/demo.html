@@ -1,0 +1,150 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>全双工 · 自检</title>
+<link rel="stylesheet" href="/blocks/base/tokens.css">
+<style>
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.7 system-ui,-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif}
+  .wrap{max-width:460px;margin:0 auto;padding:22px 16px 60px}
+  h2{font-size:20px;margin:0 0 2px}
+  .lede{font-size:13px;color:var(--sub);margin:0 0 16px}
+  .card{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;margin:0 0 12px}
+  .card > b{display:block;font-size:14px;margin-bottom:6px}
+  /* ⚠ 上面那条原来是 `.card b` —— 句子中间的 <b> 也被 block 掉了，
+     「故意的」当场被挤成独立一行。加个 > 只管卡片标题那一层。 */
+  .card small b{font-weight:600}
+  .card small{display:block;font-size:12px;line-height:1.7;color:var(--sub)}
+  button{min-height:44px;padding:0 16px;margin:8px 8px 0 0;border-radius:11px;background:none;
+    border:1px solid var(--maple);color:var(--maple);font:inherit;font-size:14px;cursor:pointer}
+  button:disabled{opacity:.45;cursor:default}
+  button.solid{background:var(--maple-soft)}
+  .meter{height:8px;border-radius:4px;background:var(--card2);overflow:hidden;margin:10px 0 4px}
+  .meter i{display:block;height:100%;width:0;background:var(--maple);transition:width .08s linear}
+  pre{margin:8px 0 0;padding:10px;background:var(--card2);border-radius:10px;font-size:11px;
+    line-height:1.6;max-height:220px;overflow:auto;white-space:pre-wrap;color:var(--sub)}
+  .ok{color:var(--maple)}
+</style>
+<div class="wrap">
+  <h2>全双工 · 自检</h2>
+  <p class="lede">分两段验：<b>先验音频那半</b>（不用 key，不连外网），再验整条链路（要贴 key）。</p>
+
+  <div class="card">
+    <b>① 麦克风 → 16K 裸 PCM</b>
+    <small>上游要 16000 Hz 的 pcm。浏览器的 MediaRecorder 给的是 webm/opus，不是这个 ——
+      所以这儿走 AudioWorklet 自己采。下面这条会动，就说明采到了。</small>
+    <div class="meter"><i id="lv"></i></div>
+    <div id="capinfo" style="font-size:11.5px;color:var(--hint)"></div>
+    <button id="cap">开始采</button>
+    <button id="capstop" disabled>停</button>
+  </div>
+
+  <div class="card">
+    <b>② 采到的放回来听听</b>
+    <small>把刚采的那几秒按 24K 排队放出来 —— 走的是真正接通时同一条播放路径。
+      听着是你自己的声音，会略快 —— 采的是 16K、放的是 24K，这是<b>故意的</b>：
+      验的是播放链路，不是保真。</small>
+    <button id="play" disabled>放刚才那段</button>
+    <button id="clear" disabled>清掉</button>
+  </div>
+
+  <div class="card">
+    <b>③ 整条链路</b>
+    <small id="upnote">看看这台机器上接没接。</small>
+    <small style="margin-top:6px">接通之后是这样：你说话 → 他听见 →
+      <b>用你自己配的那个引擎</b>去想（所以他记得你）→ 他开口。
+      你随时可以插嘴，他会立刻停下来听。</small>
+    <button id="conn" class="solid">连一下试试</button>
+    <button id="hang" disabled>挂断</button>
+    <pre id="log">（事件会打在这儿）</pre>
+  </div>
+</div>
+
+<script src="/api/duplex/web/duplex.js"></script>
+<script>
+  var logEl = document.getElementById('log'), lines = [];
+  function log(s, ok){
+    lines.unshift((ok ? '✓ ' : '· ') + s);
+    logEl.textContent = lines.slice(0, 40).join('\n');
+  }
+
+  /* ── ① ② 音频自检：完全本地，不连任何东西 ── */
+  var ac = null, node = null, stream = null, chunks = [], total = 0;
+  document.getElementById('cap').onclick = async function(){
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({audio:{channelCount:1}});
+      ac = new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
+      var code = 'class Cap extends AudioWorkletProcessor{process(i){const c=i[0]&&i[0][0];'
+               + 'if(c&&c.length){const o=new Float32Array(c);this.port.postMessage(o,[o.buffer]);}return true;}}'
+               + 'registerProcessor("cap",Cap);';
+      var url = URL.createObjectURL(new Blob([code],{type:'application/javascript'}));
+      await ac.audioWorklet.addModule(url); URL.revokeObjectURL(url);
+      var src = ac.createMediaStreamSource(stream);
+      node = new AudioWorkletNode(ac,'cap');
+      node.port.onmessage = function(e){
+        chunks.push(e.data); total += e.data.length;
+        var peak = 0; for (var i=0;i<e.data.length;i++) peak = Math.max(peak, Math.abs(e.data[i]));
+        document.getElementById('lv').style.width = Math.min(100, peak*140).toFixed(0) + '%';
+        document.getElementById('capinfo').textContent =
+          '采样率 ' + ac.sampleRate + ' Hz · 已采 ' + (total/16000).toFixed(1) + ' 秒';
+      };
+      src.connect(node);
+      this.disabled = true; document.getElementById('capstop').disabled = false;
+      log('麦克风开了，采样率 ' + ac.sampleRate + ' Hz' + (ac.sampleRate===16000?'（正是上游要的）':'（⚠ 不是 16000）'), ac.sampleRate===16000);
+    } catch(e){ log('拿不到麦克风：' + (e.message||e)); }
+  };
+  document.getElementById('capstop').onclick = function(){
+    try{ node && node.disconnect(); stream && stream.getTracks().forEach(t=>t.stop()); }catch(e){}
+    this.disabled = true; document.getElementById('cap').disabled = false;
+    document.getElementById('play').disabled = !chunks.length;
+    document.getElementById('clear').disabled = !chunks.length;
+    log('停了。攒了 ' + (total/16000).toFixed(1) + ' 秒', total > 0);
+  };
+  document.getElementById('play').onclick = function(){
+    var ctx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:24000});
+    var all = new Float32Array(total), o = 0;
+    chunks.forEach(function(c){ all.set(c, o); o += c.length; });
+    var buf = ctx.createBuffer(1, all.length, 24000);
+    buf.getChannelData(0).set(all);
+    var s = ctx.createBufferSource(); s.buffer = buf; s.connect(ctx.destination); s.start();
+    log('按 24K 放出来了（听着会略快，那是对的 —— 验的是播放链路不是保真）', true);
+  };
+  document.getElementById('clear').onclick = function(){
+    chunks = []; total = 0;
+    document.getElementById('play').disabled = true; this.disabled = true;
+    document.getElementById('capinfo').textContent = '';
+    log('清了');
+  };
+
+  /* ── ③ 整条链路 ── */
+  fetch('/api/duplex').then(r=>r.json()).then(function(d){
+    document.getElementById('upnote').textContent = d.ok
+      ? '这台机器上已经接好了（模型 ' + d.model + '）。点「连一下试试」。'
+      : '还差：' + (d.missing||[]).join('；');
+  }).catch(function(){
+    document.getElementById('upnote').textContent = '这台机器上没装这个包（设置 › 功能包里装）。';
+  });
+
+  var dx = null;
+  document.getElementById('conn').onclick = function(){
+    if (!window.Duplex){ log('duplex.js 没加载上 —— 包没装？'); return; }
+    dx = Duplex({on: function(d){
+      var t = d.type || '';
+      if (t === 'error') log('错误：' + (d.error||''), false);
+      else if (t === 'lianhuan.tool') log('它动手了：' + d.name, true);
+      else if (t === 'lianhuan.listening') log('听见你开口了 → 他闭嘴', true);
+      else if (t === 'lianhuan.heard') log('听清了：' + (d.text||''), true);
+      else if (t === 'lianhuan.said') log('他说：' + (d.text||''), true);
+      else if (t === 'lianhuan.audio') { /* 音频块，不打 */ }
+      else if (t === 'lianhuan.spoken') { /* 一句念完 */ }
+      else log(t);
+    }});
+    dx.start({});
+    this.disabled = true; document.getElementById('hang').disabled = false;
+  };
+  document.getElementById('hang').onclick = function(){
+    if (dx) dx.stop();
+    this.disabled = true; document.getElementById('conn').disabled = false;
+    log('挂了');
+  };
+</script>
