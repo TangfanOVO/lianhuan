@@ -1,0 +1,21 @@
+{
+  "name": "lianhuan",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "description": "连环 —— 完整应用 AGPL-3.0-only；blocks/ 那几块纯前端积木单独 MIT。",
+  "workspaces": [
+    "blocks",
+    "apps/showcase"
+  ],
+  "scripts": {
+    "packs:list": "node scripts/take-pack.mjs --list",
+    "pack:take": "node scripts/take-pack.mjs",
+    "check:privacy": "node scripts/check-public-boundary.mjs --worktree",
+    "check:privacy:release": "PUBLIC_RELEASE=1 node scripts/check-public-boundary.mjs",
+    "build": "npm run build -w lianhuan-blocks && npm run build -w lianhuan-showcase",
+    "test": "npm test -w lianhuan-blocks && npm test -w lianhuan-showcase && node --test scripts/tests/*.test.mjs",
+    "dev:showcase": "npm run dev -w lianhuan-showcase"
+  }
+}

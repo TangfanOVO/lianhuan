@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "连环分层清单",
+  "description": "lianhuan.layers.json 的形状。它是「哪些东西可以单独带走」的唯一真源 —— 取件器、文档和预览站都读它，改一处全同步。",
+  "type": "object",
+  "required": ["version", "license", "functionPacks", "frontendPacks", "profiles"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1, "description": "清单格式版本，形状变了才加" },
+    "license": {
+      "type": "string",
+      "description": "完整应用的许可。★ 混合取件时根许可退回这一个 —— 宽的不能盖住严的。"
+    },
+    "functionPacks": { "$ref": "#/definitions/group", "description": "按功能分：后端能力" },
+    "frontendPacks": { "$ref": "#/definitions/group", "description": "按外观和交互分：前端积木" },
+    "profiles": { "$ref": "#/definitions/group", "description": "组合方案：常见的几种「我想要的那一份」" }
+  },
+  "definitions": {
+    "group": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/entry" },
+      "propertyNames": { "pattern": "^[a-z0-9][a-z0-9-]*$" }
+    },
+    "entry": {
+      "type": "object",
+      "required": ["label", "summary", "kind", "truth"],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string", "description": "人看的名字，一句话以内" },
+        "summary": { "type": "string", "description": "它是什么。写给想拿走的人看，不是写给维护者" },
+        "kind": {
+          "enum": ["standalone", "application-slice", "integration", "complete", "frontend"],
+          "description": "standalone＝能自己站住；application-slice＝离不开宿主；integration＝对外部上游的适配；complete/frontend＝组合方案用"
+        },
+        "license": {
+          "type": "string",
+          "description": "这一条自己的许可。取件器把一次带上的全部收成集合：全 MIT 给 MIT，混了就退回顶层那个"
+        },
+        "requires": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^(function|frontend|profile)/[a-z0-9-]+$" },
+          "description": "它要的别的条目。取件器按这个算闭包，成环会报错"
+        },
+        "paths": { "type": "array", "items": { "type": "string" }, "description": "仓库里的真实路径。必须真存在，有测试盯着" },
+        "imports": { "type": "array", "items": { "type": "string" }, "description": "拿走之后能直接引的入口" },
+        "docs": { "type": "array", "items": { "type": "string" }, "description": "跟着一起带走的说明" },
+        "setup": { "type": "string", "description": "取走之后第一条要敲的命令" },
+        "takeable": { "type": "boolean", "description": "false＝这就是整仓，取件器会拒绝，让人直接 clone" },
+        "truth": {
+          "type": "string",
+          "description": "★ 必填，而且是这份清单里最要紧的一个字段。写清它**真正**完成了什么、没配外部服务时会怎样。写不出「它不是什么」，说明这块边界还没想清楚 —— 那就先别放进清单。"
+        }
+      }
+    }
+  }
+}

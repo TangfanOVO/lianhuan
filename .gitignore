@@ -1,0 +1,57 @@
+# 密钥永远不进仓库
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+# ★ 0901 补齐：这几条 tools/preflight.py:29-30 早就在拦了，.gitignore 却没有 ——
+#   两道防线不对称，等于只剩一道。
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+secrets.json
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# 使用者自己的东西
+/data/
+/my-home/
+*.local.*
+
+node_modules/
+dist/
+build/
+.DS_Store
+.venv/
+
+# ★ 0901：上面那条光秃秃的 `dist/` 会把**上游组件的实现**一起吞掉 ——
+#   它匹配任意深度的 dist 目录，正好命中颜文字抽屉 vendor 里那六个实现文件，
+#   而 index.html 是从那儿 import 的。git clone 下来的人，抽屉是死的，
+#   而且点了才知道（页面本身不报错）。这一条把它捞回来。
+!optional/kaomoji_drawer/web/vendor/dist/
+!optional/kaomoji_drawer/web/vendor/dist/**
+
+# 安卓壳的构建产物与本机路径
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+
+# ★ 0831 自查补的：这些原来 `git add -A` 会一股脑加进去
+# （★ gitignore 不认行内注释 —— 写在模式后面会被当成路径的一部分，栽过）
+
+# 改前的备份：里面是**没清洗过**的旧版本
+*.bak*
+__pycache__/
+*.pyc
+
+# 外部验收报告与回执、给验收 agent 的交接 —— 发布前删，不进仓库
+REVIEW-*.md
+AGENTS.md
+
+# 发文件收到的东西
+/files/

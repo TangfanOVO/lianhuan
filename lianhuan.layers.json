@@ -1,0 +1,562 @@
+{
+  "$schema": "./docs/lianhuan-layers.schema.json",
+  "version": 1,
+  "license": "AGPL-3.0-only",
+  "functionPacks": {
+    "runtime": {
+      "label": "内核 · 起得来的最小一份",
+      "summary": "HTTP 服务、SSE 协议、任务寄存器、功能包注册表、门与密钥落盘。",
+      "kind": "standalone",
+      "license": "AGPL-3.0-only",
+      "paths": [
+        "core/__init__.py",
+        "core/server.py",
+        "core/protocol.py",
+        "core/jobs.py",
+        "core/packs.py",
+        "core/gate.py",
+        "core/secrets.py",
+        "core/seed.py",
+        "seed"
+      ],
+      "docs": [
+        "docs/API.md",
+        "docs/DEPLOY.md"
+      ],
+      "truth": "不含任何模型：只带回声引擎那条假声。密钥只落 data/secrets.json（0600），不进库不进导出。"
+    },
+    "engines": {
+      "label": "引擎 · 接什么模型说话",
+      "summary": "引擎抽象＋三条实现：回声（假声，开箱默认）、本机官方 CLI、OpenAI 兼容 API。",
+      "kind": "standalone",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/runtime"
+      ],
+      "paths": [
+        "core/engines"
+      ],
+      "truth": "回声那条不接模型也能跑通全流程。CLI 那条要本机装了对应命令行；API 那条要自己贴 key，没贴时界面照实说未就绪，不假装能用。★ CLI 那条走 --resume，不读 history —— 窗口治理那套对它不生效。"
+    },
+    "localdata": {
+      "label": "本地账本",
+      "summary": "SQLite 落库、老库自动迁移、每线程一把连接、导入导出。",
+      "kind": "standalone",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/runtime"
+      ],
+      "paths": [
+        "core/store"
+      ],
+      "truth": "数据全在自己机器上的一个文件里。★ 导出目前只带 memories/turns/persona —— notes、diary、moments、心情、日历、共读、工作本既不导出也不导入，「整个家打包带走」还没做到。"
+    },
+    "memory": {
+      "label": "连续性与记忆",
+      "summary": "人设段＋记忆段＋对话段的召回与注入；蒸馏四段（提取／审批／去重／升层）。",
+      "kind": "standalone",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/localdata"
+      ],
+      "paths": [
+        "core/memory",
+        "core/distill.py"
+      ],
+      "docs": [
+        "docs/MEMORY.md"
+      ],
+      "truth": "记忆在主链路上，每次说话前都过它。库是空的时候它明写「别编」，不靠编造填。蒸馏默认只落潜在条目、不自动入库，审批要人点。"
+    },
+    "hands": {
+      "label": "工具与执行结果",
+      "summary": "模型能动的三十只手，加一个薄 MCP 客户端（配置格式跟常见客户端一致）。",
+      "kind": "standalone",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/localdata"
+      ],
+      "paths": [
+        "core/hands.py",
+        "core/mcp_client.py"
+      ],
+      "truth": "工具结果真回传给模型、能连着问最多五轮。★ 但持久脚注只画得出其中两只手的痕迹，其余二十八只做完了界面上留不下记录。AI 不能自己登记 MCP server。"
+    },
+    "speech": {
+      "label": "神态与语气",
+      "summary": "把「「压低声音」」这类神态翻成音频标签或语速/音量/音调三个数；剥掉不该念出口的东西。",
+      "kind": "standalone",
+      "license": "AGPL-3.0-only",
+      "paths": [
+        "core/speech.py"
+      ],
+      "truth": "映射不到的神态照旧丢掉，绝不硬凑 —— 凑错了引擎会照着演，比不演更怪。不含任何供应商调用。"
+    },
+    "views": {
+      "label": "聊天与记忆的视图",
+      "summary": "热力图、按天翻、搜索、字云数据、总览这些聚合读接口。",
+      "kind": "standalone",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/localdata"
+      ],
+      "paths": [
+        "core/views.py"
+      ],
+      "truth": "只读，不写。字云那份数据就是前端 glyphcloud 那块吃的。"
+    },
+    "calls": {
+      "label": "打电话与全双工",
+      "summary": "录一段转写／流式转写、两家上游各自的耳朵配自己的嘴，中间换成你自己配的引擎。",
+      "kind": "application-slice",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/engines",
+        "function/speech"
+      ],
+      "paths": [
+        "optional/callkit"
+      ],
+      "truth": "★ 要自己贴上游 key 才走得通，没贴时那张卡照实说缺什么。回声防线（不把自己的声音当成对方说话）装了四处并有测试钉着；打断的两半都在。**但整条链路缺凭据，没做过端到端真跑。**"
+    },
+    "proactive": {
+      "label": "主动找你与提醒",
+      "summary": "按频率闸自己开口、九十分钟节流、每天有上限；到点提醒；网页推送（VAPID 第一次用时自生成）。",
+      "kind": "standalone",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/memory"
+      ],
+      "paths": [
+        "core/proactive.py",
+        "core/push.py"
+      ],
+      "truth": "频率默认最低档。推送要 HTTPS 才收得到；订阅、发送、死订阅自动清这条链用假订阅验过，**没在真手机锁屏上验过**。"
+    },
+    "homelife": {
+      "label": "写作 · 心情 · 梗库 · 玩具厅",
+      "summary": "日记碎碎念、心情六维记账（带防伪造）、只有你们懂的梗、模型写的小网页。",
+      "kind": "standalone",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/localdata"
+      ],
+      "paths": [
+        "optional/homelife"
+      ],
+      "truth": "心情账只接受「这一轮对方没试图注入记号」时模型自己记的 —— 靠比对文本鉴权防不住会改写的一方。"
+    },
+    "homeplus": {
+      "label": "家什与台账",
+      "summary": "日历、出门走走、钱包、工作本这些过日子的小账。",
+      "kind": "standalone",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/localdata"
+      ],
+      "paths": [
+        "optional/homeplus"
+      ],
+      "truth": "都是本地的账，不连任何外部日历或账户。"
+    },
+    "reading": {
+      "label": "共读",
+      "summary": "一起读一本书：章节、进度、批注。",
+      "kind": "standalone",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/localdata"
+      ],
+      "paths": [
+        "optional/reading"
+      ],
+      "truth": "书要自己放进来，不带任何书。"
+    },
+    "kaomoji-drawer": {
+      "label": "颜文字抽屉",
+      "summary": "上游发布的抽屉组件（MIT）的后端半边＋它的前端 vendor；AI 也能挑能收。",
+      "kind": "integration",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/runtime"
+      ],
+      "paths": [
+        "optional/kaomoji_drawer"
+      ],
+      "docs": [
+        "THIRD_PARTY_NOTICES.md"
+      ],
+      "truth": "vendor/ 里是上游组件，保留它自己的 MIT 许可与署名，不因为整仓 AGPL 就改它。★ 拿走时别忘 vendor/dist —— 实现在那儿，漏了抽屉就是死的。"
+    },
+    "qq-bridge": {
+      "label": "接一个聊天前端",
+      "summary": "通过自建的中转实例把消息接进来。",
+      "kind": "integration",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/runtime"
+      ],
+      "paths": [
+        "optional/qq_napcat"
+      ],
+      "truth": "要自己跑那个中转实例并给 token，没有就整块不挂。**没做过端到端真跑。**"
+    },
+    "obsidian-memory": {
+      "label": "把记忆存进你自己的笔记库",
+      "summary": "用本地 Markdown 笔记库当记忆的落点，替掉自带的那套存储。",
+      "kind": "integration",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/memory"
+      ],
+      "paths": [
+        "optional/obsidian_memory"
+      ],
+      "truth": "要给一个本地 vault 路径。它是替换存储实现，不额外挂路由。"
+    },
+    "android": {
+      "label": "安卓外壳",
+      "summary": "零依赖的 WebView 壳：全屏、返回键走网页历史、麦克风权限代请、文件选择器接系统。",
+      "kind": "application-slice",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "function/runtime"
+      ],
+      "paths": [
+        "android"
+      ],
+      "docs": [
+        "docs/DEPLOY.md"
+      ],
+      "truth": "★ 只能说「壳能构建出来」。没有真机逐项点过的证据之前，别写成「安卓全功能已验收」。锁屏推送那条 WebView 走不通，README 里写的是实话。"
+    }
+  },
+  "frontendPacks": {
+    "tokens": {
+      "label": "配色与明暗",
+      "summary": "纸底、枫叶红、明暗两套的全部 CSS 变量，加两个小件（重点色、徽记）。",
+      "kind": "standalone",
+      "license": "MIT",
+      "paths": [
+        "blocks/base"
+      ],
+      "imports": [
+        "blocks/base/tokens.css",
+        "blocks/base/accent.js",
+        "blocks/base/crest.js"
+      ],
+      "truth": "纯 CSS 变量＋两个零依赖小件。不含任何数据、接口或后端。★ 目前跟应用里那份**已经漂了**（应用里的墨色更深），而且这一块还没有防漂移测试钉着。"
+    },
+    "home": {
+      "label": "主页",
+      "summary": "一整屏无私人数据的假主页，**六种排法**：方块／垂丝／横渡／灯串／纸夹／散摞。",
+      "kind": "standalone",
+      "license": "MIT",
+      "requires": [
+        "frontend/tokens",
+        "frontend/physics"
+      ],
+      "paths": [
+        "blocks/home"
+      ],
+      "imports": [
+        "blocks/home/home.css",
+        "blocks/home/home.js"
+      ],
+      "truth": "方块那一版是纯 CSS，另外五种的物理来自 `frontend/physics`（**没有复制第二份**）。方块底下那颗「排一排主页」能按住拖着换板块顺序，顺序存在本机浏览器里。换配色/明暗时**六种排法都跟着变** —— 一个写死的颜色都没有。里头的人、话、数字全是编的，页面上自己标着。"
+    },
+    "ambience": {
+      "label": "环境效果",
+      "summary": "页面底噪那一层：飘动的环境线条。",
+      "kind": "standalone",
+      "license": "MIT",
+      "paths": [
+        "blocks/ambience"
+      ],
+      "imports": [
+        "blocks/ambience/ambience.js",
+        "blocks/ambience/ambience.css"
+      ],
+      "truth": "纯前端，零网络。双击 demo.html 就能看。"
+    },
+    "water": {
+      "label": "水面待机",
+      "summary": "待机时那一层水面。本项目纯原创。",
+      "kind": "standalone",
+      "license": "MIT",
+      "paths": [
+        "blocks/water"
+      ],
+      "imports": [
+        "blocks/water/maple-water.js"
+      ],
+      "truth": "跟应用里那份是同一份源码。★ **运行时要 p5.js 1.9.x**（只用 2D 画布那部分），它自己 README 里定的是「只走 CDN 不打包」—— p5 是 LGPL，走 CDN 就够不着我们，顺带省一兆。所以这一块**不是零网络**：会去 CDN 取一次。不想要外部请求就别用它。 开屏的色谱（全谱／偏红／偏金）、密、急、画质三档都能在页面上调，选择存在本机浏览器里，「现在看一眼」拿当前参数重放一次。"
+    },
+    "physics": {
+      "label": "丝线 · 纸夹 · 散摞",
+      "summary": "挂在丝线上的卡片、纸夹、随手摞起来的一叠 —— 三套手写的物理感交互。",
+      "kind": "standalone",
+      "license": "MIT",
+      "paths": [
+        "blocks/physics"
+      ],
+      "imports": [
+        "blocks/physics/silk-rope.js",
+        "blocks/physics/paper-clip.js",
+        "blocks/physics/stack.js"
+      ],
+      "truth": "纯前端，零网络。舞台容器可配（`window.__xxxStageHost`），不写死宿主的排法。卡是两段式点击，别在 capture 里对它们 stopPropagation。"
+    },
+    "paper": {
+      "label": "纸的材质",
+      "summary": "撕口、折角、铁夹那套纸感样式，含自带的滤镜。",
+      "kind": "standalone",
+      "license": "MIT",
+      "paths": [
+        "blocks/paper"
+      ],
+      "imports": [
+        "blocks/paper/paper.css"
+      ],
+      "truth": "纯 CSS。demo 自带滤镜定义，双击就能看 —— 应用里反而没有那份定义。"
+    },
+    "parts": {
+      "label": "卡片 · 抽屉 · 面板",
+      "summary": "常用的几个界面零件。",
+      "kind": "standalone",
+      "license": "MIT",
+      "paths": [
+        "blocks/parts"
+      ],
+      "imports": [
+        "blocks/parts/parts.css",
+        "blocks/parts/parts.js"
+      ],
+      "truth": "纯前端。sheet 的三档吸附还没剥出来，README 里写着。"
+    },
+    "shelf": {
+      "label": "书房",
+      "summary": "三排书架，一本书＝一个入口；躺着的那本、架子上的摆件都在。",
+      "kind": "standalone",
+      "license": "MIT",
+      "paths": [
+        "blocks/shelf"
+      ],
+      "imports": [
+        "blocks/shelf/shelf.js",
+        "blocks/shelf/shelf.css"
+      ],
+      "truth": "纯前端，零依赖。默认那一架是原项目自己的入口名（在读／共读笔记／唱片／…），**书目和分组都可以整组换掉**。整块按 408 内容宽等比 zoom，手机上不变形。躺着那本的字是跟着书一起转 90 度的 —— 那是原稿的样子，不是没做完。"
+    },
+    "glyphcloud": {
+      "label": "记忆字云",
+      "summary": "把记忆铺成一片字，点一个字看它牵着哪些事。",
+      "kind": "standalone",
+      "license": "MIT",
+      "paths": [
+        "blocks/glyphcloud"
+      ],
+      "imports": [
+        "blocks/glyphcloud/glyph-cloud.js",
+        "blocks/glyphcloud/glyph-cloud.css"
+      ],
+      "docs": [
+        "UPSTREAM.md"
+      ],
+      "truth": "纯前端，数据从外面喂。默认形状是中性的三片（心／圆／枫叶）——★ 不带任何公司的 logo 或吉祥物：商标不是许可证能解决的事。"
+    },
+    "robot": {
+      "label": "桌面机器人的面板",
+      "summary": "朝向、视场、盲区那张俯视＋侧视图。",
+      "kind": "standalone",
+      "license": "MIT",
+      "paths": [
+        "blocks/robot"
+      ],
+      "imports": [
+        "blocks/robot/robot.js",
+        "blocks/robot/robot.css"
+      ],
+      "truth": "★ **只有前端**，后端要自己接 —— 每个人对机器人的需求都不一样。它是九块里唯一会发网络请求的一块（去问你自己的机器人），拿走后改成你的地址。"
+    },
+    "ui-kit": {
+      "label": "前端积木总包",
+      "summary": "上面那九块一次带走，外加一个最小外壳示例。",
+      "kind": "standalone",
+      "license": "MIT",
+      "requires": [
+        "frontend/ambience",
+        "frontend/glyphcloud",
+        "frontend/paper",
+        "frontend/parts",
+        "frontend/physics",
+        "frontend/robot",
+        "frontend/shelf",
+        "frontend/thread",
+        "frontend/tokens",
+        "frontend/water"
+      ],
+      "paths": [
+        "blocks/README.md"
+      ],
+      "truth": "不含人物、聊天、密钥或后端。每块都有能单独双击打开的 demo。★ `examples/minimal-shell.html` **不在这一包里** —— 它会打 /chat 和 /api/persona，是应用示例不是积木；跟着完整应用走 AGPL。"
+    },
+    "shell": {
+      "label": "完整前端壳",
+      "summary": "那一整份界面：导航、聊天、通话、记忆、设置、开屏，全在一个自包含的 HTML 里。",
+      "kind": "application-slice",
+      "license": "AGPL-3.0-only",
+      "requires": [
+        "frontend/ui-kit"
+      ],
+      "paths": [
+        "core/web",
+        "examples"
+      ],
+      "docs": [
+        "docs/FEATURES.md"
+      ],
+      "truth": "★ 这是**应用切片**，不是独立积木：它对着后端那张接口表说话，没有后端时大部分页面是空壳（界面自己会把没接通的入口藏起来，不会给你死按钮）。所以它跟着完整应用走 AGPL，不单独 MIT。"
+    },
+    "showcase": {
+      "label": "积木预览站",
+      "summary": "一页静态站，一台假手机，把每块积木自己的 demo 摆出来，附上取件命令。",
+      "kind": "standalone",
+      "license": "MIT",
+      "requires": [
+        "frontend/ui-kit"
+      ],
+      "paths": [
+        "apps/showcase"
+      ],
+      "docs": [
+        "docs/PACKS.md"
+      ],
+      "setup": "npm install && npm run build && npm run dev",
+      "truth": "静态，能直接放 GitHub Pages。**不读数据库、不连模型、不要麦克风、不要任何权限、什么都不上传**；页面上的字全是编的，刷新就没。每块用它自己那份真 demo 在 iframe 里跑（屏幕恒定 393×852，缩机身不缩 iframe），所以看到的就是拿走的。这一页自己不画任何一块的样子。"
+    },
+    "preview": {
+      "label": "应用空壳预览",
+      "summary": "core/web/index.html 的副本加一条横条：没有后端，看到的空状态是真的空。",
+      "kind": "standalone",
+      "license": "AGPL-3.0-only",
+      "paths": [
+        "apps/preview"
+      ],
+      "setup": "npm run build && npm run dev",
+      "truth": "**没有后端。** 五个页的排版、空状态、开屏、丝线、书房、外观设置都是真的；发消息和打电话会在捕获阶段被拦下并说明原因，不清空输入框、不伪造气泡。不带 sw.js 和 manifest.json —— 装一个指着错地方的 SW 比不装糟得多。颜文字抽屉和桌宠的资源在 optional/ 里，静态托管下是 404，README 里写明了。发到 Pages 的 /app/ 下。"
+    },
+    "thread": {
+      "label": "通话那条线",
+      "summary": "谁在说线就往谁那头写；伙伴在想的时候，线在那一头一笔写出一片叶子。",
+      "kind": "standalone",
+      "license": "MIT",
+      "requires": [
+        "frontend/tokens"
+      ],
+      "paths": [
+        "blocks/thread"
+      ],
+      "imports": [
+        "blocks/thread/thread.js",
+        "blocks/thread/thread.css"
+      ],
+      "truth": "零依赖。**不碰麦克风、不发任何请求** —— 音量由宿主喂进来，不喂就用一条合成包络，所以拿走双击就能看。叶子默认用 crest 里那片枫叶（Font Awesome Free，CC BY 4.0，**要署名**），也能换成别的或自己的 path。prefers-reduced-motion 下降成一条安静的线。"
+    },
+    "chat": {
+      "label": "聊天页",
+      "summary": "完整的手机聊天页：思考链、工具调用、加号菜单、发送键回弹。",
+      "kind": "standalone",
+      "license": "MIT",
+      "requires": [
+        "frontend/tokens"
+      ],
+      "paths": [
+        "blocks/chat"
+      ],
+      "imports": [
+        "blocks/chat/chat.js",
+        "blocks/chat/chat.css"
+      ],
+      "truth": "**不连模型、不读任何记忆、不发一个请求** —— 事件由宿主喂进来，demo 里那段对话和那几次工具调用是本页脚本按节奏演的。要接真后端就把事件源换掉，界面一行不用改。名字在文件顶上一个 `NAME` 常量里，默认「伙伴」。"
+    },
+    "call": {
+      "label": "打电话",
+      "summary": "整页通话界面：拨号、对话转写、瞥一眼、状态点、那根线、贴耳。",
+      "kind": "standalone",
+      "license": "MIT",
+      "requires": [
+        "frontend/tokens",
+        "frontend/thread"
+      ],
+      "paths": [
+        "blocks/call"
+      ],
+      "imports": [
+        "blocks/call/call.js",
+        "blocks/call/call.css"
+      ],
+      "truth": "**不申请麦克风、不连任何服务、不伪造接通。** 只是界面和它的八个相位；真接线靠 `window.__call` 那套方法喂进来（方法名跟原项目一致）。demo 演的是一段编出来的剧本。那根线是 `frontend/thread`，没有复制第二份。"
+    }
+  },
+  "profiles": {
+    "whole-home": {
+      "label": "整屋",
+      "summary": "全部源码：内核、引擎、记忆、全部功能包、前端、安卓壳。",
+      "kind": "complete",
+      "paths": [
+        "."
+      ],
+      "truth": "就是整个仓库本身 —— 直接 clone，不要再复制第二份。",
+      "setup": "bash start.command",
+      "takeable": false
+    },
+    "local-home": {
+      "label": "不接模型的本地版",
+      "summary": "能起来、能点、能存东西，但只带回声那条假声。",
+      "kind": "complete",
+      "requires": [
+        "function/runtime",
+        "function/localdata",
+        "function/memory",
+        "function/hands",
+        "function/views",
+        "function/homelife",
+        "function/homeplus",
+        "frontend/shell"
+      ],
+      "truth": "开箱就能跑，不需要任何 key。回声引擎会照实说自己是假声，不假装是模型。",
+      "setup": "bash start.command"
+    },
+    "frontend-only": {
+      "label": "只要前端",
+      "summary": "完整界面加必要的本地数据层，不带任何供应商接入。",
+      "kind": "frontend",
+      "requires": [
+        "frontend/shell",
+        "function/localdata"
+      ],
+      "truth": "能看能点。要真说上话还得自己接引擎。"
+    },
+    "appearance-only": {
+      "label": "只要外观和交互",
+      "summary": "九块前端积木＋最小外壳示例，纯 MIT。",
+      "kind": "frontend",
+      "requires": [
+        "frontend/ui-kit"
+      ],
+      "truth": "零依赖、零网络、零后端。拿去随便用，保留 MIT 声明就行。",
+      "setup": "npm install && npm run build && npm test"
+    },
+    "full-source": {
+      "label": "完整源码（直接 clone）",
+      "summary": "跟 whole-home 一样 —— 提醒你别用取件器复制整仓。",
+      "kind": "complete",
+      "paths": [
+        "."
+      ],
+      "truth": "取件器会拒绝这一条：整仓请直接 clone。",
+      "takeable": false
+    }
+  }
+}

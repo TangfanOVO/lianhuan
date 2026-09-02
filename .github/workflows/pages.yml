@@ -1,0 +1,36 @@
+# 把两样静态的东西发到 GitHub Pages：
+#   /          积木预览站（apps/showcase/dist）
+#   /app/      应用的空壳预览（apps/preview/dist —— 没有后端，页面顶上明写着）
+# ★ dist 永远不进仓库：这里从源码现构建、直接上传。不走 /docs 目录 —— 那里已经有文档。
+# ★ 只在 push 到 main 或手动触发时跑；建了仓库要先在 Settings → Pages → Source 选 "GitHub Actions"。
+name: pages
+# ★ 私库阶段免费套餐开不了 Pages，deploy 那步必红；先只留手动触发，**公开之后把 push 那行放回来**。
+on:
+  # push: { branches: [main] }
+  workflow_dispatch:
+permissions: { contents: read, pages: write, id-token: write }
+concurrency: { group: pages, cancel-in-progress: true }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: node apps/showcase/scripts/build.mjs
+      - run: node apps/preview/scripts/build.mjs
+      - run: |
+          mkdir -p site/app
+          cp -R apps/showcase/dist/. site/
+          cp -R apps/preview/dist/.  site/app/
+          touch site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: { name: github-pages, url: '${{ steps.d.outputs.page_url }}' }
+    steps:
+      - id: d
+        uses: actions/deploy-pages@v4
