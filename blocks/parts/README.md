@@ -6,7 +6,7 @@
 |---|---|
 | 样式（`parts.css`） | ✅ 全都在 |
 | 开关逻辑（`parts.js`） | ✅ 能用，不到 100 行 |
-| **sheet 的三档吸附拖动** | ⏸ **还没剥** |
+| **sheet 的三档吸附拖动**（`Parts.sheet`） | ✅ 能用，[demo.html](demo.html) 能试 |
 
 ## 用它
 
@@ -39,16 +39,29 @@
 
 ★ **跟手拖动的时候必须把 transition 关掉**，不然手指和面板会脱节。
 
-## 关于 sheet 的拖动
+## sheet 的拖动
 
-`parts.css` 里有 `.sheet` 的样子，但**跟手拖动那套没剥出来**。规格记在这儿，
-要自己实现照着做：
+```html
+<div class="scrim" id="scrim"></div>
+<aside class="sheet" id="sheet">
+  <div class="sheethead"><div class="grabber"></div><header><h4>标题</h4></header></div>
+  <div class="sheetbody">…正文自己滚…</div>
+</aside>
+<script>
+  const s = Parts.sheet({ sheet: document.getElementById('sheet'), scrim: document.getElementById('scrim') });
+  s.open(true);          // 打开，落在一半
+  s.set(72, true);       // 直接定到某一档
+  s.pct();               // 现在在哪
+</script>
+```
+
+它做的事，也是它的规格：
 
 - 三档吸附（`translateY` 百分比）：**0 拉满 / 40 一半 / 72 只露头 / 100 关掉**，打开落在 40
 - 拖动**跟手**，不是拖完才动
 - 松手吸最近一档；**甩得快（速度 > .6 px/ms）就顺方向直接过一档**
 - 往上顶过头给阻尼（`pct / 3`），别让它翻上去
-- 遮罩透明度跟着高度线性走
-- **只有头部可拖**，正文照常滚，两者不打架
+- 遮罩透明度跟着高度线性走，点遮罩关掉
+- **只有头部可拖**（`.sheethead`），正文照常滚，两者不打架
 
-没剥是因为原实现跟宿主页面缠得比较深，硬抠出来容易带坏。**宁可先说没有。**
+这段是从应用的思考链面板整段平移过来的，只把写死的 id 换成传进来的元素。改这边之前先想想那边。

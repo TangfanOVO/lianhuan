@@ -199,7 +199,6 @@ def main():
              "## 还没有的东西\n",
              "**没有的就是没有**，不会拿假数据冒充：",
              "- 纯浏览器存储（现在最少要跑这个薄后端）",
-             "- sheet 的三档吸附拖动 —— 还没剥（`blocks/parts/README.md` 里有规格）",
              "- 机器人只带前端；摸摸要硬件\n"]
 
     (dest / "NEXT-STEPS.md").write_text("\n".join(todo), encoding="utf-8")

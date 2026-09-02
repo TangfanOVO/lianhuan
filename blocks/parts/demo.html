@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>零件 · bottom sheet</title>
+<link rel="stylesheet" href="../base/tokens.css">
+<link rel="stylesheet" href="parts.css">
+<style>
+  html,body{height:100%;margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,system-ui,sans-serif}
+  .stage{position:relative;height:100%;overflow:hidden}
+  .top{padding:22px 20px 0}
+  .top h1{margin:0 0 6px;font-size:20px}
+  .top p{margin:0 0 14px;color:var(--sub);font-size:14px;line-height:1.7}
+  .btn{padding:9px 16px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);border-radius:10px;font:inherit}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;font-size:13px;color:var(--hint)}
+  .row button{padding:6px 10px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;font:inherit}
+  #pct{font-variant-numeric:tabular-nums}
+  .demo-note{margin:16px 20px;font-size:12px;color:var(--hint)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="top">
+    <h1>bottom sheet · 三档吸附</h1>
+    <p>拖上面那道把手：拉满、一半、只露头、关掉，松手吸最近的一档；甩得快就顺着方向过一档。正文自己滚，跟拖动不打架。</p>
+    <button class="btn" id="openbtn">打开</button>
+    <div class="row">
+      <span>直接定档：</span>
+      <button data-pct="0">拉满</button><button data-pct="40">一半</button><button data-pct="72">只露头</button><button data-pct="100">关掉</button>
+      <span>当前 <b id="pct">100</b>%</span>
+    </div>
+  </div>
+  <p class="demo-note">这一页的字全是编的，只为看面板怎么动。</p>
+
+  <div class="scrim" id="scrim"></div>
+  <aside class="sheet" id="sheet" aria-label="示例面板">
+    <div class="sheethead" id="sheethead">
+      <div class="grabber"></div>
+      <header><h4>他在想什么</h4><button class="btn" id="closebtn" style="padding:4px 10px;font-size:12px">收起</button></header>
+    </div>
+    <div class="sheetbody" id="sheetbody"></div>
+  </aside>
+</div>
+<script src="parts.js"></script>
+<script>
+  /* 正文塞一段长的，好试「正文照常滚」 */
+  var body = document.getElementById('sheetbody'), html = '';
+  for (var i = 1; i <= 18; i++) html += '<p>第 ' + i + ' 段：这是一段拿来撑高度的假想法。往下拖把手看它吸档，在这块正文上滑是滚动。</p>';
+  body.innerHTML = html;
+
+  var s = Parts.sheet({
+    sheet: document.getElementById('sheet'),
+    head: document.getElementById('sheethead'),
+    scrim: document.getElementById('scrim'),
+    onChange: function (pct) { document.getElementById('pct').textContent = Math.round(pct); }
+  });
+  document.getElementById('openbtn').addEventListener('click', function () { s.open(true); });
+  document.getElementById('closebtn').addEventListener('click', function () { s.open(false); });
+  document.querySelectorAll('[data-pct]').forEach(function (b) {
+    b.addEventListener('click', function () { s.set(+b.getAttribute('data-pct'), true); });
+  });
+  window.__sheet = s;   /* 给自动验收用 */
+</script>
+</body>
+</html>

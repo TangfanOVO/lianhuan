@@ -25,7 +25,7 @@ base     token · 两套配色（纸／夜）· 一键换色 · 前景色对比�
 | [`paper`](paper/) | ✅ 能用 | [demo.html](paper/demo.html) |
 | [`physics`](physics/) | ✅ 丝线叠卡能用 | [demo.html](physics/demo.html) |
 | 纸夹 / 散摞（另两种主页排法） | ⏸ **还没拆成独立积木**。都能用，在主应用里（设置 › 美化 › 主页切）。几何是手调的（搜 `initPaper` / `initStack`），拆的时候要**整段平移**，别照 README 重做 —— 原项目在这上面栽过一跤 | — |
-| `parts` | 还没剥 | |
+| [`parts`](parts/) | ✅ 零件：抽屉 · 二级页 · 遮罩 · 可拖的 bottom sheet | [demo.html](parts/demo.html) |
 | `pages` | 还没剥 | |
 
 **没剥完的就写「还没剥」，不写「即将推出」。** 没有的东西就是没有。

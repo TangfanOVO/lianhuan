@@ -190,7 +190,7 @@ python -m core.server        # 加 --lan 让同一个 wifi 的手机也能连
 | 🧩 共读 / 网易云共听 | 保留这套前端；因自家需求很轻，分别诚实推荐 [Readest](https://github.com/readest/readest) 与 [music-together](https://github.com/Yueby/music-together) 的完整实现 |
 | ✅ 浏览器版 | 同一份后端跑在页面里（Pyodide），家在这台设备的浏览器里：`apps/local/`，线上在 `/local/` |
 | ✅ 蒸馏（对话→记忆） | 聊够了自己提候选 → **你点头才入库** → 撞车了标出来（不自动合并）→ 常被翻到的自己升层 |
-| ⏸ sheet 的三档吸附拖动 | **尚未实现**，规格在 `blocks/parts/README.md` |
+| ✅ sheet 的三档吸附拖动 | 应用里的思考链面板一直有；现在也拆进了 `blocks/parts`（`Parts.sheet`），有 demo |
 
 **发布只从 `create.py` 的产物出发** —— 候选目录里有测试库和密钥（.gitignore 挡着），
 直接压缩目录 = 把它们全带走。

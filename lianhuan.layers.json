@@ -353,7 +353,7 @@
         "blocks/parts/parts.css",
         "blocks/parts/parts.js"
       ],
-      "truth": "纯前端。sheet 的三档吸附还没剥出来，README 里写着。"
+      "truth": "纯前端。抽屉、二级页、遮罩的开关逻辑，加上可拖的 bottom sheet（三档吸附，`Parts.sheet`），demo.html 能试。"
     },
     "shelf": {
       "label": "书房",
