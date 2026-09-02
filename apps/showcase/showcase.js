@@ -346,4 +346,20 @@
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
+  /* ── 顶上那排去处：应用预览（同一站的 app/）· 安卓壳（Releases）· 仓库。
+     ★ 链接全从 REPO 拼，不在这儿写第二个地址；REPO 没定就只留应用预览。 */
+  (function () {
+    var box = document.getElementById("links");
+    if (!box) return;
+    function go(text, href) {
+      var a = el("a", null, text); a.href = href;
+      if (href.indexOf("http") === 0) { a.rel = "noopener"; a.target = "_blank"; }
+      box.appendChild(a);
+    }
+    go("打开应用预览 ↗", "app/");
+    if (REPO) {
+      go("下载安卓壳 APK ↗", REPO + "/releases/tag/apk");
+      go("仓库 ↗", REPO);
+    }
+  })();
 })();

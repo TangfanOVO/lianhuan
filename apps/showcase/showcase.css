@@ -20,6 +20,9 @@ body {
 }
 h1 { margin: 0; font-size: clamp(21px, 4.2vw, 27px); letter-spacing: -.01em; }
 .sub { margin: 4px 0 0; color: var(--sub); font-size: 14px; max-width: 58ch; }
+.links { margin: 8px 0 0; font-size: 14px; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.links a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-soft); }
+.links a:hover { border-bottom-color: var(--accent); }
 
 .skin { display: flex; flex-wrap: wrap; gap: 8px 26px; margin: 18px 0 0; }
 .row { display: flex; align-items: center; gap: 9px; }
