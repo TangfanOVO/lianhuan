@@ -62,6 +62,3 @@ android-full/.gradle/
 android-full/app/build/
 android-full/build/
 android-full/local.properties
-android-full/app/src/main/python/core/
-android-full/app/src/main/python/optional/
-android-full/app/src/main/python/seed/

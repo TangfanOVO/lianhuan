@@ -18,7 +18,6 @@ def start(files_dir: str, port: int = 8420) -> str:
     data = os.path.join(files_dir, "data")
     os.makedirs(data, exist_ok=True)
     os.environ.setdefault("LIANHUAN_DB", os.path.join(data, "lianhuan.db"))
-    os.chdir(files_dir)
 
     import uvicorn
     from core.server import app

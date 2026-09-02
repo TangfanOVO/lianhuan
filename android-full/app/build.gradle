@@ -36,15 +36,18 @@ chaquopy {
         // 这些包要以真实文件存在：core 读自己目录下的 web/，optional 的包各自带网页，certifi 要给 httpx 找证书
         extractPackages "core", "optional", "seed", "certifi"
     }
+    sourceSets {
+        getByName("main") { srcDir "build/python-src" }   // 从仓库同步进来的后端（见下）；android_boot.py 在 src/main/python
+    }
 }
 
 // 把仓库里的后端同步进来。只认这三个目录，别的（tests、node_modules、备份）一律不带。
-tasks.register("syncPython", Sync) {
+def syncPython = tasks.register("syncPython", Sync) {
     from("../..") {
         include "core/**", "optional/**", "seed/**"
         exclude "**/__pycache__/**", "**/*.pyc", "**/*.bak*", "**/node_modules/**", "**/.DS_Store"
     }
-    into "src/main/python"
-    preserve { include "android_boot.py" }      // 这一份是本工程自己的，别删
+    into layout.buildDirectory.dir("python-src")
 }
-preBuild.dependsOn "syncPython"
+// ★ Gradle 9 会校验「谁用了谁的输出」：Chaquopy 的 merge*PythonSources 读 build/python-src，得明说依赖谁
+tasks.matching { it.name ==~ /merge.*PythonSources/ || it.name == "preBuild" }.configureEach { dependsOn syncPython }
