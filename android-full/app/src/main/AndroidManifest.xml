@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 连环的安卓完整体：后端跑在 app 进程里（127.0.0.1），WebView 开它。
+     usesCleartextTraffic：本机回环没有证书，得允许 http。 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <application
+        android:name="com.chaquo.python.android.PyApplication"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

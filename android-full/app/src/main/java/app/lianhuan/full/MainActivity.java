@@ -1,0 +1,189 @@
+package app.lianhuan.full;
+
+/*
+ * 连环的安卓完整体 —— 后端（Python）在这个进程里跑，前端在 WebView 里开它。
+ * 数据在应用自己的沙箱里（filesDir/data），不连任何电脑或云。
+ *
+ * 跟隔壁那个壳（android/）比，只多了一件事：开机先把后端起在 127.0.0.1:8420，
+ * 等它应答了再把页面打开。其余（返回键、麦克风、选文件）一样。
+ */
+
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+import android.webkit.PermissionRequest;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+
+import com.chaquo.python.Python;
+import com.chaquo.python.android.AndroidPlatform;
+
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+public class MainActivity extends Activity {
+
+    private static final int PORT = 8420;
+    private static final String BASE = "http://127.0.0.1:" + PORT;
+
+    private WebView web;
+    private ValueCallback<Uri[]> filePick;
+    private static final int REQ_FILE = 11;
+    private static final int REQ_MIC = 12;
+    private PermissionRequest pendingMic;
+
+    @Override
+    @SuppressLint("SetJavaScriptEnabled")
+    protected void onCreate(Bundle b) {
+        super.onCreate(b);
+
+        web = new WebView(this);
+        setContentView(web);
+
+        if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
+
+        WebSettings s = web.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        s.setMediaPlaybackRequiresUserGesture(false);
+
+        web.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest req) {
+                String url = req.getUrl().toString();
+                if (url.startsWith(BASE)) return false;
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, req.getUrl()));
+                } catch (Exception ignored) { }
+                return true;
+            }
+        });
+
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onPermissionRequest(PermissionRequest request) {
+                for (String r : request.getResources()) {
+                    if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) {
+                        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+                                == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                            request.grant(request.getResources());
+                        } else {
+                            pendingMic = request;
+                            requestPermissions(
+                                new String[]{android.Manifest.permission.RECORD_AUDIO}, REQ_MIC);
+                        }
+                        return;
+                    }
+                }
+                request.deny();
+            }
+
+            @Override
+            public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb,
+                                             FileChooserParams p) {
+                if (filePick != null) filePick.onReceiveValue(null);
+                filePick = cb;
+                try {
+                    startActivityForResult(p.createIntent(), REQ_FILE);
+                } catch (Exception e) {
+                    filePick = null;
+                    return false;
+                }
+                return true;
+            }
+        });
+
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                () -> {
+                    if (web.canGoBack()) web.goBack();
+                    else finish();
+                });
+        }
+
+        web.loadDataWithBaseURL(null,
+            "<html><body style='font-family:sans-serif;color:#6b5f57;background:#f7f2ea;"
+            + "display:flex;height:100vh;align-items:center;justify-content:center;margin:0'>"
+            + "<div>连环起来中…</div></body></html>", "text/html", "utf-8", null);
+
+        bootBackend();
+    }
+
+    /** 起后端：Python 在本进程里跑 uvicorn，起来了就开首页。第一次开要几秒（解压 Python 包）。 */
+    private void bootBackend() {
+        new Thread(() -> {
+            try {
+                if (!Python.isStarted()) Python.start(new AndroidPlatform(this));
+                Python.getInstance().getModule("android_boot")
+                      .callAttr("start", getFilesDir().getAbsolutePath(), PORT);
+                for (int i = 0; i < 100; i++) {          // 最多等 20 秒
+                    if (alive()) {
+                        runOnUiThread(() -> web.loadUrl(BASE + "/"));
+                        return;
+                    }
+                    Thread.sleep(200);
+                }
+                runOnUiThread(() -> show("后端没起来。把这个页面截图发给作者。"));
+            } catch (Throwable e) {
+                runOnUiThread(() -> show("后端起不来：" + e));
+            }
+        }, "lianhuan-boot").start();
+    }
+
+    private boolean alive() {
+        try {
+            HttpURLConnection c = (HttpURLConnection) new URL(BASE + "/manifest.json").openConnection();
+            c.setConnectTimeout(300);
+            c.setReadTimeout(300);
+            int code = c.getResponseCode();
+            c.disconnect();
+            return code == 200;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void show(String msg) {
+        web.loadDataWithBaseURL(null,
+            "<html><body style='font-family:sans-serif;padding:24px;color:#6b5f57;background:#f7f2ea'>"
+            + android.text.Html.escapeHtml(msg) + "</body></html>", "text/html", "utf-8", null);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int code, String[] perms, int[] grants) {
+        if (code == REQ_MIC && pendingMic != null) {
+            if (grants.length > 0 && grants[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                pendingMic.grant(pendingMic.getResources());
+            } else {
+                pendingMic.deny();
+            }
+            pendingMic = null;
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int code, int result, Intent data) {
+        if (code == REQ_FILE && filePick != null) {
+            filePick.onReceiveValue(
+                WebChromeClient.FileChooserParams.parseResult(result, data));
+            filePick = null;
+            return;
+        }
+        super.onActivityResult(code, result, data);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (web.canGoBack()) web.goBack();
+        else super.onBackPressed();
+    }
+}

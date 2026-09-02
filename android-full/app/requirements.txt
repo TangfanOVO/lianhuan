@@ -1,0 +1,8 @@
+# 安卓里跑后端要的包。跟仓库根 requirements.txt 的差别只有两条，都写明为什么：
+#   · pydantic<2、fastapi<0.116 —— pydantic 2 的 pydantic-core 是 Rust 写的，没有安卓轮子；1.x 是纯 Python，后端全套测试在 1.x 下照过
+#   · 不带 pywebpush —— 推送是浏览器那套，装在手机里的完整体用不上
+fastapi>=0.110,<0.116
+pydantic<2
+uvicorn
+httpx
+python-multipart

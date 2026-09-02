@@ -56,3 +56,12 @@ AGENTS.md
 
 # 发文件收到的东西
 /files/
+
+# 安卓完整体：构建产物和从仓库同步进去的 Python（源头在 core/ optional/ seed/）
+android-full/.gradle/
+android-full/app/build/
+android-full/build/
+android-full/local.properties
+android-full/app/src/main/python/core/
+android-full/app/src/main/python/optional/
+android-full/app/src/main/python/seed/

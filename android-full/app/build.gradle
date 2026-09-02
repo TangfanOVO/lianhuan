@@ -1,0 +1,50 @@
+// 连环 · 安卓完整体 —— 后端（Python）和前端都在 APK 里，数据在应用自己的沙箱。
+// ★ 跟隔壁 android/（那个只是指向电脑的壳）是两个工程，互不影响。
+// ★ Python 代码不在这儿复制一份：构建前 syncPython 从仓库根把 core/ optional/ seed/ 同步进来（同步目录不进 git）。
+plugins {
+    id 'com.android.application' version '9.0.0'
+    id 'com.chaquo.python' version '17.0.0'
+}
+
+android {
+    namespace 'app.lianhuan.full'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "app.lianhuan.full"
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName "0.1"
+        ndk { abiFilters "arm64-v8a" }          // Python 解释器是原生的；只打现在的手机那一种
+    }
+    buildTypes {
+        release { minifyEnabled false }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+chaquopy {
+    defaultConfig {
+        version = "3.12"                         // 构建机上的 python3 也得是 3.12（CI 里 setup-python 钉的）
+        pip {
+            install "-r", "requirements.txt"     // ★ pydantic 钉 1.x：pydantic-core 没有安卓轮子
+        }
+        // 这些包要以真实文件存在：core 读自己目录下的 web/，optional 的包各自带网页，certifi 要给 httpx 找证书
+        extractPackages "core", "optional", "seed", "certifi"
+    }
+}
+
+// 把仓库里的后端同步进来。只认这三个目录，别的（tests、node_modules、备份）一律不带。
+tasks.register("syncPython", Sync) {
+    from("../..") {
+        include "core/**", "optional/**", "seed/**"
+        exclude "**/__pycache__/**", "**/*.pyc", "**/*.bak*", "**/node_modules/**", "**/.DS_Store"
+    }
+    into "src/main/python"
+    preserve { include "android_boot.py" }      // 这一份是本工程自己的，别删
+}
+preBuild.dependsOn "syncPython"
