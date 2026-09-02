@@ -4,7 +4,10 @@
 # ★ dist 永远不进仓库：这里从源码现构建、直接上传。不走 /docs 目录 —— 那里已经有文档。
 # ★ 只在 push 到 main 或手动触发时跑；建了仓库要先在 Settings → Pages → Source 选 "GitHub Actions"。
 name: pages
-# ★ 私库阶段免费套餐开不了 Pages，deploy 那步必红；先只留手动触发，**公开之后把 push 那行放回来**。
+# ★ 私库阶段免费套餐开不了 Pages：configure-pages 那步会报「Get Pages site failed / Not Found」
+#   （0902 第一次推就撞了一封红邮件，构建两步其实都过了）。所以先只留手动触发。
+#   公开之后的顺序：① Settings → Pages → Source 选 "GitHub Actions"  ② 把下面 push 那行放回来
+#   ③ 推一次或手动 Run workflow。顺序反了还是同一个红。
 on:
   # push: { branches: [main] }
   workflow_dispatch:
