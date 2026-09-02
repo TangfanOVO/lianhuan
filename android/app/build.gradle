@@ -1,0 +1,25 @@
+plugins {
+    id 'com.android.application' version '9.0.0'
+}
+
+android {
+    namespace 'app.lianhuan.shell'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "app.lianhuan.shell"
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName "0.1"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
