@@ -9,17 +9,13 @@
 > 共读、出门走走那些功能包**还没剥**。
 > 下面每一节都会标清楚哪些是真的、哪些还没有。
 >
-> **先看再装**：`apps/showcase` 是一个静态预览站，把每一块装在一台假手机里让你点。
-> 那里跑的**就是 `blocks/` 里的源码本身**（iframe 引真 demo），不是照着重画的样子 ——
-> 所以你在那儿看到的，就是你 `pack:take` 拿走的。
-> ```bash
-> cd apps/showcase && npm run dev     # 起在 http://localhost:8421
-> ```
-> **整个应用也能静态看一眼**：`apps/preview` 是 `core/web/index.html` 的副本加一条横条——
-> **没有后端**，看到的空状态是真的空，发消息和打电话会被拦下并说明。发到 Pages 的 `/app/`。
-> ```bash
-> cd apps/preview && npm run dev      # 起在 http://localhost:8425
-> ```
+> **先看再装，点开就是：**
+>
+> - 积木一块块看（一台假手机，十一块）：**https://tangfanovo.github.io/lianhuan/**
+> - 整个应用的样子（没有后端的空壳，空状态是真的空）：**https://tangfanovo.github.io/lianhuan/app/**
+>
+> 那里跑的**就是仓库里的源码本身**（iframe 引真 demo），不是照着重画的样子 ——
+> 你在那儿看到的，就是你 `pack:take` 拿走的。想在本机看：`cd apps/showcase && npm run dev`。
 
 ---
 
@@ -59,14 +55,16 @@ python3 create.py
  11. 机器人     在不在/电量/头往哪看（只有前端）            需要：一台机器人
 
 桌宠？   不要（默认） / 要一只（我们只指路，不发素材） / 我自己画
-引擎？   先不接（回声） / 本机 CLI（用你已有的订阅，不用 key）
+引擎？   先不接（回声） / 本机 CLI（用你已有的订阅，不用 key） / API（OpenAI 兼容：DeepSeek、Kimi、智谱、Ollama…）
 存哪儿？ SQLite（一个文件，零配置）
 ```
 
 然后**双击 `start.command`**（macOS / Linux）—— 它会自己建环境、装依赖、起服务、开浏览器。
 第一次要一分钟，之后几秒。
 
-要接模型：把 `.env.example` 复制成 `.env`，填上你的 key。
+要接模型：开起来之后进 **设置 › 功能包 › 引擎**，把接口地址和 key 贴进去就通。
+key 存在你自己这台机器的 `data/secrets.json` 里，网页本身不拿它、也不直连任何厂商。
+（不想点界面的话，`.env.example` 复制成 `.env` 填进去也行，效果一样。）
 
 ```bash
 # 或者手动
