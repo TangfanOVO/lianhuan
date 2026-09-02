@@ -1,0 +1,31 @@
+# 打安卓壳的 APK，让人不用装 Android SDK 也能下到一个能装的包。
+# ★ 出来的是 debug 签名（GitHub runner 自己生成的调试钥匙）——能装、能用，
+#   但**不能上架、每次换 runner 钥匙就换、覆盖安装可能要先卸载**。要上架得自己配 keystore，见 android/README.md。
+# ★ 壳里没有前端，前端来自你自己跑的那份服务，所以壳不用跟着前端一起重打；只有 android/ 改了才跑。
+name: android
+on:
+  push:
+    branches: [main]
+    paths: ['android/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+permissions: { contents: write }
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }   # 17~21；更新的 JDK 在 JdkImageTransform 上会炸
+      - name: 打包
+        working-directory: android
+        run: gradle assembleDebug --no-daemon --console=plain    # runner 自带 Gradle 和 Android SDK，仓库里没放 wrapper
+      - name: 改个带日期的名字
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk "lianhuan-shell-$(date -u +%Y%m%d)-${GITHUB_SHA::7}.apk"
+      - uses: actions/upload-artifact@v4
+        with: { name: lianhuan-shell-apk, path: 'lianhuan-shell-*.apk', retention-days: 30 }
+      - name: 挂到 Releases 的「apk」标签下（滚动更新，永远是最新的）
+        if: github.event_name != 'pull_request'
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          gh release view apk >/dev/null 2>&1 || gh release create apk --title "安卓壳 APK（滚动）" --notes "自动打的 debug 签名包。装法见 android/README.md。" --latest=false
+          gh release upload apk lianhuan-shell-*.apk --clobber

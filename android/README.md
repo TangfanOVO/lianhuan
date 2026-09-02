@@ -12,6 +12,12 @@
 
 ## 装
 
+**不想装 SDK：** 仓库的 Releases 里有个叫「apk」的标签，Actions 每次改了 `android/` 都会往那儿放一个新包
+（debug 签名 —— 能装能用，不能上架；覆盖安装如果报签名不一致，先卸载旧的）。
+手机上开「允许安装未知来源」，下载装上即可。
+
+**自己打：**
+
 ```
 cd android
 echo "sdk.dir=你的AndroidSDK路径" > local.properties
