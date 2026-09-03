@@ -44,7 +44,15 @@ CREATE TABLE IF NOT EXISTS memories (
 CREATE INDEX IF NOT EXISTS memories_ts ON memories(ts DESC);
 
 CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL);
+"""
 
+#: 全文检索的影子表。★ 从 SCHEMA 里拆出来单独建，因为**不是每个 SQLite 都带 FTS5**：
+#  安卓完整体用的 Chaquopy 自带的那个就没编，`CREATE VIRTUAL TABLE … USING fts5`
+#  会抛 `no such module: fts5`，整个后端当场起不来（0903 真机上抓到的，完整体从第一版起就没起来过）。
+#  ★ 现在没有任何地方**读**这张表 —— `search_memories` 走的是 2-gram ＋ LIKE
+#    （测试就叫 test_chinese_search_without_fts）。所以建不出来就不建，功能一点不少。
+#  ★ 表和这两个触发器必须同生共死：只建触发器的话，往 memories 写一条就报错。
+FTS_SCHEMA = """
 -- 全文检索。★ SQLite 的 FTS5 默认按空格分词，对中文基本等于没分 ——
 -- 所以下面的 search 是 FTS 和 LIKE 两条腿走路，别只信 FTS 的结果。
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(content, content=memories, content_rowid=id);
@@ -55,6 +63,17 @@ CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
   INSERT INTO memories_fts(memories_fts, rowid, content) VALUES('delete', old.id, old.content);
 END;
 """
+
+
+def _fts5_works(conn) -> bool:
+    """这个 SQLite 编了 FTS5 没有。★ 先拿一张临时表探一下，不要靠「跑 FTS_SCHEMA 失败再回滚」——
+    `executescript` 会先隐式提交，中途失败就留下一个建了一半的库。"""
+    try:
+        conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS _fts5_probe USING fts5(x)")
+        conn.execute("DROP TABLE IF EXISTS _fts5_probe")
+        return True
+    except sqlite3.OperationalError:
+        return False
 
 # 跟着「搬家」走的用户账本。设备订阅、密钥、缓存和本机文件故意不在这里：
 # `push_subs` 绑具体浏览器，`secrets.json` 根本不在数据库，上传文件另行搬。
@@ -88,6 +107,11 @@ class SqliteStore(Store):
         boot = self._connect()
         boot.executescript(SCHEMA)
         boot.commit()
+        #: 这台机器的 SQLite 有没有 FTS5。没有就不建那张影子表 —— 谁都不读它，功能不受影响。
+        self.fts = _fts5_works(boot)
+        if self.fts:
+            boot.executescript(FTS_SCHEMA)
+            boot.commit()
         # 老库迁移：这两列都是后加的（见 base.Turn）。CREATE TABLE 只管新库，老库靠这儿补。
         # ★ 老库迁移只补列、**不回填** —— 老行一律 spoken=1 / channel='text'。
         #   宁可让几条旧的机器指令继续被读到，也不能靠猜把用户真说过的话判成「没说过」。
