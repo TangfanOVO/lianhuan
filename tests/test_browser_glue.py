@@ -50,6 +50,15 @@ class TestBrowserGlue(unittest.TestCase):
         finally:
             browser._app = old
 
+    def test_no_threads_also_covers_asyncio_to_thread(self):
+        from core import browser
+        old = asyncio.to_thread
+        try:
+            browser._no_threads()
+            self.assertEqual(asyncio.run(asyncio.to_thread(lambda: "能导入")), "能导入")
+        finally:
+            asyncio.to_thread = old
+
     def test_engine_hook_is_a_noop_on_desktop(self):
         from core.engines import openai_compat
         self.assertIsNone(openai_compat._browser_transport())

@@ -30,6 +30,7 @@ def _no_threads() -> None:
     async def inline_anyio(func, *args, abandon_on_cancel=False, cancellable=None, limiter=None):
         return func(*args)
 
+    asyncio.to_thread = inline
     anyio.to_thread.run_sync = inline_anyio
     starlette.concurrency.run_in_threadpool = inline
     for modname in ("starlette.routing", "starlette.background", "fastapi.routing",

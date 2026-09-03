@@ -38,6 +38,7 @@
 .pkbtn{min-height:40px;padding:0 16px;border:1px solid var(--line);border-radius:10px;background:var(--card2);color:var(--ink);font:inherit;font-size:13px;cursor:pointer}
 .pkbtn.main{background:var(--maple);border-color:transparent;color:var(--on-maple,#fff);font-weight:600}
 .pkbtn:active{transform:scale(.98)}
+#moveActions[hidden]{display:none!important}
 .pkon{font-size:13px;color:var(--maple);font-weight:600}
 .pklang{margin-top:11px;padding-top:11px;border-top:1px solid var(--line)}
 .pklang .pklb{font-size:11.5px;color:var(--hint);margin-bottom:7px}
@@ -3935,6 +3936,43 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
           <button class="setrow" data-sub="模型 / QQ / 用量 / 状态"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5"/></svg></div><span>模型 · QQ · 用量 · 状态</span><svg class="i" viewBox="0 0 24 24"><path d="M9 6l6 6l-6 6"/></svg></button>
         </div>
       </div>
+
+      <div class="setgroup">
+        <div class="eyebrow">搬家</div>
+        <div class="setlist">
+          <button class="setrow" data-open="movepage"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 10l5 5l5 -5"/><path d="M5 21h14"/></svg></div><span>导出与导入<small>先留一份备份，再换设备或重装</small></span><svg class="i" viewBox="0 0 24 24"><path d="M9 6l6 6l-6 6"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 搬家：后端早已有事务化导入导出，这里只给用户一个真的入口。 -->
+  <div class="sub" id="movepage">
+    <div class="top">
+      <button class="iconbtn" data-close="movepage" aria-label="返回"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7l7 7"/></svg></button>
+      <div class="stamp">搬家</div>
+    </div>
+    <div class="subwrap">
+      <p class="lede" style="margin:14px 2px 16px">换设备、重装或清理浏览器前，先把现在的家留一份。聊天、记忆和设置会一起带走；模型钥匙、推送订阅和上传文件不会。</p>
+      <div class="card" style="margin:0 0 14px;padding:16px">
+        <b style="display:block;font-size:16px">把现在的家带走</b>
+        <p style="margin:7px 0 13px;color:var(--sub);font-size:13px;line-height:1.65">下载后请把备份文件放在自己找得到的地方。</p>
+        <button class="pkbtn main" id="moveExport" type="button">下载备份</button>
+      </div>
+      <div class="card" style="margin:0;padding:16px">
+        <b style="display:block;font-size:16px">把以前的家带回来</b>
+        <p style="margin:7px 0 13px;color:var(--sub);font-size:13px;line-height:1.65">先选择一份由连环导出的备份。默认“合在一起”，不会删掉现在的内容。</p>
+        <input id="moveFile" type="file" accept="application/json,.json" hidden>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button class="pkbtn" id="movePick" type="button">选择备份</button>
+          <small id="moveName" role="status" aria-live="polite" style="color:var(--hint)">还没选择</small>
+        </div>
+        <div id="moveActions" hidden style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px">
+          <button class="pkbtn main" id="moveMerge" type="button">合在一起</button>
+          <button class="pkbtn" id="moveReplace" type="button" style="color:var(--maple);border-color:var(--maple)">清空现在的，换成这份</button>
+        </div>
+        <small style="display:block;margin-top:12px;color:var(--hint);line-height:1.6">“换成这份”会先清空现在的聊天、记忆和设置，只有再次确认后才会动手。</small>
+      </div>
     </div>
   </div>
 
@@ -6724,6 +6762,74 @@ async function call(key, {query, path, fallback = null, timeout = 8000, method =
     clearTimeout(timer);
   }
 }
+
+/* ══ 设置 › 搬家 ══
+   下载和选文件都用浏览器原生能力；真正的校验、合并和整批回滚仍只在后端一处做。 */
+(function(){
+  const exportBtn = document.getElementById('moveExport');
+  const pickBtn = document.getElementById('movePick');
+  const fileInput = document.getElementById('moveFile');
+  const fileName = document.getElementById('moveName');
+  const actions = document.getElementById('moveActions');
+  const mergeBtn = document.getElementById('moveMerge');
+  const replaceBtn = document.getElementById('moveReplace');
+  if (!exportBtn || !pickBtn || !fileInput || !mergeBtn || !replaceBtn) return;
+  let picked = null;
+
+  function say(msg, ms){ if (window.toast) window.toast(msg, ms); }
+  function lock(on){ pickBtn.disabled = mergeBtn.disabled = replaceBtn.disabled = on; }
+
+  exportBtn.addEventListener('click', async function(){
+    exportBtn.disabled = true;
+    try {
+      const r = await fetch('/api/export', {credentials:'same-origin'});
+      if (!r.ok) throw new Error('没拿到备份');
+      const url = URL.createObjectURL(await r.blob());
+      const a = document.createElement('a');
+      a.href = url; a.download = 'lianhuan-export.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+      say('备份下载好了');
+    } catch (err) {
+      say((err && err.message) || '没导出来，再试一次');
+    } finally {
+      exportBtn.disabled = false;
+    }
+  });
+
+  pickBtn.addEventListener('click', function(){ fileInput.click(); });
+  fileInput.addEventListener('change', function(){
+    picked = fileInput.files && fileInput.files[0];
+    fileName.textContent = picked ? picked.name : '还没选择';
+    actions.hidden = !picked;
+  });
+
+  async function bringBack(mode){
+    if (!picked){ say('先选择一份备份'); return; }
+    if (mode === 'replace' && !confirm('这会清空现在的聊天、记忆和设置，换成所选备份。\n\n确定继续吗？')) return;
+    lock(true);
+    try {
+      const data = JSON.parse(await picked.text());
+      if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('这不是一份连环备份');
+      const body = {mode: mode, data: data};
+      if (mode === 'replace') body.confirm = true;
+      const r = await fetch('/api/import', {method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      let result = {};
+      try { result = await r.json(); } catch (ignore) {}
+      if (!r.ok) throw new Error(result.error || '这份备份没能带回来');
+      say(mode === 'replace' ? '换好了，正在重新打开…' : '带回来了，正在重新打开…', 3000);
+      if (window.__lianhuanLocal && window.__lianhuanLocal.flush) await window.__lianhuanLocal.flush();
+      setTimeout(function(){ location.reload(); }, 500);
+    } catch (err) {
+      say((err && err.message) || '没导进去，再检查一下文件', 3600);
+      lock(false);
+    }
+  }
+
+  mergeBtn.addEventListener('click', function(){ bringBack('merge'); });
+  replaceBtn.addEventListener('click', function(){ bringBack('replace'); });
+})();
 
 /* ══ 点顶栏那条＝回到最上面（0806）══
    要的是：长列表滑远了，想换个选项看看，不该手动一路爬回去。
