@@ -20,6 +20,10 @@
 iPhone 用 Safari 打开，分享 → 添加到主屏幕；安卓用 Chrome，菜单 → 安装应用。
 第一次打开从 CDN 拿十几 MB，之后由 Service Worker 缓存，第二次几秒就开。
 模型直接从浏览器连：DeepSeek、OpenAI、智谱、硅基流动、OpenRouter 都允许浏览器直连；key 在 设置 › 功能包 › 引擎 里填，存在这台设备里。
+
+**不连任何第三方 CDN**：Pyodide 和 p5 随包自托管，页面上钉了 CSP（`script-src 'self'`，外部脚本一律跑不起来）。
+key 就在这个源的 IndexedDB 里，所以这个源上不能有别人的脚本 —— 这是这一版最要紧的一条边界。
+代价是这份产物有二十来 MB，静态托管要放得下。
 颜文字抽屉和通话这一版不带。源码在 `apps/local/`，自己出一份：`cd apps/local && npm run build`，把 `dist/` 整个放到任何静态托管上。
 
 ## 安卓完整体

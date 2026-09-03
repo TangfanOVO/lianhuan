@@ -1,8 +1,12 @@
-/* 把连环出一份「浏览器版」到 dist/：core/web/index.html 的副本 ＋ 起点脚本 ＋ 后端 zip ＋ 四个纯 Python 轮子 ＋ 自己的 sw.js。
+/* 把连环出一份「浏览器版」到 dist/：core/web/index.html 的副本 ＋ 起点脚本 ＋ 后端 zip ＋ 纯 Python 轮子 ＋ Pyodide ＋ p5 ＋ 自己的 sw.js。
+   ★ **一个第三方 CDN 都不连。** 这个源下面存着模型 key 和整份家（IndexedDB），
+     在同一个源上执行别人服务器发来的脚本，等于把那道边界让出去。所以 Pyodide 和 p5 都随包自托管，
+     再用 CSP 把 script-src 钉死成 'self'。
    ★ 源文件一个字节不动；每一处替换都断言命中次数（跟 apps/preview 同一个做法）。
    ★ 需要网络：轮子从 PyPI 下（缓存在 .wheels/）。需要 zip 命令（macOS / Linux 自带）。 */
 import { access, cp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,8 +17,15 @@ const dist = join(here, "dist");
 const there = async (p) => { try { await access(p); return true; } catch { return false; } };
 const keep = (p) => { const n = basename(p); return n !== ".DS_Store" && !/\.bak/.test(n); };
 
+/* p5.js：开屏那片水要它。钉死版本，随包带走，不从 cdnjs 拿。 */
+const P5 = { ver: "1.9.4", url: "https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js" };
+
 /* 钉死的四个纯 Python 轮子（pydantic 1.x：pydantic-core 没有 wasm 轮子；后端全套测试在 1.x 下照过） */
 const WHEELS = [["fastapi", "0.115.14"], ["starlette", "0.46.2"], ["pydantic", "1.10.26"], ["python-multipart", "0.0.32"]];
+
+/* Pyodide 自己那套里要用到的包（页面启动时 loadPackage 的就是这一串）。
+   它们不是 PyPI 纯 py 轮子，是 Pyodide 自己编译分发的。 */
+const RUNTIME_PACKAGES = ["micropip", "sqlite3", "httpx", "anyio", "sniffio", "typing-extensions", "ssl"];
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(join(dist, "wheels"), { recursive: true });
@@ -22,7 +33,7 @@ for (const f of ["index.html", "html2canvas.min.js", "manifest.json"]) await cp(
 await cp(join(src, "icons"), join(dist, "icons"), { recursive: true, filter: keep });
 await mkdir(join(dist, "blocks", "water"), { recursive: true });
 await cp(join(repo, "blocks", "water", "maple-water.js"), join(dist, "blocks", "water", "maple-water.js"));
-await cp(join(here, "local-boot.js"), join(dist, "local-boot.js"));
+await cp(join(here, "local-boot.js"), join(dist, "local-boot.js"));   // 里头的占位稍后按 dist 真实内容填
 
 /* ── 轮子：PyPI 的 JSON 接口找 py3-none-any，下到 .wheels/ 缓存，再拷进 dist ── */
 const cache = join(here, ".wheels");
@@ -72,8 +83,73 @@ swap("manifest 链接", 'href="/manifest.json"', 'href="manifest.json"', 1);
 swap("图标路径", 'href="/icons/', 'href="icons/', 2);
 swap("出图脚本路径", "sc.src = '/html2canvas.min.js';", "sc.src = 'html2canvas.min.js';", 1);
 swap("开屏水面脚本路径", "load('/blocks/water/maple-water.js?v='", "load('blocks/water/maple-water.js?v='", 1);
+swap("p5 换成自己带的", P5.url, "vendor/p5.min.js", 1);
+
+/* ★ CSP：把「这个源上只跑自己的脚本」写死。
+   这个源下面存着模型 key 和整份家，第三方脚本一旦能在这儿执行，那道边界就没了。
+   · script-src 'self'（＋ inline，因为整页就是一大段内联脚本；＋ wasm-unsafe-eval，Pyodide 要）
+   · connect-src 放 https:，因为模型接口地址是用户自己填的，不可能提前列出来；但 http: 和 ws: 关掉
+   · frame-ancestors / form-action 关死，object-src 关死 */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "media-src 'self' data: blob:",
+  "connect-src 'self' https: data: blob:",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join("; ");
+html = html.replace("<head>\n", `<head>\n<meta http-equiv="Content-Security-Policy" content="${CSP}">\n`);
+if (!html.includes("Content-Security-Policy")) throw new Error("CSP 没插进去");
 if (!html.includes("serviceWorker.register('sw.js')")) throw new Error("SW 注册不见了：浏览器版要靠它做离线和 bridge");
 await writeFile(join(dist, "index.html"), html, "utf8");
+
+/* ── Pyodide 自托管 ──
+   先在 Node 里把要用的包加载一遍：pyodide 会把缺的轮子下到 node_modules 缓存里，
+   然后整个目录挑着拷进 dist/pyodide/。★ 这样页面上 `indexURL` 指的是自己家，不是 jsdelivr。 */
+const require_ = createRequire(import.meta.url);
+const pyodideDir = dirname(require_.resolve("pyodide"));
+{
+  const { loadPyodide } = await import("pyodide");
+  const py = await loadPyodide({ indexURL: pyodideDir + "/" });
+  await py.loadPackage(RUNTIME_PACKAGES);          // 缺的会下下来并缓存进 node_modules
+  console.log("  Pyodide 运行时包备齐：" + RUNTIME_PACKAGES.join("、"));
+}
+await mkdir(join(dist, "pyodide"), { recursive: true });
+{
+  /* 只拷跑得起来要的：加载器 + 解释器 + 标准库 + 包清单 + 轮子。
+     .map / .d.ts / .mjs / console.html / README 一概不带。 */
+  let n = 0;
+  for (const e of await readdir(pyodideDir, { withFileTypes: true })) {
+    if (!e.isFile()) continue;
+    const f = e.name;
+    const wanted = f === "pyodide.js" || f === "pyodide.asm.js" || f === "pyodide.asm.wasm"
+      || f === "python_stdlib.zip" || f === "pyodide-lock.json"
+      || f.endsWith(".whl") || (f.endsWith(".zip") && f !== "python_stdlib.zip");
+    if (!wanted) continue;
+    await cp(join(pyodideDir, f), join(dist, "pyodide", f));
+    n++;
+  }
+  if (n < 6) throw new Error("Pyodide 只拷到 " + n + " 个文件，不对");
+  console.log(`  Pyodide 自托管：${n} 个文件`);
+}
+
+/* ── p5 自托管 ── */
+await mkdir(join(dist, "vendor"), { recursive: true });
+{
+  const cacheP5 = join(cache, `p5-${P5.ver}.min.js`);
+  if (!(await there(cacheP5))) {
+    const r = await fetch(P5.url);
+    if (!r.ok) throw new Error("拿不到 p5：" + r.status);
+    await writeFile(cacheP5, Buffer.from(await r.arrayBuffer()));
+  }
+  await cp(cacheP5, join(dist, "vendor", "p5.min.js"));
+}
 
 /* ── sw.js：把静态清单和版本号写进去 ── */
 const files = [];
@@ -84,18 +160,42 @@ const walk = async (d, rel = "") => {
   }
 };
 await walk(dist);
+/* 填一个占位。★ 要求它**正好出现一次**，填完再确认一个不剩 ——
+   `String.replace(字符串, …)` 只换第一处，而我在注释里也写过同一个词，
+   结果换掉的是注释、真正那行原封不动，页面照样死锁。（0903 栽的。） */
+function fill(text, token, value, where) {
+  const n = text.split(token).length - 1;
+  if (n !== 1) throw new Error(`${where} 里的 ${token} 出现了 ${n} 次，应该正好 1 次`);
+  const out = text.split(token).join(value);
+  if (out.includes(token)) throw new Error(`${where} 里还剩 ${token} 没填`);
+  return out;
+}
+
+/* ★ 起点脚本那张「哪些是本站自己的文件」名单，按 dist 的真实内容填 ——
+   手写它栽过一次：自托管 Pyodide 后忘了加 pyodide/，wasm 被当成后端请求，页面直接死锁。 */
+{
+  const prefixes = [...new Set(files.map((f) => (f.includes("/") ? f.split("/")[0] + "/" : f)))].sort();
+  const bootPath = join(dist, "local-boot.js");
+  const boot = fill(await readFile(bootPath, "utf8"), "__STATIC__", JSON.stringify(prefixes), "local-boot.js");
+  await writeFile(bootPath, boot, "utf8");
+  console.log("  本站文件前缀：" + prefixes.join("、"));
+}
+
 const ver = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: repo }).toString().trim() + "-" + Date.now().toString(36);
 let sw = await readFile(join(here, "sw.js"), "utf8");
-sw = sw.replace("__VER__", ver).replace("__STATIC__", JSON.stringify(files.concat(["sw.js"]).sort()));
+sw = fill(sw, "__VER__", ver, "sw.js");
+sw = fill(sw, "__STATIC__", JSON.stringify(files.concat(["sw.js"]).sort()), "sw.js");
 await writeFile(join(dist, "sw.js"), sw, "utf8");
 
 await writeFile(join(dist, "README.txt"),
   "连环 · 浏览器版 —— 构建产物\n============================\n" +
   "打开 index.html（要用静态服务器：python3 -m http.server 8426）。同一份 Python 后端在页面里跑（Pyodide），\n" +
-  "数据在这台设备的浏览器 IndexedDB 里。第一次打开要从 CDN 拿 Pyodide（十几 MB），之后由 sw.js 缓存。\n" +
-  "整个目录一起上传：index.html 引同目录的 local-boot.js、wheels/、backend.zip、icons/、blocks/water/、html2canvas.min.js、sw.js、manifest.json。\n" +
+  "数据在这台设备的浏览器 IndexedDB 里。\n" +
+  "★ 一个第三方 CDN 都不连：Pyodide 和 p5 都在这个目录里，页面上还钉了 CSP（script-src 只认 'self'）。\n" +
+  "  第一次打开要从本站拿十几 MB 的 Pyodide，之后由 sw.js 缓存，离线也能开。\n" +
+  "整个目录一起上传：index.html 引同目录的 local-boot.js、pyodide/、vendor/、wheels/、backend.zip、icons/、blocks/water/、html2canvas.min.js、sw.js、manifest.json。\n" +
   "许可：AGPL-3.0-only。\n", "utf8");
 
 let bytes = 0; for (const f of files) bytes += (await stat(join(dist, f))).size;
-console.log(`拼好了：dist/ ${files.length + 1} 个文件 · ${(bytes / 1024).toFixed(0)} KB（不含 CDN 上的 Pyodide）`);
+console.log(`拼好了：dist/ ${files.length + 1} 个文件 · ${(bytes / 1024).toFixed(0)} KB（Pyodide 和 p5 都在里头，跑起来不连任何 CDN）`);
 console.log("  轮子：" + wheelNames.join("、"));

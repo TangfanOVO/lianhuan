@@ -4,10 +4,13 @@
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-only",
-  "description": "连环 · 浏览器版：同一份 Python 后端跑在页面里（Pyodide），家在这台设备的浏览器里。打开链接就能用。",
+  "description": "连环 · 浏览器版：同一份 Python 后端跑在页面里（Pyodide，随包自托管，不连任何 CDN），家在这台设备的浏览器里。",
   "scripts": {
     "build": "node scripts/build.mjs",
     "test": "node scripts/build.mjs && node --test tests/*.test.mjs",
     "dev": "npm run build && python3 -m http.server 8426 --directory dist"
+  },
+  "devDependencies": {
+    "pyodide": "0.27.7"
   }
 }

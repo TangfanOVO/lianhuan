@@ -1,12 +1,11 @@
 /* 连环 · 浏览器版的 Service Worker。
    · 自己带的静态文件：装的时候整套缓存，之后先缓存后网络（离线也能开）
-   · Pyodide 那些大文件（CDN）：第一次用到就存下来，之后离线也有
+   · Pyodide 和 p5 都是自己带的静态文件，走上面那条，不连任何 CDN
    · 其余同源请求（浏览器自己发的 <img src="/uploads/…"> 那类）：转回页面，让页面里的后端答（bridge）
    · 绝不缓存后端的回答 —— 缓存过的对话和记忆是最坏的一种错误 */
 const VER = "__VER__";
 const STATIC = __STATIC__;
 const CACHE = "lh-local-" + VER;
-const CDN = "lh-local-cdn";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE)
@@ -15,7 +14,7 @@ self.addEventListener("install", (e) => {
 });
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys()
-    .then((ks) => Promise.all(ks.filter((k) => k !== CACHE && k !== CDN).map((k) => caches.delete(k))))
+    .then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 
@@ -47,14 +46,5 @@ self.addEventListener("fetch", (e) => {
     }
     e.respondWith(viaPage(e.request));
     return;
-  }
-  if (url.hostname === "cdn.jsdelivr.net" && url.pathname.indexOf("/pyodide/") === 0) {
-    e.respondWith(caches.open(CDN).then(async (c) => {
-      const hit = await c.match(e.request);
-      if (hit) return hit;
-      const r = await fetch(e.request);
-      if (r.ok) c.put(e.request, r.clone());
-      return r;
-    }));
   }
 });

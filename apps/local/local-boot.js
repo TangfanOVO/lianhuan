@@ -15,9 +15,21 @@
      由 sw.js 转回页面来问（bridge）。 */
 (function () {
   "use strict";
-  var PYODIDE = "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/";
+  /* ★ 自己家里的 Pyodide，不连任何 CDN —— 这个源下面存着 key 和整份家，
+     在这儿执行别人服务器发来的脚本，等于把那道边界让出去。构建时整套拷进 pyodide/。 */
+  var PYODIDE = new URL("pyodide/", new URL(".", location.href)).href;
   var BASE = new URL(".", location.href);
-  var STATIC = /^(index\.html|manifest\.json|sw\.js|local-boot\.js|backend\.zip|html2canvas\.min\.js|README\.txt|icons\/|wheels\/|blocks\/)/;
+  /* 这一份站自己带的东西。★ 下面那行是占位，构建时按 dist/ 的真实内容填 ——
+     **手写这张名单栽过一次**：自托管 Pyodide 之后忘了加 `pyodide/`，
+     于是 wasm 被当成后端请求排进队里，而后端正等着这个 wasm 起来 —— 页面永远停在「起来中…」。 */
+  var STATIC_PREFIXES = __STATIC__;
+  function isStatic(rel) {
+    for (var i = 0; i < STATIC_PREFIXES.length; i++) {
+      var p = STATIC_PREFIXES[i];
+      if (p.slice(-1) === "/" ? rel.indexOf(p) === 0 : rel === p) return true;
+    }
+    return false;
+  }
 
   var realFetch = window.fetch.bind(window);
   var queue = [];
@@ -30,7 +42,7 @@
     var p = url.pathname;
     if (p.indexOf(BASE.pathname) === 0) {
       var rel = p.slice(BASE.pathname.length);
-      if (rel === "" || STATIC.test(rel)) return null;
+      if (rel === "" || isStatic(rel)) return null;
       p = "/" + rel;
     }
     return { path: p, query: url.search.replace(/^\?/, "") };
@@ -51,10 +63,13 @@
   cover.setAttribute("style", "position:fixed;inset:0;z-index:2147483000;background:#f7f2ea;color:#6b5f57;" +
     "font:15px/1.7 -apple-system,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px");
   cover.innerHTML = "<div><div style='font-size:22px;color:#a8412f;margin-bottom:8px'>连环</div>" +
-    "<div id='lh-boot-msg'>起来中…</div><div id='lh-boot-sub' style='font-size:12px;opacity:.7;margin-top:6px'>第一次要多等一会儿（十几秒到一分钟），之后就快了</div></div>";
+    "<div id='lh-boot-msg'>起来中…</div><div id='lh-boot-sub' style='font-size:12px;opacity:.7;margin-top:6px'>第一次要多等一会儿（十几秒），之后就快了</div></div>";
+  /* ★ 盖层是等 DOMContentLoaded 才挂上的，而这段脚本在 head 里就开跑了。
+     所以 say() 不能只往文档里找元素 —— 找不到就把话丢了，**出错信息也一起丢**（栽过）。
+     改成直接对着 cover 这棵树写，挂没挂上都不影响。 */
   function say(m, sub) {
-    var el = document.getElementById("lh-boot-msg"); if (el) el.textContent = m;
-    if (sub !== undefined) { var s = document.getElementById("lh-boot-sub"); if (s) s.textContent = sub; }
+    var el = cover.querySelector("#lh-boot-msg"); if (el) el.textContent = m;
+    if (sub !== undefined) { var s = cover.querySelector("#lh-boot-sub"); if (s) s.textContent = sub; }
   }
   function mount() { if (document.body && !cover.parentNode) document.body.appendChild(cover); }
   if (document.body) mount(); else document.addEventListener("DOMContentLoaded", mount);
@@ -122,7 +137,7 @@
   /* ── 主流程 ── */
   (async function () {
     try {
-      say("去拿 Python…");
+      say("装 Python…");
       await loadScript(PYODIDE + "pyodide.js");
       py = await loadPyodide({ indexURL: PYODIDE });
       say("装数据库和网络…");
