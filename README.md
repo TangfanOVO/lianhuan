@@ -37,7 +37,7 @@
 | 没有服务器，想手机电脑共用一个家 | 点下面的按钮，一键托管到 Render 或 Koyeb | 托管平台上你自己的那份 `data/` | 平台从仓库重建 |
 | 有自己的云或服务器 | `docker compose up -d`，前面挂 HTTPS | 你服务器上的 `./data` | 拉新代码重建 |
 | 有一台常开的电脑 | `python3 create.py`，双击 `start.command`；加 `--lan` 手机同一个 Wi-Fi 也能连 | 电脑上的 `data/` | 拉新代码 |
-| 安卓，不想连任何东西 | 装 Releases 里的[完整体 APK](https://github.com/TangfanOVO/lianhuan/releases/tag/apk-full)（**现在是测试包，装前先读 [说明](android-full/README.md)**） | 应用自己的沙箱里 | 装新包；测试包换版本要先导出再重装 |
+| 安卓，不想连任何东西 | 装 Releases 里的[正式签名完整体 APK](https://github.com/TangfanOVO/lianhuan/releases/tag/apk-full)（装前先读 [说明](android-full/README.md)） | 应用自己的沙箱里 | 新版可直接覆盖；卸载或换机前先导出 |
 | 安卓，家在电脑或云上 | 装 [壳 APK](https://github.com/TangfanOVO/lianhuan/releases/tag/apk)，填家的地址 | 电脑或云上 | 壳不用动，家更新就行 |
 
 我们自己的建议：**有云的装进自己的云**，记忆和信息都在云上，换手机、换电脑都是同一个家；
