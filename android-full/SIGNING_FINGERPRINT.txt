@@ -1,0 +1,2 @@
+# 正式发布证书 SHA-256；工作流会拒绝任何不同的签名。
+b62f1f523c9ac5ccc1130e56c82be58f5eb1ab730e421e41dff5f33c61cd0fec
