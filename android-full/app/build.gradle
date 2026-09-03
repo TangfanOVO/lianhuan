@@ -16,8 +16,13 @@ android {
         targetSdk 36
         // ★ 版本号必须每次递增，否则装不上去（安卓拒绝「降级」安装）。
         //   CI 传 LH_VERSION_CODE（用 run_number），本机不传就是 1。
-        versionCode (System.getenv("LH_VERSION_CODE") ?: "1").toInteger()
-        versionName System.getenv("LH_VERSION_NAME") ?: "0.1"
+        // ★ 先算进局部变量再赋值，别写成 `versionCode (…).toInteger()` ——
+        //   Groovy 会把它读成「先调用 versionCode(字符串)，再对返回值调 toInteger()」，
+        //   返回值是 null，构建当场炸在 "Value is null"。（0903 CI 上栽过一次。）
+        def vCode = Integer.parseInt(System.getenv("LH_VERSION_CODE") ?: "1")
+        def vName = System.getenv("LH_VERSION_NAME") ?: "0.1"
+        versionCode = vCode
+        versionName = vName
         ndk { abiFilters "arm64-v8a" }          // Python 解释器是原生的；只打现在的手机那一种
     }
     /* ★ 签名是这个包最要紧的一件事。
