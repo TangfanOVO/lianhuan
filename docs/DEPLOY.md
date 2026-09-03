@@ -24,7 +24,10 @@ iPhone 用 Safari 打开，分享 → 添加到主屏幕；安卓用 Chrome，�
 
 ## 安卓完整体
 
-后端和前端都在 APK 里，家在应用沙箱。装法和细节见 [android-full/README.md](../android-full/README.md)。
+后端和前端都在 APK 里，家在应用沙箱。
+
+⚠ 没配固定签名钥匙时，Actions 出的是 debug 包：新包装不到旧包上，换版本要卸载，**卸载 ＝ 家没了**。
+先导出再换。配好钥匙就能覆盖升级。装法、备份规则和配钥匙的步骤见 [android-full/README.md](../android-full/README.md)。
 
 ## iOS · 加到主屏
 

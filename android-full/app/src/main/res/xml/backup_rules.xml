@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 及以下的自动备份规则。整份家备份，唯独不带模型 key。 -->
+<full-backup-content>
+    <include domain="file" path="." />
+    <exclude domain="file" path="data/secrets.json" />
+</full-backup-content>

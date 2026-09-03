@@ -34,7 +34,7 @@
 | 没有服务器，想手机电脑共用一个家 | 点下面的按钮，一键托管到 Render 或 Koyeb | 托管平台上你自己的那份 `data/` | 平台从仓库重建 |
 | 有自己的云或服务器 | `docker compose up -d`，前面挂 HTTPS | 你服务器上的 `./data` | 拉新代码重建 |
 | 有一台常开的电脑 | `python3 create.py`，双击 `start.command`；加 `--lan` 手机同一个 Wi-Fi 也能连 | 电脑上的 `data/` | 拉新代码 |
-| 安卓，不想连任何东西 | 装 Releases 里的[完整体 APK](https://github.com/TangfanOVO/lianhuan/releases/tag/apk-full) | 应用自己的沙箱里 | 装新包，不自动更新 |
+| 安卓，不想连任何东西 | 装 Releases 里的[完整体 APK](https://github.com/TangfanOVO/lianhuan/releases/tag/apk-full)（**现在是测试包，装前先读 [说明](android-full/README.md)**） | 应用自己的沙箱里 | 装新包；测试包换版本要先导出再重装 |
 | 安卓，家在电脑或云上 | 装 [壳 APK](https://github.com/TangfanOVO/lianhuan/releases/tag/apk)，填家的地址 | 电脑或云上 | 壳不用动，家更新就行 |
 
 我们自己的建议：**有云的装进自己的云**，记忆和信息都在云上，换手机、换电脑都是同一个家；
@@ -69,8 +69,12 @@ Render 和 Koyeb 是云托管平台：别人的机器替你二十四小时跑着
 
 ### 安卓完整体
 
-后端和前端都在 APK 里，装上就是一整个连环，不连电脑也不连云。家在应用自己的沙箱里，卸载就没了，搬家先导出。
-装新版本要重新装包。详见 [android-full/README.md](android-full/README.md)。
+后端和前端都在 APK 里，装上就是一整个连环，不连电脑也不连云。家在应用自己的沙箱里。
+
+⚠ **现在放出来的是测试包。** 它用每次构建临时生成的签名，所以新包装不到旧包上面，
+想换版本只能卸载重装 —— 而卸载会把家一起带走。**要留东西，先在 设置 › 搬家 导出一份 JSON。**
+仓库里配一把固定的签名钥匙之后（[怎么配](android-full/README.md)），就能直接覆盖升级、数据留着。
+manifest 里开了系统备份（模型 key 除外），换机直传能接回来，但那层靠不住，导出才是正路。
 
 ## 魔改很多的后端
 

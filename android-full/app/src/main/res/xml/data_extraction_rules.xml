@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ 的规则。cloud-backup＝备份到云；device-transfer＝换机直传。
+     两条都带上家、都不带模型 key。 -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="file" path="." />
+        <exclude domain="file" path="data/secrets.json" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="file" path="." />
+        <exclude domain="file" path="data/secrets.json" />
+    </device-transfer>
+</data-extraction-rules>

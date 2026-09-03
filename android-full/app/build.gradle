@@ -14,12 +14,32 @@ android {
         applicationId "app.lianhuan.full"
         minSdk 24
         targetSdk 36
-        versionCode 1
-        versionName "0.1"
+        // ★ 版本号必须每次递增，否则装不上去（安卓拒绝「降级」安装）。
+        //   CI 传 LH_VERSION_CODE（用 run_number），本机不传就是 1。
+        versionCode (System.getenv("LH_VERSION_CODE") ?: "1").toInteger()
+        versionName System.getenv("LH_VERSION_NAME") ?: "0.1"
         ndk { abiFilters "arm64-v8a" }          // Python 解释器是原生的；只打现在的手机那一种
     }
+    /* ★ 签名是这个包最要紧的一件事。
+       完整体的家就在应用沙箱里，**签名一变就只能卸载重装，卸载＝家没了**。
+       所以：CI 上有 keystore（Actions Secrets 注进来）就出正式签名包，签名从此固定，能覆盖升级；
+       没有 keystore 就只出 debug 包，那种包**只能当一次性试用**，别拿它存东西。 */
+    signingConfigs {
+        release {
+            def ks = System.getenv("LH_KEYSTORE")            // 解出来的 .jks 路径
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("LH_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("LH_KEY_ALIAS") ?: "lianhuan"
+                keyPassword System.getenv("LH_KEY_PASSWORD") ?: System.getenv("LH_KEYSTORE_PASSWORD")
+            }
+        }
+    }
     buildTypes {
-        release { minifyEnabled false }
+        release {
+            minifyEnabled false
+            if (System.getenv("LH_KEYSTORE")) signingConfig signingConfigs.release
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

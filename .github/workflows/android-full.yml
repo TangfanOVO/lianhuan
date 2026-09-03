@@ -1,6 +1,11 @@
 # 打安卓完整体的 APK：后端（Python，靠 Chaquopy 塞进去）＋ 前端都在包里，数据在应用沙箱。
 # ★ 跟 android.yml（那个壳）是两条独立的线。后端一改这个就得重打，所以 core/ optional/ 也触发。
-# ★ debug 签名：能装能用，不能上架，覆盖安装可能要先卸载。
+#
+# ★★ 签名是这个包最要紧的一件事 —— 完整体的家就在应用沙箱里，**签名一变就只能卸载重装，卸载＝家没了**。
+#    所以这条流水线分两种情况：
+#      · 仓库里配了 keystore（Actions Secrets）→ 出**正式签名包**，签名固定，以后能直接覆盖升级
+#      · 没配 → 只出 debug 包，名字和发布说明里都写死「一次性试用，别拿它存东西」
+#    怎么配见 android-full/README.md。
 name: android-full
 on:
   push:
@@ -11,22 +16,109 @@ permissions: { contents: write }
 jobs:
   apk:
     runs-on: ubuntu-latest
+    env:
+      # ★ 每次构建递增。安卓不让「降级」安装，版本号不动的包换机器打出来会装不上去。
+      LH_VERSION_CODE: ${{ github.run_number }}
+      LH_VERSION_NAME: 0.1.${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '21' }
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }     # Chaquopy 要求构建机 Python 跟包里的同一个 3.12
+
+      - name: 有没有配签名钥匙
+        id: ks
+        env: { KS: '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' }
+        run: |
+          if [ -n "$KS" ]; then
+            mkdir -p "$RUNNER_TEMP/ks"
+            echo "$KS" | base64 -d > "$RUNNER_TEMP/ks/lianhuan.jks"
+            echo "signed=yes" >> "$GITHUB_OUTPUT"
+            echo "配了 keystore：出正式签名包"
+          else
+            echo "signed=no" >> "$GITHUB_OUTPUT"
+            echo "没配 keystore：只出 debug 包（一次性试用）"
+          fi
+
       - name: 打包
         working-directory: android-full
-        run: gradle assembleDebug --no-daemon --console=plain
-      - name: 改个带日期的名字
-        run: cp android-full/app/build/outputs/apk/debug/app-debug.apk "lianhuan-full-$(date -u +%Y%m%d)-${GITHUB_SHA::7}.apk" && ls -la lianhuan-full-*.apk
+        env:
+          LH_KEYSTORE: ${{ steps.ks.outputs.signed == 'yes' && format('{0}/ks/lianhuan.jks', runner.temp) || '' }}
+          LH_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          LH_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          LH_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -e
+          if [ "${{ steps.ks.outputs.signed }}" = "yes" ]; then
+            gradle assembleRelease --no-daemon --console=plain
+          else
+            gradle assembleDebug --no-daemon --console=plain
+          fi
+
+      - name: 起名（签没签名写在名字里，别让人猜）
+        id: name
+        run: |
+          set -e
+          if [ "${{ steps.ks.outputs.signed }}" = "yes" ]; then
+            src=android-full/app/build/outputs/apk/release/app-release.apk
+            out="lianhuan-full-v${LH_VERSION_NAME}.apk"
+          else
+            src=android-full/app/build/outputs/apk/debug/app-debug.apk
+            out="lianhuan-full-TESTONLY-v${LH_VERSION_NAME}.apk"
+          fi
+          cp "$src" "$out"
+          echo "file=$out" >> "$GITHUB_OUTPUT"
+          ls -la "$out"
+
+      # ★ 签名指纹一变，装了旧版的人就只能卸载重装（家会没）。所以钉住它：
+      #   android-full/SIGNING_FINGERPRINT.txt 存着期望值，对不上当场红。
+      - name: 签名指纹必须没变
+        if: steps.ks.outputs.signed == 'yes'
+        run: |
+          set -e
+          SDK="$ANDROID_HOME/build-tools"
+          APKSIGNER="$(ls -d $SDK/*/apksigner | sort -V | tail -1)"
+          got="$("$APKSIGNER" verify --print-certs "${{ steps.name.outputs.file }}" \
+                 | grep -i 'SHA-256 digest' | head -1 | awk '{print $NF}')"
+          echo "这次的指纹：$got"
+          f=android-full/SIGNING_FINGERPRINT.txt
+          if [ -f "$f" ]; then
+            want="$(grep -v '^#' "$f" | tr -d '[:space:]')"
+            test "$got" = "$want" || {
+              echo "::error::签名指纹变了！装了旧版的人将无法覆盖升级，卸载重装会丢掉整份家。"
+              echo "期望 $want"; echo "实得 $got"; exit 1; }
+            echo "跟 $f 对上了 ✓"
+          else
+            echo "::warning::还没有 $f。把上面这行指纹写进去，以后签名一变就会当场报错。"
+          fi
+
       - uses: actions/upload-artifact@v4
         with: { name: lianhuan-full-apk, path: 'lianhuan-full-*.apk', retention-days: 30 }
+
       - name: 挂到 Releases 的「apk-full」标签下（滚动更新）
         if: github.event_name != 'pull_request'
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          gh release view apk-full >/dev/null 2>&1 || gh release create apk-full --title "安卓完整体 APK（滚动）" --notes "后端和前端都在包里，数据在应用沙箱。自动打的 debug 签名包。装法见 android-full/README.md。" --latest=false
-          gh release upload apk-full lianhuan-full-*.apk --clobber
+          set -e
+          if [ "${{ steps.ks.outputs.signed }}" = "yes" ]; then
+            title="安卓完整体 APK（正式签名，可覆盖升级）"
+            notes="后端和前端都在包里，家在应用自己的沙箱。正式签名，能直接覆盖安装升级，数据留着。
+          版本 ${LH_VERSION_NAME}。装法见 android-full/README.md。"
+          else
+            title="安卓完整体 APK（测试包，装前先读说明）"
+            notes="⚠ **这是测试包，不是正式版本。**
+
+          它用的是每次构建临时生成的 debug 签名，所以：
+          · 新包**装不到**旧包上面（签名不一致），要装新版只能先卸载
+          · 而完整体的家（聊天、记忆、日记）就在这个应用的沙箱里，**卸载就一起没了**
+
+          所以：先在 设置 › 搬家 里导出一份 JSON，再卸载装新的，然后导回去。
+          想要能直接覆盖升级的正式包，在仓库里配一把固定的签名钥匙（步骤见 android-full/README.md）。
+
+          版本 ${LH_VERSION_NAME}。"
+          fi
+          gh release view apk-full >/dev/null 2>&1 \
+            && gh release edit apk-full --title "$title" --notes "$notes" \
+            || gh release create apk-full --title "$title" --notes "$notes" --latest=false
+          gh release upload apk-full "${{ steps.name.outputs.file }}" --clobber

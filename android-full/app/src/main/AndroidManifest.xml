@@ -7,8 +7,14 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
+    <!-- ★ 家就在这个应用的沙箱里，所以把系统备份打开：换手机、重装能接回来。
+         但 secrets.json（模型 key）**排除在外** —— 那东西不该跟着备份上云。
+         这不是万能的：备份要用户自己开着、要能连上，所以设置里的导出仍然是正路。 -->
     <application
         android:name="com.chaquo.python.android.PyApplication"
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
