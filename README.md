@@ -43,12 +43,16 @@
 
 ### 一键托管
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/TangfanOVO/lianhuan) &nbsp; [![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/TangfanOVO/lianhuan&branch=main&name=lianhuan&builder=dockerfile&ports=8420;http;/&env[PORT]=8420&env[LIANHUAN_PASSWORD]=改成你的口令)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/TangfanOVO/lianhuan) &nbsp; [![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/TangfanOVO/lianhuan&branch=main&name=lianhuan&builder=dockerfile&ports=8420;http;/&env[PORT]=8420)
 
 Render 和 Koyeb 是云托管平台：别人的机器替你二十四小时跑着这份后端。按钮做的事是读仓库里的 `Dockerfile`，
 把连环建成一个容器跑起来，给你一个固定的 https 地址。用 GitHub 账号登录就能开，不用买服务器，不用配 nginx。
 
-点下去会问两样：**进门口令**（自己定一个，之后手机上进门用）和**模型的 key**（可以先空着，起来后在 设置 › 功能包 › 引擎 里贴）。
+点下去要你自己填两样：**进门口令**和**模型的 key**（key 可以先空着，起来后在 设置 › 功能包 › 引擎 里贴）。
+
+★ **口令得自己想一句，至少 16 个字符。** 服务端会当场检查：太短、或者用了文档里的占位串，它拒绝启动 ——
+门开在公网上，谁都能敲。连着猜错 5 次，那个地址要等 10 分钟才能再试。
+
 拿到地址之后，iPhone 用 Safari 打开它「添加到主屏幕」；安卓装壳 APK 填这个地址，或者 Chrome 直接「安装应用」。
 
 免费档的样子：十几分钟没人用会休眠，再打开等几十秒；磁盘不持久，重新部署会把 `data/` 重置，想留着就定期在设置里导出。

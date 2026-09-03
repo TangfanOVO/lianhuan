@@ -672,11 +672,11 @@ class TestGate(unittest.TestCase):
         old = _os.environ.get("LIANHUAN_DB")
         _os.environ["LIANHUAN_DB"] = str(Path(d) / "x.db")
         try:
-            _gate.arm("hunter2")
+            _gate.arm("hunter2-and-then-some-more")
             self.assertTrue(_gate.on())
-            self.assertTrue(_gate.check_password("hunter2"))
-            self.assertEqual("", _gate.check_password("hunter3"))
-            self.assertTrue(_gate.check_cookie(_gate.check_password("hunter2")))
+            self.assertTrue(_gate.check_password("hunter2-and-then-some-more"))
+            self.assertEqual("", _gate.check_password("hunter3-and-then-some-more"))
+            self.assertTrue(_gate.check_cookie(_gate.check_password("hunter2-and-then-some-more")))
             self.assertFalse(_gate.check_cookie(""))
             self.assertFalse(_gate.check_cookie("deadbeef"))
         finally:
@@ -695,12 +695,12 @@ class TestGate(unittest.TestCase):
         old = _os.environ.get("LIANHUAN_DB")
         _os.environ["LIANHUAN_DB"] = str(Path(d) / "x.db")
         try:
-            _gate.arm("open-sesame-9182")
+            _gate.arm("open-sesame-9182-long-enough")
             blob = ""
             for f in Path(d).rglob("*"):
                 if f.is_file():
                     blob += f.read_text(encoding="utf-8", errors="ignore")
-            self.assertNotIn("open-sesame-9182", blob)
+            self.assertNotIn("open-sesame-9182-long-enough", blob)
         finally:
             _gate._state["on"] = False
             _gate._state["token"] = ""

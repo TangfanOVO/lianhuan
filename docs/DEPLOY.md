@@ -82,6 +82,31 @@ python -m core.server --port 8420
 
 ★ 部署脚本里**别把 token 写进命令行**。`ps` 就能看见。用环境变量文件或者系统密钥库。
 
+## 一键托管（Render / Koyeb）
+
+仓库根目录有 `Dockerfile` 和 `render.yaml`，README 顶上那两颗按钮就是读它们的：
+
+- **Render**：`https://render.com/deploy?repo=https://github.com/TangfanOVO/lianhuan` —— 读 `render.yaml`，问你口令和 key，起一个免费 web service
+- **Koyeb**：`https://app.koyeb.com/deploy?type=git&repository=github.com/TangfanOVO/lianhuan&branch=main&name=lianhuan&builder=dockerfile&ports=8420;http;/&env[PORT]=8420` —— 照 `Dockerfile` 建，环境变量在它的页面上填
+
+**口令自己想一句，至少 16 个字符。** 服务端当场检查：太短，或者用了文档里的占位串（`改成你的口令`、`changeme` 那些），
+它拒绝启动，不会「先跑着回头再改」。登录连错 5 次，那个来源地址锁 10 分钟。
+★ 部署链接里**不预填口令** —— 写进公开 README 的字，全世界都读得到。
+
+容器一律按 `--lan` 起：所有请求都当成「从网络来的」，所以进门要 `LIANHUAN_PASSWORD`。
+数据在 `/app/data`（SQLite、上传、`secrets.json`），备份就是这个目录。
+两家免费档都是**休眠 ＋ 不持久磁盘**：够试、够给朋友玩；要长期住就换付费档，把 `render.yaml` 里 `disks` 那段放开，挂到 `/app/data`。
+登记 MCP、一键装 Engawa 这两件会在机器上起进程，只认本机，云上不开放。
+
+## Docker（自己的服务器）
+
+```bash
+cp .env.example .env        # 填 key；再加一行 LIANHUAN_PASSWORD=你自己那句长口令
+docker compose up -d        # 数据落在 ./data
+```
+
+前面挂 Caddy / nginx 做 https，iPhone 才能把它加成带离线壳的主屏 app。
+
 ## 搬家
 
 `GET /api/export` 拿一个 JSON，`POST /api/import` 灌回去。就一个文件；设置里有按钮。

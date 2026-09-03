@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import time
 import secrets as _rand
 
 #: cookie 的名字和寿命（30 天，跟「手机上别老让我重登」这件事折中）
@@ -38,7 +39,88 @@ def command_path(path: str) -> bool:
     """Endpoints that can install or launch local code never accept LAN callers."""
     return path in LOCAL_ONLY or (path.startswith("/api/packs/") and path.endswith("/setup"))
 
+#: 口令的最短长度。★ 16 不是拍脑袋：这道门开在公网上，谁都能敲，
+#: 而它后面是一整个家（聊天、记忆、日记）。短口令在这种位置上等于没有。
+MIN_LEN = 16
+
+#: 我们自己在文档和一键部署链接里写过的占位串。**它们不许当真口令用** ——
+#: 写在公开 README 里的字，全世界都读得到。
+PLACEHOLDERS = {"改成你的口令", "your-password", "changeme", "change-me", "password", "口令"}
+
+
+def weak(pw: str) -> str:
+    """这句口令能不能用。能用回空串，不能用回一句人话（给启动时打印）。"""
+    pw = (pw or "").strip()
+    if not pw:
+        return "空的"
+    if pw in PLACEHOLDERS or pw.lower() in PLACEHOLDERS:
+        return "这是文档里的占位串，全世界都看得到，换一句你自己的"
+    if len(pw) < MIN_LEN:
+        return f"太短了（{len(pw)} 个字符，至少要 {MIN_LEN} 个）"
+    return ""
+
+
+#: 失败几次锁多久。★ 没有这一层，16 位口令也架不住不限次数的猜。
+FAIL_MAX = 5
+LOCK_SEC = 600
+
 _state: dict = {"on": False, "token": ""}
+#: 每个来源地址的失败记录：addr -> [失败次数, 锁到什么时候]
+_fails: dict = {}
+
+
+def _now() -> float:
+    return time.time()
+
+
+def locked(addr: str) -> int:
+    """这个地址还要等几秒才能再试。0 = 现在可以试。
+
+    ★ `rec[1] == 0` 是「攒着失败但还没锁」，**不是**「锁过期了」——
+      分不清这两件事的话，每次查询都会把失败计数清掉，于是永远数不到上限。
+      （这条是自带的限流测试当场逮到的。）"""
+    rec = _fails.get(addr or "")
+    if not rec or rec[1] <= 0:
+        return 0
+    left = int(rec[1] - _now())
+    if left <= 0:
+        _fails.pop(addr or "", None)          # 锁真的过期了，记录清掉，从头数
+        return 0
+    return left
+
+
+#: 最多记多少个地址。★ 没有这个上限，换着 IP 敲就是往内存里灌东西。
+MAX_TRACKED = 4096
+
+
+def _prune() -> None:
+    """记录太多了：把已经不锁人的清掉；还清不动就整个倒掉重来（宁可放过，不能撑爆）。"""
+    if len(_fails) <= MAX_TRACKED:
+        return
+    now = _now()
+    for k in [k for k, v in _fails.items() if v[1] <= now]:
+        _fails.pop(k, None)
+    if len(_fails) > MAX_TRACKED:
+        _fails.clear()
+
+
+def note_fail(addr: str) -> int:
+    """记一次失败，回「还要等几秒」（没到次数就是 0）。"""
+    a = addr or ""
+    _prune()
+    rec = _fails.get(a) or [0, 0.0]
+    rec[0] += 1
+    if rec[0] >= FAIL_MAX:
+        rec[1] = _now() + LOCK_SEC
+        rec[0] = 0                       # 锁上之后重新数，别让它越锁越久
+    _fails[a] = rec
+    return locked(a)
+
+
+def note_ok(addr: str) -> None:
+    """进对了，把这个地址的失败记录清掉。"""
+    _fails.pop(addr or "", None)
+
 
 
 def local_addr(host: str) -> bool:
@@ -66,7 +148,12 @@ def _hash(pw: str) -> str:
 
 
 def arm(pw: str) -> None:
-    """装上这道门。只有 main() 在 --lan 且拿到密码时才调。"""
+    """装上这道门。只有 main() 在 --lan 且拿到密码时才调。
+
+    ★ 口令不合格就**抛异常**，不是打个警告继续跑 —— 「先开着回头再改」那个回头永远不会来。"""
+    bad = weak(pw)
+    if bad:
+        raise ValueError(bad)
     _state["on"] = True
     _state["token"] = _hash(pw)
 
@@ -122,6 +209,7 @@ document.getElementById('f').addEventListener('submit', async function(ev){
   const r = await fetch('/api/login', {method:'POST', headers:{'content-type':'application/json'},
     body: JSON.stringify({password: document.getElementById('p').value})}).then(r=>r.json()).catch(()=>null);
   if (r && r.ok) location.href = '/';
+  else if (r && r.locked) e.textContent = r.error || '错太多次了，等一会儿再试。';
   else { e.textContent = '口令不对。'; document.getElementById('p').select(); }
 });
 </script>

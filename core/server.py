@@ -81,10 +81,22 @@ async def api_login(req: Request):
     """报门。只有 --lan 起来的时候才有意义；没开的时候直接说不需要。"""
     if not _gate.on():
         return {"ok": True, "note": "这台机器只听本机，不需要口令"}
+    #: ★ 限流按 socket 对端地址算，不看任何请求头 —— X-Forwarded-For 是客户端能随便写的，
+    #:   拿它当身份等于给攻击者一个「换个头就重新数」的开关。
+    addr = req.client.host if req.client else ""
+    wait = _gate.locked(addr)
+    if wait:
+        return JSONResponse({"ok": False, "locked": wait,
+                             "error": f"错太多次了，等 {wait // 60 + 1} 分钟再试"}, status_code=429)
     b = await req.json()
     tok = _gate.check_password((b.get("password") or "").strip())
     if not tok:
+        wait = _gate.note_fail(addr)
+        if wait:
+            return JSONResponse({"ok": False, "locked": wait,
+                                 "error": f"错太多次了，等 {wait // 60 + 1} 分钟再试"}, status_code=429)
         return JSONResponse({"ok": False}, status_code=401)
+    _gate.note_ok(addr)
     r = JSONResponse({"ok": True})
     # httponly：页面上的脚本读不到它（万一哪天有个 XSS，至少偷不走这一张票）
     r.set_cookie(_gate.COOKIE, tok, max_age=_gate.MAXAGE, httponly=True, samesite="lax")
@@ -1239,7 +1251,13 @@ def main() -> None:
             print("      或者在能敲字的终端里跑，它会当场问你。")
             print("    （别写成命令行参数 —— `ps` 一敲就看见了。）\n")
             raise SystemExit(2)
-        _gate.arm(pw)
+        try:
+            _gate.arm(pw)
+        except ValueError as e:
+            print(f"\n  ✗ 这句口令不能用：{e}")
+            print(f"      门开在网络上，谁都能敲。至少 {_gate.MIN_LEN} 个字符，别用文档里的占位串。")
+            print("      换一句再起：LIANHUAN_PASSWORD=你的口令 python -m core.server --lan\n")
+            raise SystemExit(2)
         print("\n  开了 --lan：同一个网络里的设备都能连，进门要口令。")
         print("     口令存的是加盐哈希，明文不落盘；30 天不用重报。")
         print("     ★ 登记 MCP（会在你电脑上起进程）那两条**只认本机**，报了口令也不行。")

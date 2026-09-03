@@ -1,6 +1,6 @@
 # 连环 · Render 一键部署蓝图。
 # 点 README 里那颗「Deploy to Render」，Render 读这份文件，问你两样东西就起：
-#   LIANHUAN_PASSWORD  进门口令（自己定一个）
+#   LIANHUAN_PASSWORD  进门口令（自己想一句，至少 16 个字符；太短或用占位串会拒绝启动）
 #   LIANHUAN_API_KEY   模型的 key（也可以先空着，起来之后在 设置 › 功能包 › 引擎 里贴）
 # ★ 免费档：15 分钟没人用会休眠（再打开等几十秒），而且磁盘不持久 —— 重新部署会丢数据。
 #   要保住记忆：① 定期在设置里导出 JSON；② 或者换付费档并把下面 disks 那段放开（挂到 /app/data）。

@@ -12,15 +12,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t lianhuan:ci .
-      - name: 没口令必须拒绝启动
+      - name: 没口令 / 短口令 / 文档里的占位串，都必须拒绝启动
         run: |
-          set +e
-          docker run --rm -e LIANHUAN_PASSWORD= lianhuan:ci; code=$?
           set -e
-          test "$code" = 2 && echo "拒了，对的（退出码 2）"
+          for pw in "" "short" "改成你的口令"; do
+            set +e
+            docker run --rm -e LIANHUAN_PASSWORD="$pw" lianhuan:ci; code=$?
+            set -e
+            test "$code" = 2 || { echo "口令 '$pw' 居然起来了（退出码 $code）"; exit 1; }
+            echo "拒了，对的：'$pw'"
+          done
       - name: 有口令能起来、首页要拦去登录
         run: |
-          docker run -d --name lh -p 8420:8420 -e LIANHUAN_PASSWORD=ci-only lianhuan:ci
+          docker run -d --name lh -p 8420:8420 -e LIANHUAN_PASSWORD=ci-only-not-a-real-password lianhuan:ci
           for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:8420/ && break; sleep 1; done
           code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8420/)
           echo "GET / → $code"
