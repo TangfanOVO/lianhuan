@@ -31,6 +31,7 @@ const worktree = process.argv.includes("--worktree");
 
 /* 这些目录整个不看：要么是构建出来的，要么是本机的东西 */
 const skipDirs = new Set([
+  ".wheels",                      // 浏览器版构建时下的 p5 / 轮子缓存，.gitignore 挡着
   ".git", ".venv", ".runtime", "node_modules", "__pycache__", "dist", "build", "coverage", ".gradle", ".pytest_cache",
 ]);
 const skipDirPaths = [

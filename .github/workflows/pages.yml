@@ -16,7 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20' }
+        with: { node-version: '20', cache: npm }
+      # ★ 浏览器版要把 Pyodide 随包带走（自托管，不连 CDN），所以这一步不能省
+      - run: npm ci
       - run: node apps/showcase/scripts/build.mjs
       - run: node apps/preview/scripts/build.mjs
       - run: node apps/local/scripts/build.mjs
