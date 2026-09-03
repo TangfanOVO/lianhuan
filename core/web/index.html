@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no, interactive-widget=resizes-content">
 <title>连环</title>
 
 <!-- (0826) 颜文字抽屉：他的表在前，我们的换肤在后，顺序反了就换不掉 -->
@@ -330,7 +330,11 @@ html,body{
    两行并排写：不认 clip 的老浏览器停在 hidden，认的用 clip。 */
 .app{
   display:flex; flex-direction:column;
-  height:100dvh;
+  /* ★ 软键盘：iOS 上键盘**不会**缩小布局视口 —— 100dvh 一动不动，
+     而输入框是 position:absolute 贴着 .app 底边的，于是整条被键盘盖住。
+     所以扣掉 --kb（底下那段脚本按 visualViewport 实时算的；没键盘时是 0）。
+     安卓 adjustResize 会把整个 WebView 缩掉，那边 --kb 自然算出 0，不会重复扣。 */
+  height:calc(100dvh - var(--kb, 0px));
   overflow:hidden;
   overflow:clip;
   background:var(--bg); color:var(--ink);
@@ -340,7 +344,7 @@ html,body{
 }
 @media (min-width:680px){
   .app{
-    max-width:440px; height:min(894px,92dvh);   /* 跟画布同宽——412 比用户手机窄 28，会裁到卡片 */
+    max-width:440px; height:calc(min(894px,92dvh) - var(--kb, 0px));   /* 跟画布同宽——412 比用户手机窄 28，会裁到卡片 */
     margin:20px auto; border-radius:34px;
     box-shadow:var(--shadow-lift);   /* 阴影和描边只留一个：1px 边压在宽软阴影下＝幽灵卡 */
   }
@@ -16970,4 +16974,45 @@ window._kmMount = function(){
     .observe(mount, { childList:true, subtree:true, characterData:true });
   return true;
 };
+</script>
+<script>
+/* ══ 软键盘 ══
+   一个数：--kb ＝ 键盘挡住了底下多少像素。CSS 里 .app 的高度扣掉它。
+
+   ★ 为什么不能只靠 CSS：
+     · 安卓（WebView 配 adjustResize / Chrome）：键盘弹出时整个视口就缩了，100dvh 自己会变小 —— 这边算出 0，不重复扣。
+     · iOS Safari / iOS 上的 PWA：键盘**不改**布局视口。innerHeight 纹丝不动，只有 visualViewport 变矮。
+       不管它的话，贴着底边的输入条和最后一条消息都会被键盘盖住。
+   ★ 缩放要排掉：双指放大也会让 visualViewport 变矮，那不是键盘。
+   ★ 键盘收起来要归零，否则底下留一条空白。 */
+(function () {
+  var vv = window.visualViewport;
+  if (!vv) return;                         // 老浏览器：维持原样，不比现在差
+  var root = document.documentElement, last = -1;
+  function apply() {
+    var kb = 0;
+    if (!(vv.scale > 1.01)) {              // 放大时不算数
+      kb = Math.round(window.innerHeight - vv.height - vv.offsetTop);
+      if (kb < 24 || kb > window.innerHeight * 0.75) kb = 0;   // 太小是地址栏抖动，太大不可能是键盘
+    }
+    if (kb === last) return;
+    last = kb;
+    root.style.setProperty('--kb', kb + 'px');
+    root.classList.toggle('kb-open', kb > 0);
+  }
+  vv.addEventListener('resize', apply);
+  vv.addEventListener('scroll', apply);
+  window.addEventListener('orientationchange', function () { setTimeout(apply, 250); });
+  apply();
+  /* 键盘刚顶上来的那一下，最后一条消息可能正好被推到看不见 —— 把它拉回来。
+     只在真的开着键盘、且焦点在输入框里时做，别去打断别处的滚动。 */
+  window.addEventListener('focusin', function (e) {
+    var t = e.target;
+    if (!t || !t.matches || !t.matches('textarea, input')) return;
+    setTimeout(function () {
+      if (!root.classList.contains('kb-open')) return;
+      try { t.scrollIntoView({ block: 'nearest' }); } catch (err) {}
+    }, 260);
+  });
+})();
 </script>
