@@ -4,7 +4,10 @@
   任何一样单独都够让一整个家被人推开。
 """
 import pathlib
+import sys
 import unittest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from core import gate
 

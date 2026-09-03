@@ -33,7 +33,8 @@ CORE = ["core", "optional", "android", "blocks/base", "blocks/water", "seed", "r
         # ★ 这份不能漏：MIT 那句「版权声明和许可正文要随所有副本一起」，
         #   靠的就是它跟着装出来的每一份走。漏了＝装出来的那份不合规。
         "THIRD_PARTY_NOTICES.md", "docs",
-        "scripts/setup-engawa.py", "upstreams/engawa-mcp.lock.json", "licenses/ENGAWA_MCP.txt",
+        "scripts/setup-engawa.py", "upstreams/engawa-mcp.lock.json",
+        "licenses/ENGAWA_MCP.txt", "licenses/P5-LGPL-2.1.txt",
         "start.command", "start.sh", ".env.example",
         # 云上 / 容器：一键部署那两颗按钮和 compose 都靠这四份
         "Dockerfile", ".dockerignore", "docker-compose.yml", "render.yaml"]

@@ -6,18 +6,21 @@
 from __future__ import annotations
 
 import os
+import secrets
 import threading
 
 _started: dict = {}
 
 
 def start(files_dir: str, port: int = 8420) -> str:
-    """把后端起在 127.0.0.1:port（只听本机，所以不装门、不要口令）。重复调用只返回地址。"""
+    """把后端起在回环；随机票由原生 WebView 放进 HttpOnly Cookie。"""
     if _started.get("url"):
         return _started["url"]
     data = os.path.join(files_dir, "data")
     os.makedirs(data, exist_ok=True)
     os.environ.setdefault("LIANHUAN_DB", os.path.join(data, "lianhuan.db"))
+    token = secrets.token_urlsafe(32)
+    os.environ["LIANHUAN_ANDROID_TOKEN"] = token
 
     import uvicorn
     from core.server import app
@@ -28,5 +31,11 @@ def start(files_dir: str, port: int = 8420) -> str:
     t = threading.Thread(target=srv.run, name="lianhuan-uvicorn", daemon=True)
     t.start()
     _started["url"] = f"http://127.0.0.1:{port}/"
+    _started["token"] = token
     _started["server"] = srv
     return _started["url"]
+
+
+def token() -> str:
+    """只给同进程的 Java 启动代码取；不会进 URL、日志或页面脚本。"""
+    return _started.get("token", "")

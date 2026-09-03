@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir, access } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -61,6 +62,7 @@ test("★ CSP 把 script-src 钉死成自己", async () => {
   assert.ok(m, "没有 CSP");
   const csp = m[1];
   assert.match(csp, /script-src 'self'/, "script-src 要以 'self' 打头");
+  assert.match(csp, /script-src-attr 'none'/, "事件属性必须单独关死");
   assert.ok(!/script-src[^;]*https:/.test(csp), "script-src 里不许放开 https:");
   assert.match(csp, /wasm-unsafe-eval/, "Pyodide 要这个");
   assert.match(csp, /object-src 'none'/);
@@ -73,7 +75,9 @@ test("Pyodide 和 p5 真的随包带了", async () => {
     assert.ok(py.includes(must), "pyodide/ 少了 " + must);
   }
   assert.ok(py.some((f) => f.startsWith("sqlite3-")), "少了 sqlite3");
-  assert.ok(await there(join(dist, "vendor", "p5.min.js")), "少了自带的 p5");
+  const p5 = await readFile(join(dist, "vendor", "p5-1.9.4.min.js"));
+  assert.equal(createHash("sha256").update(p5).digest("hex"),
+    "00a532c56e785c68d7c7bb6f9a084e2c856b71527f22c3260aff4a2f582d80c9");
 });
 
 test("★ 本站文件清单是构建时生成的，不是手写的", async () => {

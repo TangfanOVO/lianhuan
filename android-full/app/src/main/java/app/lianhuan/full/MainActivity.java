@@ -14,6 +14,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.webkit.PermissionRequest;
+import android.webkit.CookieManager;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -54,6 +55,8 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
+        CookieManager.getInstance().setAcceptCookie(true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
 
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -123,11 +126,18 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             try {
                 if (!Python.isStarted()) Python.start(new AndroidPlatform(this));
-                Python.getInstance().getModule("android_boot")
-                      .callAttr("start", getFilesDir().getAbsolutePath(), PORT);
+                com.chaquo.python.PyObject boot = Python.getInstance().getModule("android_boot");
+                boot.callAttr("start", getFilesDir().getAbsolutePath(), PORT);
+                String token = boot.callAttr("token").toString();
                 for (int i = 0; i < 100; i++) {          // 最多等 20 秒
                     if (alive()) {
-                        runOnUiThread(() -> web.loadUrl(BASE + "/"));
+                        runOnUiThread(() -> CookieManager.getInstance().setCookie(
+                            BASE, "lh_android=" + token + "; Path=/; HttpOnly; SameSite=Strict",
+                            ok -> {
+                                CookieManager.getInstance().flush();
+                                if (ok) web.loadUrl(BASE + "/");
+                                else show("本机认证票没放好，完整体没有打开。请截图发给作者。");
+                            }));
                         return;
                     }
                     Thread.sleep(200);
@@ -146,7 +156,7 @@ public class MainActivity extends Activity {
             c.setReadTimeout(300);
             int code = c.getResponseCode();
             c.disconnect();
-            return code == 200;
+            return code == 200 || code == 401; // 401 = 后端已起，只是在等原生层放随机票
         } catch (Exception e) {
             return false;
         }

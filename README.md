@@ -46,7 +46,7 @@
 
 ### 一键托管
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/TangfanOVO/lianhuan) &nbsp; [![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/TangfanOVO/lianhuan&branch=main&name=lianhuan&builder=dockerfile&ports=8420;http;/&env[PORT]=8420)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/TangfanOVO/lianhuan) &nbsp; [![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/TangfanOVO/lianhuan&branch=main&name=lianhuan&builder=dockerfile&ports=8420;http;/&env[PORT]=8420&env[LIANHUAN_PASSWORD]=&env[LIANHUAN_COOKIE_SECURE]=1)
 
 Render 和 Koyeb 是云托管平台：别人的机器替你二十四小时跑着这份后端。按钮做的事是读仓库里的 `Dockerfile`，
 把连环建成一个容器跑起来，给你一个固定的 https 地址。用 GitHub 账号登录就能开，不用买服务器，不用配 nginx。
@@ -61,13 +61,15 @@ Render 和 Koyeb 是云托管平台：别人的机器替你二十四小时跑着
 免费档的样子：十几分钟没人用会休眠，再打开等几十秒；磁盘不持久，重新部署会把 `data/` 重置，想留着就定期在设置里导出。
 要长期住，换付费档，把 `render.yaml` 里 `disks` 那段放开，挂到 `/app/data`。
 登记 MCP、一键装 Engawa 这两件会在机器上起进程，只在本机开放。
+普通后端页的 p5 也固定在仓库里，不在运行时连接 CDN；后端给页面和 API 统一加 CSP、禁止事件属性、拒绝跨站写请求。
 
 ### 浏览器版
 
 同一份 Python 后端跑在页面里（Pyodide），没有服务器，也不用注册任何账号。
 第一次打开要拿十几 MB，之后缓存起来，第二次几秒就开。
 
-**一个第三方 CDN 都不连。** Pyodide 和 p5 都随包自托管，页面上钉了 CSP（`script-src 'self'`）——
+**一个第三方 CDN 都不连。** Pyodide 和 p5 都随包自托管。CSP 只允许本站脚本文件；整页现有的内联脚本仍需
+`'unsafe-inline'`，Pyodide 另需 `'wasm-unsafe-eval'` 和 `blob:`，但 `script-src-attr 'none'` 会单独禁止事件属性 ——
 这个源下面存着你的 key 和整份家（IndexedDB），在同一个源上跑别人服务器发来的脚本，那道边界就没了。
 家在这台设备的浏览器里；换设备用设置里的导出 / 导入搬。
 模型直接从浏览器连：DeepSeek、OpenAI、智谱、硅基流动、OpenRouter、Kimi 都允许浏览器直连（`node scripts/check-provider-cors.mjs` 随时可以复核），key 存在这台设备里。

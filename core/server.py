@@ -21,6 +21,7 @@ import os
 import re
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, RedirectResponse,
@@ -46,34 +47,99 @@ jobs = JobRegistry()
 
 # ── 门（0830 加的，默认整个不生效）────────────────────────────
 # 只听 127.0.0.1 的时候一行都不拦；开了 --lan 才装上（见 core/gate.py 里那张表）。
-# ★ 有一条跟密码无关、任何模式下都成立：**能让这台机器执行命令的接口只认本机**。
+# ★ 会起进程的接口：纯本机可用；开门后默认全关，明确声明直连本机时才开。
 from . import gate as _gate   # noqa: E402
+
+_CSP = "; ".join((
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "script-src-attr 'none'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: http: https:",
+    "media-src 'self' data: blob: http: https:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "worker-src 'self' blob:",
+    "frame-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+))
+_SECURITY_HEADERS = {
+    "Content-Security-Policy": _CSP,
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Permissions-Policy": "camera=(), geolocation=(), microphone=(self)",
+}
+
+
+def _secured(response: Response) -> Response:
+    for key, value in _SECURITY_HEADERS.items():
+        response.headers[key] = value
+    return response
+
+
+def _same_origin(request: Request) -> bool:
+    """浏览器的写请求只收同源；Host 由真实目标决定，反代也通常原样保留。"""
+    origin = request.headers.get("origin")
+    if not origin:
+        return request.headers.get("sec-fetch-site", "").lower() != "cross-site"
+    try:
+        return origin != "null" and urlsplit(origin).netloc.lower() == request.headers.get("host", "").lower()
+    except ValueError:
+        return False
+
+
+def _secure_cookie(request: Request) -> bool:
+    value = os.environ.get("LIANHUAN_COOKIE_SECURE", "").strip().lower()
+    if value in {"1", "true", "yes"}:
+        return True
+    if value in {"0", "false", "no"}:
+        return False
+    return request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip() == "https"
 
 
 @app.middleware("http")
 async def _gate_mw(request: Request, call_next):
-    here = _gate.local_addr(request.client.host if request.client else "")
+    peer = request.client.host if request.client else ""
+    addr = _gate.client_addr(peer, request.headers.get("x-forwarded-for", ""))
+    here = _gate.local_addr(addr)
     path = request.url.path
 
-    # ① 命令执行类：认证过也不给外面用。密码会泄，起进程不给第二次机会。
-    if _gate.command_path(path) and not here:
-        return JSONResponse({"error": "这条只能在这台机器上用 —— 它会在你电脑上起一个进程。"},
-                            status_code=403)
+    # 浏览器跨站写入和 text/plain JSON 都拒绝。后者本来能绕过 CORS 预检。
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        if not _same_origin(request):
+            return _secured(JSONResponse({"error": "只收来自连环自己页面的写请求"}, status_code=403))
+        if request.headers.get("content-type", "").lower().startswith("text/plain"):
+            return _secured(JSONResponse({"error": "JSON 请求要用 application/json"}, status_code=415))
 
-    # ② 没开 --lan（或本来就是本机自己）→ 照旧，一点摩擦都不加
-    if not _gate.on() or here:
-        return await call_next(request)
+    # 安卓完整体虽只听回环，回环不是应用沙箱；每次启动的随机票要护住页面和全部 API。
+    if os.environ.get("LIANHUAN_ANDROID_TOKEN"):
+        if not _gate.check_android_cookie(request.cookies.get(_gate.ANDROID_COOKIE) or ""):
+            return _secured(JSONResponse({"error": "这份本机服务只给当前完整体使用"}, status_code=401))
+        return _secured(await call_next(request))
+
+    # ① 命令执行类：认证过也不给外面用。密码会泄，起进程不给第二次机会。
+    if _gate.command_path(path) and (not here or (_gate.on() and not _gate.allow_local_commands())):
+        return _secured(JSONResponse({"error": "这条只能在明确允许的本机页面使用 —— 它会起一个进程。"},
+                                     status_code=403))
+
+    # ② 没开 --lan → 照旧；开了之后连 127.0.0.1 也必须报门（它可能是反代）。
+    if not _gate.on():
+        return _secured(await call_next(request))
 
     # ③ 开到网络上了：先报门
     if _gate.check_cookie(request.cookies.get(_gate.COOKIE) or ""):
-        return await call_next(request)
+        return _secured(await call_next(request))
     if path == "/api/login":
-        return await call_next(request)
+        return _secured(await call_next(request))
     if path == "/login":
-        return HTMLResponse(_gate.LOGIN_HTML)
+        return _secured(HTMLResponse(_gate.LOGIN_HTML))
     if path.startswith("/api/") or path in ("/chat", "/chat/attach"):
-        return JSONResponse({"error": "要先登录"}, status_code=401)
-    return RedirectResponse("/login")
+        return _secured(JSONResponse({"error": "要先登录"}, status_code=401))
+    return _secured(RedirectResponse("/login"))
 
 
 @app.post("/api/login")
@@ -81,9 +147,9 @@ async def api_login(req: Request):
     """报门。只有 --lan 起来的时候才有意义；没开的时候直接说不需要。"""
     if not _gate.on():
         return {"ok": True, "note": "这台机器只听本机，不需要口令"}
-    #: ★ 限流按 socket 对端地址算，不看任何请求头 —— X-Forwarded-For 是客户端能随便写的，
-    #:   拿它当身份等于给攻击者一个「换个头就重新数」的开关。
-    addr = req.client.host if req.client else ""
+    #: ★ 默认按 socket 对端算；只有显式可信反代能提供 X-Forwarded-For。
+    peer = req.client.host if req.client else ""
+    addr = _gate.client_addr(peer, req.headers.get("x-forwarded-for", ""))
     wait = _gate.locked(addr)
     if wait:
         return JSONResponse({"ok": False, "locked": wait,
@@ -99,7 +165,8 @@ async def api_login(req: Request):
     _gate.note_ok(addr)
     r = JSONResponse({"ok": True})
     # httponly：页面上的脚本读不到它（万一哪天有个 XSS，至少偷不走这一张票）
-    r.set_cookie(_gate.COOKIE, tok, max_age=_gate.MAXAGE, httponly=True, samesite="lax")
+    r.set_cookie(_gate.COOKIE, tok, max_age=_gate.MAXAGE, httponly=True,
+                 samesite="lax", secure=_secure_cookie(req))
     return r
 
 
@@ -1260,7 +1327,7 @@ def main() -> None:
             raise SystemExit(2)
         print("\n  开了 --lan：同一个网络里的设备都能连，进门要口令。")
         print("     口令存的是加盐哈希，明文不落盘；30 天不用重报。")
-        print("     ★ 登记 MCP（会在你电脑上起进程）那两条**只认本机**，报了口令也不行。")
+        print("     ★ 会起进程的 MCP / 安装接口默认全关；直连本机要显式允许。")
         print("     公共 wifi、宿舍、办公室——还是别开。\n")
     print(f"  连环 · 开源版   http://127.0.0.1:{a.port}\n")
     uvicorn.run(app, host=host, port=a.port, log_level="warning")

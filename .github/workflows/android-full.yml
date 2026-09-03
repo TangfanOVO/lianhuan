@@ -10,7 +10,7 @@ name: android-full
 on:
   push:
     branches: [main]
-    paths: ['android-full/**', 'core/**', 'optional/**', 'seed/**', '.github/workflows/android-full.yml']
+    paths: ['android-full/**', 'core/**', 'optional/**', 'seed/**', 'blocks/**', '.github/workflows/android-full.yml']
   workflow_dispatch:
 permissions: { contents: write }
 jobs:
@@ -29,7 +29,9 @@ jobs:
 
       - name: 隐私闸
         uses: ./.github/actions/privacy-gate
-        with: { markers: '${{ secrets.LIANHUAN_PRIVATE_MARKERS }}' }
+        with:
+          markers: '${{ secrets.LIANHUAN_PRIVATE_MARKERS }}'
+          require-markers: 'true'
       - name: 有没有配签名钥匙
         id: ks
         env: { KS: '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' }
@@ -86,15 +88,13 @@ jobs:
                  | grep -i 'SHA-256 digest' | head -1 | awk '{print $NF}')"
           echo "这次的指纹：$got"
           f=android-full/SIGNING_FINGERPRINT.txt
-          if [ -f "$f" ]; then
-            want="$(grep -v '^#' "$f" | tr -d '[:space:]')"
-            test "$got" = "$want" || {
-              echo "::error::签名指纹变了！装了旧版的人将无法覆盖升级，卸载重装会丢掉整份家。"
-              echo "期望 $want"; echo "实得 $got"; exit 1; }
-            echo "跟 $f 对上了 ✓"
-          else
-            echo "::warning::还没有 $f。把上面这行指纹写进去，以后签名一变就会当场报错。"
-          fi
+          test -f "$f" || { echo "::error::缺 $f；正式签名包不能发布。先从同一把 keystore 算出 SHA-256 并提交。"; exit 1; }
+          want="$(grep -v '^#' "$f" | tr -d '[:space:]')"
+          test -n "$want" || { echo "::error::$f 是空的"; exit 1; }
+          test "$got" = "$want" || {
+            echo "::error::签名指纹变了！装了旧版的人将无法覆盖升级，卸载重装会丢掉整份家。"
+            echo "期望 $want"; echo "实得 $got"; exit 1; }
+          echo "跟 $f 对上了 ✓"
 
       - uses: actions/upload-artifact@v4
         with: { name: lianhuan-full-apk, path: 'lianhuan-full-*.apk', retention-days: 30 }
@@ -104,6 +104,8 @@ jobs:
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
           set -e
+          git tag -f apk-full "$GITHUB_SHA"
+          git push origin refs/tags/apk-full --force
           if [ "${{ steps.ks.outputs.signed }}" = "yes" ]; then
             title="安卓完整体 APK（正式签名，可覆盖升级）"
             notes="后端和前端都在包里，家在应用自己的沙箱。正式签名，能直接覆盖安装升级，数据留着。

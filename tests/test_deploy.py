@@ -28,6 +28,12 @@ class TestDeployFiles(unittest.TestCase):
         r = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("render.com/deploy?repo=https://github.com/TangfanOVO/lianhuan", r)
         self.assertIn("app.koyeb.com/deploy?type=git&repository=github.com/TangfanOVO/lianhuan", r)
+        self.assertIn("env[LIANHUAN_PASSWORD]=", r, "Koyeb 按钮要把必填口令带到部署表单")
+        self.assertIn("env[LIANHUAN_COOKIE_SECURE]=1", r)
+
+    def test_cloud_cookie_is_secure(self):
+        y = (ROOT / "render.yaml").read_text(encoding="utf-8")
+        self.assertRegex(y, r"key:\s*LIANHUAN_COOKIE_SECURE\s*\n\s*value:\s*[\"']?1")
 
     def test_clean_copy_brings_the_deploy_files(self):
         c = (ROOT / "create.py").read_text(encoding="utf-8")

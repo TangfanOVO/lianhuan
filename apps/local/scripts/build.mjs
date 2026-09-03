@@ -6,6 +6,7 @@
    ★ 需要网络：轮子从 PyPI 下（缓存在 .wheels/）。需要 zip 命令（macOS / Linux 自带）。 */
 import { access, cp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,8 +18,8 @@ const dist = join(here, "dist");
 const there = async (p) => { try { await access(p); return true; } catch { return false; } };
 const keep = (p) => { const n = basename(p); return n !== ".DS_Store" && !/\.bak/.test(n); };
 
-/* p5.js：开屏那片水要它。钉死版本，随包带走，不从 cdnjs 拿。 */
-const P5 = { ver: "1.9.4", url: "https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js" };
+/* p5.js：版本、文件和摘要一起钉死。源码仓库与浏览器产物共用这一份。 */
+const P5 = { file: "p5-1.9.4.min.js", sha256: "00a532c56e785c68d7c7bb6f9a084e2c856b71527f22c3260aff4a2f582d80c9" };
 
 /* 钉死的四个纯 Python 轮子（pydantic 1.x：pydantic-core 没有 wasm 轮子；后端全套测试在 1.x 下照过） */
 const WHEELS = [["fastapi", "0.115.14"], ["starlette", "0.46.2"], ["pydantic", "1.10.26"], ["python-multipart", "0.0.32"]];
@@ -83,7 +84,6 @@ swap("manifest 链接", 'href="/manifest.json"', 'href="manifest.json"', 1);
 swap("图标路径", 'href="/icons/', 'href="icons/', 2);
 swap("出图脚本路径", "sc.src = '/html2canvas.min.js';", "sc.src = 'html2canvas.min.js';", 1);
 swap("开屏水面脚本路径", "load('/blocks/water/maple-water.js?v='", "load('blocks/water/maple-water.js?v='", 1);
-swap("p5 换成自己带的", P5.url, "vendor/p5.min.js", 1);
 
 /* ★ CSP：把「这个源上只跑自己的脚本」写死。
    这个源下面存着模型 key 和整份家，第三方脚本一旦能在这儿执行，那道边界就没了。
@@ -93,6 +93,7 @@ swap("p5 换成自己带的", P5.url, "vendor/p5.min.js", 1);
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:",
+  "script-src-attr 'none'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
@@ -139,16 +140,13 @@ await mkdir(join(dist, "pyodide"), { recursive: true });
   console.log(`  Pyodide 自托管：${n} 个文件`);
 }
 
-/* ── p5 自托管 ── */
+/* ── p5 自托管：不下载；仓库内固定文件的摘要不对就拒绝出产物 ── */
 await mkdir(join(dist, "vendor"), { recursive: true });
 {
-  const cacheP5 = join(cache, `p5-${P5.ver}.min.js`);
-  if (!(await there(cacheP5))) {
-    const r = await fetch(P5.url);
-    if (!r.ok) throw new Error("拿不到 p5：" + r.status);
-    await writeFile(cacheP5, Buffer.from(await r.arrayBuffer()));
-  }
-  await cp(cacheP5, join(dist, "vendor", "p5.min.js"));
+  const sourceP5 = join(src, "vendor", P5.file);
+  const digest = createHash("sha256").update(await readFile(sourceP5)).digest("hex");
+  if (digest !== P5.sha256) throw new Error(`p5 SHA-256 不对：${digest}`);
+  await cp(sourceP5, join(dist, "vendor", P5.file));
 }
 
 /* ── sw.js：把静态清单和版本号写进去 ── */

@@ -66,6 +66,13 @@ PORTABLE_TABLES = (
     "book_chat", "latent", "memory_hits", "reminders", "speak_log",
 )
 
+# 设置也属于这份家，但仍用白名单：密钥、设备订阅和本机路径将来即使进了 settings 也不会外带。
+PORTABLE_SETTINGS = (
+    "engine", "store", "pet", "blocks", "config", "prefs", "theme", "where",
+    "ai_now", "now_playing", "miss", "whisper_freq", "fish_freq", "emote_level",
+    "distill", "think", "persona_extra",
+)
+
 
 class SqliteStore(Store):
     def __init__(self, path: str | Path = "data/lianhuan.db"):
@@ -268,7 +275,7 @@ class SqliteStore(Store):
     def export_all(self) -> dict:
         """导出能跨设备复原的全部账本；不带密钥、推送订阅和本机缓存。"""
         out = super().export_all()
-        out["lianhuan"] = 2
+        out["lianhuan"] = 3
         house = {}
         known = {r["name"] for r in self.db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
@@ -276,6 +283,10 @@ class SqliteStore(Store):
             if table in known:
                 house[table] = [dict(r) for r in self.db.execute(f'SELECT * FROM "{table}"')]
         out["house"] = house
+        rows = self.db.execute(
+            f'SELECT k,v FROM settings WHERE k IN ({",".join("?" for _ in PORTABLE_SETTINGS)})',
+            PORTABLE_SETTINGS).fetchall()
+        out["settings"] = {r["k"]: json.loads(r["v"]) for r in rows}
         out["not_included"] = ["provider_keys", "push_subscriptions", "uploaded_files"]
         return out
 
@@ -294,8 +305,12 @@ class SqliteStore(Store):
         mems = data.get("memories") or []
         turns = data.get("turns") or []
         house = data.get("house") or {}
+        settings = data.get("settings") or {}
         if not isinstance(house, dict):
             raise ValueError("house 要是一个对象")
+        if not isinstance(settings, dict):
+            raise ValueError("settings 要是一个对象")
+        settings = {k: v for k, v in settings.items() if k in PORTABLE_SETTINGS}
         unknown = sorted(set(house) - set(PORTABLE_TABLES))
         if unknown:
             raise ValueError("house 里有不认识的表：" + "、".join(unknown[:5]))
@@ -315,10 +330,10 @@ class SqliteStore(Store):
         # ── 单事务：中途任何异常整体回滚。★ 用写锁串起来，并发导入不再互相撞 BEGIN ──
         n_m = n_t = skip = 0
         with self._wlock:
-            return self._do_import(mode, mems, turns, house, data, have_m, have_t)
+            return self._do_import(mode, mems, turns, house, settings, data, have_m, have_t)
 
-    def _do_import(self, mode, mems, turns, house, data, have_m, have_t) -> dict:
-        n_m = n_t = skip = n_house = 0
+    def _do_import(self, mode, mems, turns, house, settings, data, have_m, have_t) -> dict:
+        n_m = n_t = skip = n_house = n_settings = 0
         self.db.execute("BEGIN")
         try:
             if mode == "replace":
@@ -327,6 +342,9 @@ class SqliteStore(Store):
                 for table in reversed(PORTABLE_TABLES):
                     if table in house:
                         self.db.execute(f'DELETE FROM "{table}"')
+                self.db.execute(
+                    f'DELETE FROM settings WHERE k IN ({",".join("?" for _ in PORTABLE_SETTINGS)})',
+                    PORTABLE_SETTINGS)
                 have_m = set()
                 have_t = set()
             for m in mems:
@@ -382,6 +400,12 @@ class SqliteStore(Store):
                     else:
                         skip += 1
             # ★ 这儿不能用 self.set_setting —— 它内部 commit，会把事务提前落定
+            for key, value in settings.items():
+                self.db.execute(
+                    "INSERT INTO settings(k,v) VALUES(?,?) "
+                    "ON CONFLICT(k) DO UPDATE SET v=excluded.v",
+                    (key, json.dumps(value, ensure_ascii=False)))
+                n_settings += 1
             if mode == "replace" or data.get("persona"):
                 self.db.execute(
                     "INSERT INTO settings(k,v) VALUES(?,?) "
@@ -393,6 +417,6 @@ class SqliteStore(Store):
         except Exception:
             self.db.rollback()
             raise
-        return {"memories": n_m, "turns": n_t, "house": n_house,
+        return {"memories": n_m, "turns": n_t, "house": n_house, "settings": n_settings,
                 "skipped": skip, "mode": mode,
                 "generation": self.generation}

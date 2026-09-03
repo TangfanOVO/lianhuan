@@ -54,9 +54,14 @@ base64 -i lianhuan.jks | pbcopy        # Linux: base64 -w0 lianhuan.jks
 ★ **那个 `.jks` 文件自己收好，别提交进仓库，也别弄丢。** 丢了就再也签不出「同一个 app」，
 所有装着旧版的人都得卸载重装 —— 也就都会丢一次数据。
 
-配好之后推一次，流水线会打出正式签名包，并把签名指纹打印在日志里。
-把那一行指纹写进 `android-full/SIGNING_FINGERPRINT.txt`，以后签名要是变了，CI 当场报错，
-不会等到用户装不上才发现。
+**先别配 Secret。** 先在本机从这同一把 keystore 算出指纹：
+
+```bash
+keytool -list -v -keystore lianhuan.jks -alias lianhuan | grep 'SHA256:'
+```
+
+把冒号后的值去掉冒号和空格，写进 `android-full/SIGNING_FINGERPRINT.txt` 并提交；再配上面四条 Secret。
+流水线在指纹文件缺失、为空或不匹配时都会直接失败，不会发布一个无法延续升级链的正式包。
 
 ## 跟隔壁那个壳的区别
 
@@ -72,7 +77,7 @@ gradle assembleDebug
 ```
 
 要 Android SDK（platform 36）、JDK 17～21，和一个 **3.12** 的 python3（Chaquopy 要求构建机的 Python 跟包里的同一个小版本）。
-构建前 `syncPython` 会从仓库根把 `core/ optional/ seed/` 同步进 `build/python-src`，后端不在这里复制第二份。
+构建前 `syncPython` 会从仓库根把 `core/ optional/ seed/ blocks/` 同步进 `build/python-src`，后端不在这里复制第二份。
 
 版本号从环境变量来：`LH_VERSION_CODE`（CI 用 run_number）、`LH_VERSION_NAME`；本机不传就是 1 / 0.1。
 

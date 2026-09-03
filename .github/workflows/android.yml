@@ -18,7 +18,9 @@ jobs:
         with: { distribution: temurin, java-version: '21' }   # 17~21；更新的 JDK 在 JdkImageTransform 上会炸
       - name: 隐私闸
         uses: ./.github/actions/privacy-gate
-        with: { markers: '${{ secrets.LIANHUAN_PRIVATE_MARKERS }}' }
+        with:
+          markers: '${{ secrets.LIANHUAN_PRIVATE_MARKERS }}'
+          require-markers: 'true'
       - name: 打包
         working-directory: android
         run: gradle assembleDebug --no-daemon --console=plain    # runner 自带 Gradle 和 Android SDK，仓库里没放 wrapper
@@ -30,6 +32,9 @@ jobs:
         if: github.event_name != 'pull_request'
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
+          set -e
+          git tag -f apk "$GITHUB_SHA"
+          git push origin refs/tags/apk --force
           gh release view apk >/dev/null 2>&1 || gh release create apk --title "安卓壳 APK（滚动）" --notes "自动打的 debug 签名包。装法见 android/README.md。" --latest=false
           # 滚动标签：只留最新那一个，别让人下到半年前的包
           new="$(ls lianhuan-shell-*.apk | head -1)"

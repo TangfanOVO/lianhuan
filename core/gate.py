@@ -14,7 +14,7 @@
 
 ## 另一条跟密码无关的硬线
 
-**能让这台机器执行命令的接口，只认本机 —— 认证过了也不行。**
+**能让这台机器执行命令的接口默认只在纯本机模式开放。**
 登记一条 MCP server ＝ 在你电脑上起一个进程。那种事不该由「网络上知道密码的人」决定：
 密码会泄、会被猜、会被同一个 wifi 上的人肩窥，而命令执行不给第二次机会。
 本机的人本来就能开终端，对他们这条不是限制。
@@ -29,6 +29,7 @@ import secrets as _rand
 
 #: cookie 的名字和寿命（30 天，跟「手机上别老让我重登」这件事折中）
 COOKIE = "lh_auth"
+ANDROID_COOKIE = "lh_android"
 MAXAGE = 30 * 86400
 
 #: 只认本机的路径。**认证也不放行**，理由见模块头
@@ -126,11 +127,30 @@ def note_ok(addr: str) -> None:
 def local_addr(host: str) -> bool:
     """这次请求是不是从本机来的。
 
-    ⚠ 只信 socket 上的对端地址，**不看任何请求头** —— X-Forwarded-For 那类
-      是客户端能随便写的，拿它判本机等于没判。
-      （代价：真放在反向代理后面时，所有请求都算「不是本机」，那反而是安全的一边。）
+    默认只信 socket 上的对端地址。只有 `client_addr()` 认出的显式可信反代，
+    才能把 X-Forwarded-For 送进这里。
     """
     return (host or "") in {"127.0.0.1", "::1", "localhost", ""}
+
+
+def client_addr(peer: str, forwarded_for: str = "") -> str:
+    """只在显式列出的反代后面采用 X-Forwarded-For；默认永远只信 socket。"""
+    trusted = {x.strip() for x in os.environ.get("LIANHUAN_TRUSTED_PROXIES", "").split(",") if x.strip()}
+    if (peer or "") in trusted and forwarded_for:
+        # 只取可信反代自己追加的最右一段；客户端可伪造的左侧 XFF 不能用来刷新限流。
+        return forwarded_for.rsplit(",", 1)[-1].strip()
+    return peer or ""
+
+
+def allow_local_commands() -> bool:
+    """开了网络门时，回环也可能是反代；必须显式允许它执行本机命令。"""
+    return os.environ.get("LIANHUAN_ALLOW_LOCAL_COMMANDS", "").strip().lower() in {"1", "true", "yes"}
+
+
+def check_android_cookie(value: str) -> bool:
+    """完整体每次启动换一张票；没有票的本机进程也进不来。"""
+    token = os.environ.get("LIANHUAN_ANDROID_TOKEN", "")
+    return bool(token and value) and hmac.compare_digest(value, token)
 
 
 def salt() -> str:

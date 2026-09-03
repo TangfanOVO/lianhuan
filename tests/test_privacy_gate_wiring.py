@@ -12,6 +12,7 @@ ACTION = ROOT / ".github" / "actions" / "privacy-gate" / "action.yml"
 
 #: 会把东西送出门的流水线。新增一条就往这儿加一行 —— 加不加得上是这条测试逼出来的。
 PUBLISHING = ["pages.yml", "android.yml", "android-full.yml", "docker.yml", "ci.yml"]
+RELEASING = ["pages.yml", "android.yml", "android-full.yml"]
 
 
 @unittest.skipUnless(WF.exists(), "create.py 的产物不带 .github/，这条只在源码仓库里跑")
@@ -21,6 +22,13 @@ class TestPrivacyGateWiring(unittest.TestCase):
         a = ACTION.read_text(encoding="utf-8")
         self.assertIn("LIANHUAN_PRIVATE_MARKERS", a)
         self.assertIn("PUBLIC_RELEASE=1", a, "配了词表就得走发布模式")
+        self.assertIn('REQUIRE_MARKERS', a)
+        self.assertIn("exit 1", a)
+
+    def test_public_release_workflows_require_the_private_markers(self):
+        for name in RELEASING:
+            y = (WF / name).read_text(encoding="utf-8")
+            self.assertIn("require-markers: 'true'", y, name + " 缺词表时仍会公开产物")
 
     def test_every_publishing_workflow_goes_through_the_gate(self):
         for name in PUBLISHING:
@@ -40,6 +48,11 @@ class TestPrivacyGateWiring(unittest.TestCase):
         """真正会发出去的是 create.py 的产物，那一份也得扫。"""
         y = (WF / "ci.yml").read_text(encoding="utf-8")
         self.assertIn("root: ${{ env.CLEAN_COPY }}", y)
+
+    def test_ci_discovers_every_python_test(self):
+        y = (WF / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn("python -m unittest discover -s tests", y)
+        self.assertNotIn("for f in tests/test_call.py", y)
 
 
 if __name__ == "__main__":

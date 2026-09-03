@@ -5342,7 +5342,7 @@ const PREF = (function(){
      0831 外部验收（GPT）抓的 P0：断网时「4 处」看着像真的。README 的承诺是
      「绝不拿假数据冒充能用」，所以：失败就说失败，一条编的都不许有。 */
   var qFilter = '全部';
-  function esc(s){ return s.replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  function esc(s){ return s.replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
   /* ★ 接真的：GET /api/search?q= → items[{kind, content, t, think, starred}]。
      kind 是后端原样返回的字面值：聊天·你 / 聊天·他 / 日记·我 / 日记·他 / 信 / 校准 / 核心 / 长期 / 短期。
@@ -5424,8 +5424,8 @@ const PREF = (function(){
     let items = [];
     /* ★ 别写成 `const esc = W.esc` —— 这一段在文件里比 W 早，取值那一刻 W 还在暂时性死区，
        整个 IIFE 会当场抛（跟 `_home` 那次同一类坑）。自己带一个就好。 */
-    const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g,
-      c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g,
+      c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     function draw(){
       const n = document.getElementById('memeN');
       if (n) n.textContent = items.length;
@@ -5541,7 +5541,7 @@ const PREF = (function(){
        写死那版按 0–1 归一化，接真数据时照抄会把每根条都拉满）。 */
   (function(){
     const $m = id => document.getElementById(id);
-    const esc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     let loaded = false, WHY = [];
 
     function drawDims(el, rows, max, fmt){
@@ -7915,7 +7915,7 @@ window.paintSilk = paintSilk; window.paintPaper = paintPaper; window.homeCells =
 (function(){
   const box = document.getElementById('todaynote'), list = document.getElementById('todaylist');
   if (!box || !list) return;
-  const esc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const KD = {class:'课', ical:'行程', reminder:'提醒', anniv:'纪念日'};
   const row = (a, b) => '<div class="lw"><span class="when">' + esc(a) + '</span><span class="said">' + esc(b) + '</span></div>';
 
@@ -8030,7 +8030,7 @@ window.__dropDataCache = function(){
         chips = document.getElementById('diarychips'),
         hint  = document.getElementById('diaryhint');
   if (!list) return;
-  const esc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const LANES = ['全部', '夜里', '一个人', '跟你之后', '一起'];
   /* ★ 0805 当场纠正的：这几句原来写的是「他睡着的时候」「他在干嘛」。
      0805 定的口径：这一页的字是这个角色在自述，不是旁人在介绍他，
@@ -8177,7 +8177,12 @@ window.__dropDataCache = function(){
    碎碎念页和时间线页跟日记本长得一样：按天倒序、一天一组、卡片错峰浮起。
    抽出来共用，别抄三遍。（日记本那份是先写的、已经测过，就不回去动它了。） */
 const W = (function(){
-  const esc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const url = t => { const s = String(t == null ? '' : t).trim(); try {
+    return s && /^(https?:)$/.test(new URL(s, 'http://localhost/').protocol) ? s : '';
+  } catch(e) { return ''; } };
+  const imgUrl = t => { const s = String(t == null ? '' : t).trim();
+    return /^data:image\/(?:png|jpe?g|gif|webp);base64,/i.test(s) ? s : url(s); };
   const WK = ['日', '一', '二', '三', '四', '五', '六'];
   function today(){
     const d = new Date();          /* 本地日期，不能用 toISOString —— 那是 UTC，凌晨会差一天 */
@@ -8268,7 +8273,7 @@ const W = (function(){
              .then(function(){ loading = false; });
     }, true);
   }
-  return {esc, today, fmtDay, draw, chips, door, foldable,
+  return {esc, url, imgUrl, today, fmtDay, draw, chips, door, foldable,
           dirtyAll: function(){
             doorDirty.forEach(function(f){ f(); });
             if (typeof window.__dropDataCache === 'function') window.__dropDataCache();
@@ -8478,10 +8483,10 @@ const W = (function(){
         t    : String(x.t || '').slice(6),
         name : mine ? '他' : (x.author || '你'),
         text : x.content || '',
-        extra: (x.image ? '<div class="pic"><img src="' + W.esc(x.image) + '" alt="" loading="lazy"></div>' : '')
+        extra: (x.image ? '<div class="pic"><img src="' + W.esc(W.imgUrl(x.image)) + '" alt="" loading="lazy"></div>' : '')
              + (cm ? '<div class="cmts">' + cm + '</div>' : '')
              /* 每条底下留一个「回一句」——0805 报的不能回复，就是这儿没入口 */
-             + (x.id ? '<div class="rep"><button data-reply="' + x.id + '">回一句</button></div>' : ''),
+             + (x.id ? '<div class="rep"><button data-reply="' + W.esc(x.id) + '">回一句</button></div>' : ''),
         cls  : mine ? 'both' : '',
         mine : mine, hasCmt: cs.length > 0,
       };
@@ -8593,7 +8598,7 @@ const W = (function(){
     const mid = b.getAttribute('data-reply'), row = b.parentElement;
     /* 第一下把输入框摊出来，光标就落进去 */
     row.innerHTML = '<input type="text" maxlength="300" placeholder="回一句…">'
-                  + '<button data-send="' + mid + '">回</button>';
+                  + '<button data-send="' + W.esc(mid) + '">回</button>';
     const inp = row.querySelector('input');
     inp.focus();
     inp.addEventListener('keydown', function(ev){
@@ -9449,15 +9454,15 @@ async function loadMem(){
     return (getComputedStyle(document.documentElement).getPropertyValue(k) || '').trim();
   }
   function esc(t){
-    return String(t == null ? '' : t).replace(/[&<>]/g, function(c){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; });
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
   }
 
   function head(m){
     return '<div class="gk">' + esc(LAB[m.layer] || m.layer) + ' · ' + esc(m.day || '') + '</div>'
       + '<div class="gt">' + esc(full[m.id] || m.text + (m.len > m.text.length ? '…' : '')) + '</div>'
       + ((m.len > m.text.length && !full[m.id])
-          ? '<button class="gmore" data-id="' + m.id + '">读全文 ›</button>' : '');
+          ? '<button class="gmore" data-id="' + esc(m.id) + '">读全文 ›</button>' : '');
   }
 
   /* 相关那一栏。★ 这里给的是**语义**邻居（后端按 embedding 现算），不是几何上的近邻 ——
@@ -9887,9 +9892,9 @@ async function loadMem(){
           + W.esc(String(x.dup_content || '').slice(0, 60)) + '</div>' : '';
       const acts = gone ? ''
         : '<div class="dacts">'
-          + '<button class="keep" data-act="' + (kept ? 'unkeep' : 'keep') + '" data-id="' + x.id + '">'
+          + '<button class="keep" data-act="' + (kept ? 'unkeep' : 'keep') + '" data-id="' + W.esc(x.id) + '">'
           + (kept ? '撤回' : '收下') + '</button>'
-          + (kept ? '' : '<button data-act="drop" data-id="' + x.id + '">不要</button>')
+          + (kept ? '' : '<button data-act="drop" data-id="' + W.esc(x.id) + '">不要</button>')
           + '</div>';
       return {
         day : day(x.ts), t: hhmm(x.ts),
@@ -9970,8 +9975,8 @@ async function loadMem(){
       + '<div class="tx">' + W.esc(x.rationale || '') + '</div>'
       + (x.proposed_rule ? '<div class="rule">' + W.esc(x.proposed_rule) + '</div>' : '')
       + '<div class="dacts">'
-      + '<button class="keep" data-act="approve" data-id="' + x.id + '">就这么定</button>'
-      + '<button class="no" data-act="reject" data-id="' + x.id + '">不用</button></div>'
+      + '<button class="keep" data-act="approve" data-id="' + W.esc(x.id) + '">就这么定</button>'
+      + '<button class="no" data-act="reject" data-id="' + W.esc(x.id) + '">不用</button></div>'
       + '</div>').join('');
   }
   list.addEventListener('click', async function(e){
@@ -10013,8 +10018,8 @@ async function loadMem(){
       + '<div class="ih"><b>' + W.esc(x.tool || '要动手') + '</b>' + W.esc(x.t || '') + '</div>'
       + '<div class="tx">' + W.esc(body(x)) + '</div>'
       + '<div class="dacts">'
-      + '<button class="keep" data-allow="1" data-id="' + x.id + '">去吧</button>'
-      + '<button class="no" data-allow="0" data-id="' + x.id + '">先别</button></div>'
+      + '<button class="keep" data-allow="1" data-id="' + W.esc(x.id) + '">去吧</button>'
+      + '<button class="no" data-allow="0" data-id="' + W.esc(x.id) + '">先别</button></div>'
       + '</div>').join('');
     if (hist.length){
       h += '<p class="dhint" style="margin:16px 2px 8px">之前批过的</p>'
@@ -10173,7 +10178,7 @@ async function loadMem(){
           : '')
       + '<div class="ctx">' + W.esc([STNAME[x.status] || '', x.created_by].filter(Boolean).join(' · ')) + '</div>'
       + ((x.kind === 'todo' || x.kind === 'idea')
-          ? '<button class="wbmark" data-wb="' + x.id + '" data-to="' + (done ? 'inbox' : 'done') + '">'
+          ? '<button class="wbmark" data-wb="' + W.esc(x.id) + '" data-to="' + (done ? 'inbox' : 'done') + '">'
             + (done ? '挪回没做完' : '收工') + '</button>' : '')
       + '</div>';
   }
@@ -10414,7 +10419,7 @@ async function loadMem(){
         + '扫完这儿的灯自己会变绿（十秒看一次）。</p>';
       const url = nc.qrcodeurl || '';
       if (url){
-        h += '<a href="' + W.esc(url) + '" target="_blank" rel="noopener" '
+        h += '<a href="' + W.esc(W.url(url)) + '" target="_blank" rel="noopener" '
           + 'style="display:block;text-align:center;font-size:13px;color:var(--maple);'
           + 'padding:9px 0;text-decoration:none">在这台手机上直接打开 QQ 登 ›</a>';
       }
@@ -10687,7 +10692,7 @@ async function loadMem(){
       const body2 = String(x.body || '').replace(TAG_REF, '').replace(/^\s*\n/, '').trim();
       return '<div class="card" style="margin-bottom:10px">'
         + '<h3 style="margin-bottom:6px">' + W.esc(x.title || '') + '</h3>'
-        + (u ? '<a href="' + W.esc(u) + '" target="_blank" rel="noopener" '
+        + (u ? '<a href="' + W.esc(W.url(u)) + '" target="_blank" rel="noopener" '
              + 'style="display:block;font-size:12px;color:var(--maple);margin-bottom:6px;word-break:break-all">'
              + W.esc(host(u)) + ' ›</a>' : '')
         + (body2 ? '<p style="font-size:13px;line-height:1.75;color:var(--sub);white-space:pre-wrap;margin:0">'
@@ -10727,13 +10732,13 @@ async function loadMem(){
          —— 接口（POST /api/books/{id}/current）早就在，就是没入口。
          套一层 .bookrow，右上角摆一颗：在读的那本显示「在读」（不可点），别的显示「换成这本」。 */
       return '<div class="bookrow">'
-        + '<button class="bookcard' + (isCur ? ' cur' : '') + '" data-bid="' + b.id + '">'
+        + '<button class="bookcard' + (isCur ? ' cur' : '') + '" data-bid="' + W.esc(b.id) + '">'
         + '<b>' + W.esc(cut(b.title, 24)) + '</b>'
         + '<span class="au">' + W.esc(cut(b.author, 26)) + '</span>'
         + '<span class="pg"><span class="bar"><i style="width:' + pct + '%"></i></span>'
         + '你 ' + me + ' · 他 ' + ai + ' · 共 ' + tot + ' 章</span></button>'
         + (isCur ? '<span class="bkcur on">在读</span>'
-                 : '<button class="bkcur" data-cur="' + b.id + '">换成这本</button>')
+                 : '<button class="bkcur" data-cur="' + W.esc(b.id) + '">换成这本</button>')
         + '</div>';
     }).join('');
   }
@@ -10762,7 +10767,7 @@ async function loadMem(){
     const bk = books.filter(x => String(x.id) === String(bid))[0] || {};
     const me = +bk.me_idx || 0, ai = +bk.ai_idx || 0;
     chaps.innerHTML = items.length ? items.map(c =>
-      '<button class="chap" data-bid="' + bid + '" data-idx="' + c.idx + '">'
+      '<button class="chap" data-bid="' + W.esc(bid) + '" data-idx="' + W.esc(c.idx) + '">'
       + '<span class="n">' + c.idx + '</span>'
       + '<span class="cn">' + W.esc(c.title || '') + '</span>'
       + '<span class="who">' + (c.idx === me ? '你在这儿' : (c.idx === ai ? '他在这儿' : '')) + '</span>'
@@ -11293,7 +11298,7 @@ async function loadMem(){
     R.innerHTML = '';
     songs.forEach(function(s, idx){
       const row = el('<div class="corow">'
-        + '<img alt="" src="' + W.esc(s.cover || '') + '"'
+        + '<img alt="" src="' + W.esc(W.imgUrl(s.cover || '')) + '"'
         + (s.cover ? '' : ' style="visibility:hidden"') + '/>'
         + '<span class="t"><b>' + W.esc(s.name) + '</b><i>' + W.esc(s.artist) + '</i></span>'
         + '<span class="ic add">' + CO_I.plus + '</span>'
@@ -11716,7 +11721,7 @@ window.haptic = haptic;
       let av = q.avatar || '';
       const isImg = s => !!s && /^(https?:)?\/|^data:image/.test(s);
       /* 没设过就还是那个「枫」，别拿名字凑（名字 → 半个名字，更难看） */
-      const avaInner = () => isImg(av) ? '<img src="' + W.esc(av) + '" alt="">'
+      const avaInner = () => isImg(av) ? '<img src="' + W.esc(W.imgUrl(av)) + '" alt="">'
                                        : W.esc((av || '').trim().slice(0, 2) || '枫');
       body.innerHTML = '<div class="tuner">'
         + '<div class="avapick"><div class="big" id="cf-ava">' + avaInner() + '</div>'
@@ -12279,8 +12284,8 @@ window.haptic = haptic;
     if (hint) hint.textContent = items.length ? (items.length + ' 张，你递过来的') : '';
     if (!items.length){ list.innerHTML = '<p class="dnone">还没有图。</p>'; return; }
     list.innerHTML = items.map(x =>
-      '<a href="' + W.esc(x.url) + '" target="_blank" rel="noopener">'
-      + '<img src="' + W.esc(x.url) + '" alt="" loading="lazy"/></a>').join('');
+      '<a href="' + W.esc(W.url(x.url)) + '" target="_blank" rel="noopener">'
+      + '<img src="' + W.esc(W.imgUrl(x.url)) + '" alt="" loading="lazy"/></a>').join('');
   });
 })();
 
@@ -12292,7 +12297,7 @@ window.haptic = haptic;
 (function(){
   const list = document.getElementById('starlist'), nEl = document.getElementById('starn');
   if (!list) return;
-  const esc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let room = 'main';
 
   async function load(){
@@ -12313,7 +12318,7 @@ window.haptic = haptic;
          `ask` 是后端新给的——那条星标往前找到的最近一句用户的话；截下来的那种走 `ctx`。 */
       const ask = (m.ask || m.ctx || '').trim();
       return '<div class="starcard' + (him ? ' him' : '') + '"'
-        + (m.audio_url ? ' data-audio="' + esc(m.audio_url) + '"' : '')
+        + (m.audio_url ? ' data-audio="' + esc(W.url(m.audio_url)) + '"' : '')
         + (m.content ? ' data-tx="' + esc(m.content) + '"' : '') + '>'
         + '<div class="hd"><b>' + (m.cap ? '截下来的' : (him ? (window.aiShownName || '他') : '你')) + '</b>'
         + esc(m.t || '')
@@ -12355,7 +12360,7 @@ window.haptic = haptic;
   if (!grid) return;
   const moEl = document.getElementById('calmo'), head = document.getElementById('calhead'),
         listEl = document.getElementById('callist');
-  const esc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const pad = n => (n < 10 ? '0' : '') + n;
   let byDay = null, cur = new Date(), picked = null, loaded = false;
 
@@ -12465,7 +12470,7 @@ window.haptic = haptic;
   if (!grid) return;
   const moEl = document.getElementById('heatmo'), head = document.getElementById('dayhead'),
         logEl = document.getElementById('daylog');
-  const esc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const pad = n => (n < 10 ? '0' : '') + n;
   let heat = null, cur = new Date(), picked = null, loaded = false;
 
@@ -12520,11 +12525,10 @@ window.haptic = haptic;
     /* ★ 0810 要的：聊天记录里也能点收藏、播放语音、展开思考链。
        后端一直在返 id / think / starred / audio_url（server.py:1438 那条 SELECT），
        前端拿到手却只画了个只读的 ★ —— 三样都不用改后端，接上就有。
-       ⚠ esc() 只转 & < >，**不转引号**，拿它拼 data-think="…" 会被内容里的引号截断，
-         所以属性单独用 escA()。 */
+       属性值和正文都转义单双引号；escA 留作这段的局部边界。 */
     const escA = function(s){
-      return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
-        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
       });
     };
     logEl.innerHTML = (items.length ? items.map(function(m){
@@ -12554,7 +12558,7 @@ window.haptic = haptic;
         + '<div class="hacts">'
         +   '<button data-h="star" class="' + (m.starred ? 'on' : '') + '" aria-label="收藏">'
         +     '<svg viewBox="0 0 24 24"><path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z"/></svg></button>'
-        +   (mine ? '' : '<button data-h="play" data-audio="' + escA(m.audio_url || '') + '" aria-label="念给我听">'
+        +   (mine ? '' : '<button data-h="play" data-audio="' + escA(W.url(m.audio_url || '')) + '" aria-label="念给我听">'
         +     '<svg viewBox="0 0 24 24"><path d="M7 4v16l13 -8l-13 -8"/></svg></button>')
         /* ★ 0829 报的：撤走之后回不去，聊天记录里也没有重新显示的入口。
            —— 后端一直收 {hidden:false}，只是从来没有一颗键去按它。撤走过的才长出来。 */
@@ -12935,7 +12939,7 @@ window.haptic = haptic;
   const list = document.getElementById('callslist'), lede = document.getElementById('callslede');
   /* 每段自己带一个 esc —— 这文件里的转义都是各 IIFE 各一份，没有全局的那个（我刚栽过：
      列表渲染到 esc 那一句直接抛，lede 已经改了、行一条都没出来） */
-  const esc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let loaded = false, au = null, timer = 0;
 
   function fmtDur(s){
@@ -13002,19 +13006,20 @@ window.haptic = haptic;
     const audio = (d.audio || []);
     const main = audio.indexOf('call.mp3') >= 0 ? 'call.mp3'
                : (audio.indexOf('mine.mp3') >= 0 ? 'mine.mp3' : (audio[0] || ''));
-    const src = main ? ('/calls/' + id + '/' + main) : '';
+    const base = '/calls/' + encodeURIComponent(id) + '/';
+    const src = main ? (base + encodeURIComponent(main)) : '';
     box.innerHTML =
         (src ? '<audio controls preload="none" src="' + src + '"></audio>' : '<p class="lede">这通没留下声音。</p>')
       + '<div class="callbtns">'
       +   (src ? '<button class="go" data-cact="replay">重演一遍</button>' : '')
-      +   (audio.indexOf('user.mp3') >= 0 ? '<a href="/calls/' + id + '/user.mp3" target="_blank">只听你的</a>' : '')
-      +   (audio.indexOf('mine.mp3') >= 0 ? '<a href="/calls/' + id + '/mine.mp3" target="_blank">只听我的</a>' : '')
+      +   (audio.indexOf('user.mp3') >= 0 ? '<a href="' + base + 'user.mp3" target="_blank">只听你的</a>' : '')
+      +   (audio.indexOf('mine.mp3') >= 0 ? '<a href="' + base + 'mine.mp3" target="_blank">只听我的</a>' : '')
       +   '<button data-cact="rename">改个名字</button>'
       +   '<button class="del" data-cact="del">删掉这一通</button>'
       + '</div>'
       + (d.script || []).map(function(l, i){
           /* who：'user' 是用户那一侧，'me' 是伙伴。★ 别用性别当协议值。 */
-          return '<div class="callline ' + (l.who === 'user' ? 'user' : 'me') + '" data-t="' + l.t + '" data-i="' + i + '">'
+          return '<div class="callline ' + (l.who === 'user' ? 'user' : 'me') + '" data-t="' + esc(l.t) + '" data-i="' + i + '">'
                + '<b>' + (l.who === 'user' ? '你' : '我') + '</b>' + esc(l.text) + '</div>';
         }).join('');
     box.dataset.done = '1';
@@ -13175,7 +13180,7 @@ window.haptic = haptic;
     create_reminder:'定提醒',feng_space_read:'看空间',query_health:'看你的身体数据',look:'睁眼看',
     feng_calendar_read:'翻日历',query_tasks:'看待办',get_kaomoji:'找颜文字'};
   const toolCN = n => { n = String(n || ''); const k = n.replace(/^mcp__[a-z_]+__/, ''); return TOOL[k] || TOOL[n] || k; };
-  const esc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   /* 脚注用过去式说法（进行时那张表是状态条用的）—— 两张表都照抄 原项目的旧皮肤，
      用户认得这些话，别自己另起一套。 */
@@ -14129,8 +14134,8 @@ async function loadHome(){
     var p=String(d).split('-'); if(p.length<3) return d;
     return (+p[1])+' 月 '+(+p[2])+' 日';
   }
-  function esc(t){ return String(t||'').replace(/[&<>]/g,function(c){
-    return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  function esc(t){ return String(t||'').replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function draw(list,open){
     if(!list.length){ box.innerHTML='<div class="lw" style="color:var(--hint)">还没有留下的话。</div>'; return; }
     var show=open?list:list.slice(0,SHOW);
@@ -14164,8 +14169,8 @@ async function loadHome(){
 (function(){
   var box = document.getElementById('tvcard'); if(!box) return;
   /* esc 各 IIFE 各带一份：这文件里没有全局 esc，只有 W.esc（0820 整页渲染死在这儿一次） */
-  function esc(t){ return String(t==null?'':t).replace(/[&<>"]/g, function(c){
-    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function esc(t){ return String(t==null?'':t).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function hhmm(iso){ var m=String(iso||'').match(/T(\d{2}:\d{2})/); return m?m[1]:''; }
   function shi(iso){                                  /* 把当地时间说成人话 */
     var h=parseInt(String(iso||'').slice(11,13),10);
@@ -14212,7 +14217,7 @@ async function loadHome(){
              +'<button class="tv-more" id="tvmore">读全文 &rsaquo;</button>':'')
       + '</div>'
       + (d.radio&&d.radio.stream_url
-          ? '<a class="tv-ticket" href="'+esc(d.radio.stream_url)+'" target="_blank" rel="noopener">'
+          ? '<a class="tv-ticket" href="'+esc(W.url(d.radio.stream_url))+'" target="_blank" rel="noopener">'
             +'<svg viewBox="0 0 24 24"><path d="M3 12h3l3-8 4 16 3-8h5"/></svg>'
             +'<b>'+esc(d.radio.name||'当地电台')+'</b><small>ON AIR</small></a>'
           : '')
@@ -14254,12 +14259,12 @@ async function loadHome(){
           +   '<span class="tv-num">'+String(pcs.length-i).padStart(2,'0')+'</span>'
           +   '<span class="tv-tt"><b>'+esc(tlt(c.text))+'</b>'
           +     '<small>'+esc(pl)+(md?' · '+esc(md):'')+'</small></span>'
-          +   (c.front_img?'<span class="tv-thumb"><img src="'+esc(c.front_img)+'" alt="" loading="lazy"></span>':'')
+          +   (c.front_img?'<span class="tv-thumb"><img src="'+esc(W.imgUrl(c.front_img))+'" alt="" loading="lazy"></span>':'')
           +   '<svg class="tv-chev" viewBox="0 0 24 24"><path d="M9 6l6 6l-6 6"/></svg>'
           + '</button>'
           + '<div class="tv-body"><article class="tv-pc '+(i%2?'r2':'r1')+'">'
           +   '<span class="tv-tape a'+(i%2?' blue':'')+'" aria-hidden="true"></span>'
-          +   (c.front_img?'<div class="tv-front"><img src="'+esc(c.front_img)+'" alt="" loading="lazy">'+seal+CANCEL+'</div>':'')
+          +   (c.front_img?'<div class="tv-front"><img src="'+esc(W.imgUrl(c.front_img))+'" alt="" loading="lazy">'+seal+CANCEL+'</div>':'')
           +   '<div class="tv-back"><p>'+esc(c.text||'')+'</p>'
           +   (post.length?'<div class="tv-post">'+post.join(' · ')+'</div>':'')
           +   '</div></article></div>'
@@ -14397,7 +14402,7 @@ async function loadHome(){
   };
 
   function esc(t){ return String(t == null ? '' : t)
-    .replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+    .replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
   /* 月亮：只有「照亮了多少」这一个数，不知道是盈是亏 —— 所以只画圆缺，不画方向暗示。
      k=2f−1：1 满、0 半、−1 全黑。明暗界线是一条椭圆弧，鼓向随 k 的符号翻。 */
@@ -14696,8 +14701,8 @@ async function loadHome(){
   var box=document.getElementById('triplist'); if(!box) return;
   /* ★ 0831 清洗:这儿原来写死了一段原项目真旅行日记当 FALLBACK —— 删。
      开源版的这页只画他自己出门记的(trips),第一天空着是正常起点。 */
-  function esc(t){ return String(t||'').replace(/[&<>]/g,function(c){
-    return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  function esc(t){ return String(t||'').replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function draw(list){
     if(!list.length){ box.innerHTML='<div class="tripempty">还没出去过。</div>'; return; }
     /* ★ (0822) 折起来。0822 定的：内容多了这一页要能一路往下滑。
@@ -15093,7 +15098,7 @@ async function loadHome(){
     if (!box) return;
     av = (av || '').trim();
     if (!av) return;
-    if (/^(https?:)?\/|^data:image/.test(av)) box.innerHTML = '<img src="' + av + '" alt="">';
+    if (/^(https?:)?\/|^data:image/.test(av)) box.innerHTML = '<img src="' + W.esc(W.imgUrl(av)) + '" alt="">';
     else box.textContent = av.slice(0, 2);
   }
   function paint(){
@@ -16237,8 +16242,8 @@ async function loadHome(){
   var wired = null;                      /* null = 还没问到，全放行 */
   /* 这个 IIFE 是追加的，够不着外面那几个 esc（各在各的闭包里）—— 自带一个 */
   function esc(s){ return String(s == null ? '' : s)
-    .replace(/[&<>"]/g, function(c){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+    .replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function keyOf(el){
     return el.getAttribute('data-sub') || el.getAttribute('data-open') || el.getAttribute('data-act');
   }
@@ -16356,12 +16361,12 @@ async function loadHome(){
 (function(){
   var list = document.getElementById('packslist');
   if (!list) return;
-  var esc = function(t){ return String(t==null?'':t).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); };
+  var esc = function(t){ return String(t==null?'':t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); };
   var ST = {on:'已配置', ready:'条件齐了', missing:'缺东西', stub:'只有契约'};
   function draw(packs){
     list.innerHTML = packs.map(function(p){
       var btns = '';
-      if (p.state === 'ready') btns = '<button class="pkbtn main" data-pk-on="'+p.id+'">直接启用</button>';
+      if (p.state === 'ready') btns = '<button class="pkbtn main" data-pk-on="'+esc(p.id)+'">直接启用</button>';
       else if (p.state === 'on') btns = '<span class="pkon">✓ 已配置</span>'
         /* ★ 通话接上之后多一行语言。定的：**用的人只选中文还是英文，不问他哪家** —— 
              但底下究竟是谁在说，要照实写出来，不然选了「英文」却不知道没接就是骗人。 */
@@ -16369,7 +16374,7 @@ async function loadHome(){
       else if (p.state === 'missing'){
         btns = '<div class="pkmiss">缺：'+ (p.missing||[]).map(esc).join('；') + '</div>';
         if (p.setup){
-          btns += '<button class="pkbtn main" data-pk-setup="'+p.id+'">'+esc(p.setup_label||'安装')+'</button>';
+          btns += '<button class="pkbtn main" data-pk-setup="'+esc(p.id)+'">'+esc(p.setup_label||'安装')+'</button>';
         } else if ((p.keys||[]).length){
           /* ★ 0901 反馈：这几个格子看不懂。原来五个一模一样的密码框排一列，
              唯一的区别写在 placeholder 里 —— 而 placeholder **一打字就没了**，
@@ -16405,14 +16410,14 @@ async function loadHome(){
                  + '</label>';
             return out;
           }).join('')
-          + '<button class="pkbtn main" data-pk-paste="'+p.id+'">保存配置</button> '
-          + '<button class="pkbtn" data-pk-plan="'+p.id+'">不用这几家，写进装配单</button>';
+          + '<button class="pkbtn main" data-pk-paste="'+esc(p.id)+'">保存配置</button> '
+          + '<button class="pkbtn" data-pk-plan="'+esc(p.id)+'">不用这几家，写进装配单</button>';
         } else {
-          btns += '<button class="pkbtn" data-pk-plan="'+p.id+'">写进装配单，自己接</button>';
+          btns += '<button class="pkbtn" data-pk-plan="'+esc(p.id)+'">写进装配单，自己接</button>';
         }
       }
       else btns = '<div class="pkmiss">契约在 '+esc(p.contract)+'</div>'
-             + '<button class="pkbtn" data-pk-plan="'+p.id+'">写进装配单，自己做</button>';
+             + '<button class="pkbtn" data-pk-plan="'+esc(p.id)+'">写进装配单，自己做</button>';
       return '<div class="card" style="margin:0 0 12px;padding:15px 16px">'
         + '<b style="display:block;font-size:15px">'+esc(p.name)
         + '<small style="margin-left:8px;color:var(--hint);font-weight:400">'+ST[p.state]+'</small></b>'
@@ -16827,8 +16832,8 @@ async function loadHome(){
      → 用**内容指纹**当版本号：改了 maple-water.js 就把 MW_V 换成新的 md5 前 8 位，
        URL 一变 CF 就当新资源回源。p5 是固定版本、永远不变，反而该让它一直被缓存。 */
   var MW_V = 'd84b9a8b';
-  load('https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js')
-    /* p5 只走 CDN，仓库不打包 1MB（LGPL 也就够不着我们）。挂了就走下面的纯纸底降级 */
+  load('/vendor/p5-1.9.4.min.js')
+    /* 固定版本随仓库发行，CI / 浏览器版构建都核 SHA-256；挂了仍走纯纸底降级 */
     .then(function(){
       /* ★ 0830 挪进积木层了（`blocks/water/`）—— **一份源码，内核和积木共用**。
            各存一份迟早会漂移，到时候「只拿走积木」的人和用整个应用的人看到的是两套东西。 */

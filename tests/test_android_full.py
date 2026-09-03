@@ -23,11 +23,15 @@ class TestAndroidBoot(unittest.TestCase):
         code = (f"import sys, time; sys.path.insert(0, {str(BOOT_DIR)!r}); sys.path.insert(0, {str(ROOT)!r}); "
                 f"import android_boot; u = android_boot.start({files_dir!r}, {port}); "
                 f"assert u == android_boot.start({files_dir!r}, {port}), '重复调用要回同一个地址'; "
-                f"print(u, flush=True); time.sleep(30)")
+                f"print(u, android_boot.token(), flush=True); time.sleep(30)")
         env = {k: v for k, v in os.environ.items() if not k.startswith("LIANHUAN_")}
         p = subprocess.Popen([sys.executable, "-c", code], cwd=files_dir, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
+            line = p.stdout.readline().strip().split()
+            self.assertEqual(2, len(line), "启动端没有交出 URL 和随机票")
+            token = line[1]
+            self.assertGreaterEqual(len(token), 32)
             status = None
             for _ in range(100):
                 if p.poll() is not None:
@@ -38,7 +42,13 @@ class TestAndroidBoot(unittest.TestCase):
                     break
                 except OSError:
                     time.sleep(0.1)
-            self.assertEqual(status, 200, "后端没在 loopback 上应答：" + (p.stderr.read()[-800:] if p.poll() is not None else ""))
+            self.assertEqual(status, 401, "没有完整体随机票也不该进得去：" + (p.stderr.read()[-800:] if p.poll() is not None else ""))
+            headers = {"Cookie": "lh_android=" + token}
+            for path in ("/manifest.json", "/api/export"):
+                c = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+                c.request("GET", path, headers=headers)
+                self.assertEqual(200, c.getresponse().status, path + " 带随机票仍进不去")
+                c.close()
             self.assertTrue(os.path.exists(os.path.join(files_dir, "data", "lianhuan.db")), "数据该落在 files_dir/data")
         finally:
             p.kill(); p.wait()

@@ -18,9 +18,7 @@ jobs:
       - name: Python contracts
         run: |
           set -euo pipefail
-          for f in tests/test_call.py tests/test_core.py tests/test_distill.py tests/test_duplex.py tests/test_echo.py tests/test_kaomoji.py; do
-            python "$f"
-          done
+          python -m unittest discover -s tests -v
       - name: Frontend and release checks
         run: |
           set -euo pipefail

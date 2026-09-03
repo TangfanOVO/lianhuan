@@ -14,6 +14,7 @@
      所以那一类词**从环境变量传进来**，一个字都不留在代码里。
 
    退出码 0 = 干净；1 = 有东西不该出去（每条带路径和原因，但**不回显命中的原文**）。 */
+import { createHash } from "node:crypto";
 import { lstat, readdir, readFile, readlink, stat } from "node:fs/promises";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -109,6 +110,11 @@ const reviewedBinaries = [
   /\.svg$/,                       // 图标是我们自己画的向量，扫内容那一遍会看到它
 ];
 
+/* 这是逐字核过的上游压缩源码。只放行固定路径的固定内容；文件一变，扫描立即失败。 */
+const reviewedTextBlobs = new Map([
+  ["core/web/vendor/p5-1.9.4.min.js", "00a532c56e785c68d7c7bb6f9a084e2c856b71527f22c3260aff4a2f582d80c9"],
+]);
+
 const SIZE_CAP = 2_000_000;
 
 /* 发布前那一遍要查的具体词，从环境变量来，一个字不留在仓库里 */
@@ -159,8 +165,14 @@ for (const p of files) {
     if (ext !== ".svg") continue;                 // svg 是文本，接着往下扫内容
   }
 
-  let text;
-  try { text = await readFile(p, "utf8"); } catch { bad.push(`${r}：读不成文本，也不在放行名单里`); continue; }
+  let bytes;
+  try { bytes = await readFile(p); } catch { bad.push(`${r}：读不成文本，也不在放行名单里`); continue; }
+  if (reviewedTextBlobs.has(r)) {
+    const digest = createHash("sha256").update(bytes).digest("hex");
+    if (digest !== reviewedTextBlobs.get(r)) bad.push(`${r}：核过的上游文件内容变了`);
+    continue;
+  }
+  const text = bytes.toString("utf8");
 
   if (credentialShapes.some((x) => x.test(text))) bad.push(`${r}：有一段长得像密钥`);
   if (machinePaths.some((x) => x.test(text))) bad.push(`${r}：写着本机绝对路径`);

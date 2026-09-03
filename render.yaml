@@ -19,6 +19,8 @@ services:
         value: https://api.deepseek.com
       - key: LIANHUAN_API_MODEL
         value: deepseek-chat
+      - key: LIANHUAN_COOKIE_SECURE
+        value: "1"
     # disks:
     #   - name: data
     #     mountPath: /app/data

@@ -145,14 +145,25 @@ class TestStore(unittest.TestCase):
         self.s.db.execute(
             "INSERT INTO push_subs(endpoint,p256dh,auth,ts) VALUES(?,?,?,?)",
             ("https://push.invalid/device-only", "fake", "fake", 3.0))
+        self.s.set_setting("theme", {"accent": "maple"})
+        self.s.set_setting("engine", "echo")
+        self.s.set_setting("where", {"place": "纸月车站"})
+        self.s.set_setting("now_playing", {"name": "测试曲", "playing": True})
+        self.s.set_setting("distill", {"MIN_LEN": 9})
+        self.s.set_setting("not_portable_secret", "never-export-this")
         self.s.db.commit()
 
         dump = self.s.export_all()
-        self.assertEqual(2, dump["lianhuan"])
+        self.assertEqual(3, dump["lianhuan"])
         self.assertEqual("今天捡到一颗蓝色玻璃珠", dump["house"]["notes"][0]["content"])
         self.assertEqual("纸月车站", dump["house"]["trips"][0]["place"])
         self.assertNotIn("push_subs", dump["house"])
         self.assertIn("provider_keys", dump["not_included"])
+        self.assertEqual("maple", dump["settings"]["theme"]["accent"])
+        self.assertEqual("纸月车站", dump["settings"]["where"]["place"])
+        self.assertTrue(dump["settings"]["now_playing"]["playing"])
+        self.assertEqual(9, dump["settings"]["distill"]["MIN_LEN"])
+        self.assertNotIn("not_portable_secret", dump["settings"])
 
         other = SqliteStore(Path(self.tmp.name) / "full-house.db")
         other.db.executescript("""
@@ -168,6 +179,10 @@ class TestStore(unittest.TestCase):
                          other.db.execute("SELECT content FROM notes").fetchone()[0])
         self.assertEqual("在月台写了一张明信片",
                          other.db.execute("SELECT note FROM trips").fetchone()[0])
+        self.assertEqual("maple", other.get_setting("theme")["accent"])
+        self.assertEqual("echo", other.get_setting("engine"))
+        self.assertEqual("纸月车站", other.get_setting("where")["place"])
+        self.assertEqual("测试曲", other.get_setting("now_playing")["name"])
 
 
 class TestRecall(unittest.TestCase):

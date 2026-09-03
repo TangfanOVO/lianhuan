@@ -43,6 +43,8 @@ class TestAndroidFullRelease(unittest.TestCase):
         """签名指纹一变就是一次数据事故，CI 得当场拦住，不能等用户装不上才发现。"""
         self.assertIn("SIGNING_FINGERPRINT.txt", self.wf)
         self.assertIn("apksigner", self.wf)
+        self.assertIn('test -f "$f"', self.wf, "指纹文件缺失必须失败，不能只 warning")
+        self.assertNotIn("还没有 $f", self.wf)
 
     def test_backup_is_on_but_keys_are_excluded(self):
         """开系统备份接住这份家；但模型 key 不该跟着上云。"""
@@ -51,6 +53,20 @@ class TestAndroidFullRelease(unittest.TestCase):
             p = AF / "app" / "src" / "main" / "res" / "xml" / f
             self.assertTrue(p.exists(), f + " 不在")
             self.assertIn("data/secrets.json", p.read_text(encoding="utf-8"), "key 要排除在备份之外")
+
+    def test_cleartext_is_only_allowed_for_loopback(self):
+        self.assertIn('android:usesCleartextTraffic="false"', self.manifest)
+        self.assertIn('android:networkSecurityConfig="@xml/network_security_config"', self.manifest)
+        cfg = (AF / "app" / "src" / "main" / "res" / "xml" / "network_security_config.xml").read_text(encoding="utf-8")
+        self.assertIn('cleartextTrafficPermitted="false"', cfg)
+        self.assertIn('cleartextTrafficPermitted="true"', cfg)
+        self.assertIn("127.0.0.1", cfg)
+
+    def test_full_apk_contains_blocks_and_tag_tracks_source(self):
+        self.assertIn('include "core/**", "optional/**", "seed/**", "blocks/**"', self.gradle)
+        self.assertIn('exclude "**/*.bak*"', self.gradle, "完整体不许把改前备份塞进 APK")
+        self.assertIn("'blocks/**'", self.wf, "积木变化要触发完整体重打")
+        self.assertIn('git tag -f apk-full "$GITHUB_SHA"', self.wf)
 
     def test_docs_do_not_tell_people_to_uninstall_without_warning(self):
         """★ 回归：完整体的文档里，「先卸载」旁边必须跟着「先导出」。"""

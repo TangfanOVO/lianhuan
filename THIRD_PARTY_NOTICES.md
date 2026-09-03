@@ -51,9 +51,8 @@ SOFTWARE.
 |---|---|---|---|
 | [Font Awesome Free 6](https://fontawesome.com) | 一枚图标 | 图标部分 **CC BY 4.0** | **必须署名**：图标来自 Font Awesome Free，https://fontawesome.com ，CC BY 4.0 |
 | [LXGW WenKai 霞鹜文楷](https://github.com/lxgw/LxgwWenKai) | 中文字体 | **SIL OFL 1.1** | 字体文件随发行时要带上 OFL 原文；不得单独售卖字体 |
-| [p5.js](https://p5js.org) | 水面待机 | **LGPL-2.1** | **不打包**，走 CDN；加载失败自动降级。要改成随包发行的话，先读 LGPL 对静态链接那几条 |
+| [p5.js 1.9.4](https://p5js.org) | 水面待机 | **LGPL-2.1** | 固定文件随包发行；许可全文见 `licenses/P5-LGPL-2.1.txt`，SHA-256 为 `00a532c56e785c68d7c7bb6f9a084e2c856b71527f22c3260aff4a2f582d80c9` |
 
 ---
 
-> 字体和 p5 走的是「不打包」这条路（分别按 OFL 的义务署名、按 LGPL 走 CDN），所以这份文件只写义务、没抄许可证正文。
-> 要是改成随包发行，把各自的许可证正文一起带上。
+> 字体仍按 OFL 的义务署名；p5 已改为随包发行，并带着 LGPL-2.1 许可全文。
