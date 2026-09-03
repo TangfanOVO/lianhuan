@@ -40,6 +40,8 @@ class TestSoftKeyboard(unittest.TestCase):
         """双指放大也会让 visualViewport 变矮 —— 那不是键盘，扣了就白掉一块。"""
         self.assertRegex(self.h, r"vv\.scale\s*>\s*1", "没有排掉缩放")
 
+    @unittest.skipUnless((ROOT / "app" / "index.html").exists(),
+                         "create.py 的产物不带 app/，这条只在源码仓库里跑")
     def test_both_copies_stay_identical(self):
         """app/index.html 是 core/web/index.html 的副本，CI 里 diff 钉着，这儿也钉一道。"""
         other = (ROOT / "app" / "index.html").read_text(encoding="utf-8")

@@ -46,6 +46,8 @@ if __name__ == "__main__":
     unittest.main()
 
 
+@unittest.skipUnless((ROOT / "apps" / "local").exists() and WF.exists(),
+                     "create.py 的产物不带 apps/ 和 .github/，这一组只在源码仓库里跑")
 class TestEndToEndCoverage(unittest.TestCase):
     """★ 合同测试证明不了「真浏览器里能用」。这条钉住那一层验收还在。"""
 
