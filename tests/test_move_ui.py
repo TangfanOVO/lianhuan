@@ -39,14 +39,20 @@ if __name__ == "__main__":
     unittest.main()
 
 
+#: 完整体那份 Java。★ create.py 的产物不带 android-full/，所以下面那组要能整组跳过 ——
+#  0903 就是没想到这一层，CI 的 clean copy 那步当场红了。
+SHELL_JAVA = (ROOT / "android-full" / "app" / "src" / "main" / "java"
+              / "app" / "lianhuan" / "full" / "MainActivity.java")
+
+
+@unittest.skipUnless(SHELL_JAVA.exists(), "发行产物不带 android-full/，这组只在源码仓库里跑")
 class TestShellDownloadPath(unittest.TestCase):
     """安卓壳里不能走 blob 下载 —— 0903 真机上验的：什么都不会发生，页面却说「下载好了」。"""
 
     @classmethod
     def setUpClass(cls):
         cls.web = (ROOT / "core" / "web" / "index.html").read_text(encoding="utf-8")
-        cls.java = (ROOT / "android-full" / "app" / "src" / "main" / "java"
-                    / "app" / "lianhuan" / "full" / "MainActivity.java").read_text(encoding="utf-8")
+        cls.java = SHELL_JAVA.read_text(encoding="utf-8")
 
     def test_page_takes_the_direct_route_inside_the_shell(self):
         self.assertIn("/LianhuanShell/.test(navigator.userAgent", self.web)
