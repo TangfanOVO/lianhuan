@@ -121,4 +121,9 @@ jobs:
           gh release view apk-full >/dev/null 2>&1 \
             && gh release edit apk-full --title "$title" --notes "$notes" \
             || gh release create apk-full --title "$title" --notes "$notes" --latest=false
+          # ★ 这是个滚动标签：只留最新那一个。
+          #   旧包留着最危险的一点是——它们的说明不一定还成立（比如从测试包换成正式签名之后）。
+          for old in $(gh release view apk-full --json assets --jq '.assets[].name'); do
+            [ "$old" = "${{ steps.name.outputs.file }}" ] || gh release delete-asset apk-full "$old" -y
+          done
           gh release upload apk-full "${{ steps.name.outputs.file }}" --clobber
