@@ -295,6 +295,34 @@ def pending(view: str = "new", limit: int = 50) -> dict:
     return {"items": out, "counts": counts}
 
 
+def import_candidates(items: list[dict]) -> dict:
+    """把用户亲自选的本机文件放进待审区；不自动写进记忆库。"""
+    made = []
+    skipped = 0
+    existing = {row["content"] for row in _store.db.execute("SELECT content FROM latent").fetchall()}
+    existing.update(memory.content for memory in _store.all_memories())
+    for item in items[:50]:
+        content = str(item.get("content") or "").strip()
+        if not content or len(content) > 20_000:
+            skipped += 1
+            continue
+        if content in existing:
+            skipped += 1
+            continue
+        existing.add(content)
+        dup, score = similar(content)
+        layer = item.get("layer") if item.get("layer") in ("L1", "L2") else "L1"
+        cid = _store.db.execute(
+            "INSERT INTO latent(content,layer,why,src_lo,src_hi,dup_of,dup_score,status,ts)"
+            " VALUES(?,?,?,?,?,?,?,?,?)",
+            (content, layer, str(item.get("why") or "从本机文件导入")[:200], None, None,
+             dup if score >= cfg()["dup_at"] else None, score, "new", time.time()),
+        ).lastrowid
+        made.append(cid)
+    _store.db.commit()
+    return {"ok": True, "imported": len(made), "skipped": skipped, "ids": made}
+
+
 def keep(lid: int) -> dict:
     """点头：落进记忆库。★ 就算标了疑似重复也照落 —— 合不合并是人的事，不是这儿替他决定。"""
     from .store.base import Memory

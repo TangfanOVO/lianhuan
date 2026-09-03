@@ -442,6 +442,24 @@ def api_latent(view: str = "new"):
     return _distill.pending(view)
 
 
+@app.post("/api/latent/import")
+async def api_latent_import(req: Request):
+    """手机文件夹里的文本先进入待审区；用户点「收下」后才进记忆库。"""
+    body = await req.json()
+    items = body.get("items") if isinstance(body, dict) else None
+    if not isinstance(items, list) or not items or len(items) > 50:
+        return JSONResponse({"ok": False, "err": "一次请选择 1 至 50 个文件"}, status_code=400)
+    cleaned = []
+    for item in items:
+        if not isinstance(item, dict):
+            return JSONResponse({"ok": False, "err": "文件内容格式不对"}, status_code=400)
+        content = str(item.get("content") or "").strip()
+        if not content or len(content) > 20_000:
+            return JSONResponse({"ok": False, "err": "单个文件需为 1 至 20000 字"}, status_code=422)
+        cleaned.append({"content": content, "layer": "L1", "why": str(item.get("why") or "从本机文件导入")[:200]})
+    return _distill.import_candidates(cleaned)
+
+
 @app.post("/api/latent/{lid}/keep")
 def api_latent_keep(lid: int):
     return _distill.keep(lid)

@@ -1767,6 +1767,18 @@ h3{font-size:15.5px;font-weight:600;margin:0 0 3px;line-height:1.45}
 
 /* ══ 记忆库（0805 批次④）══
    四层是后端 LAYER_MAP 定死的：L3 核心 · L2 长期 · L1 短期 · manual 校准。 */
+.memimport{margin:3px 0 13px;padding:12px;display:flex;align-items:center;justify-content:space-between;
+  gap:12px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.memimport > span{min-width:0;display:grid;gap:3px}
+.memimport b{font-size:12px;color:var(--ink)}
+.memimport small{font-size:10.5px;line-height:1.5;color:var(--hint)}
+.memimport > div{flex:none;display:flex;gap:6px}
+.memimport label,.memimport button{min-height:44px;padding:0 10px;display:flex;align-items:center;gap:5px;
+  border:1px solid var(--line);border-radius:11px;background:var(--card2);color:var(--maple);
+  font:600 10.5px/1 inherit;cursor:pointer}
+.memimport .i{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.memimportstatus{min-height:0;margin:-5px 2px 10px;color:var(--sub);font-size:10.5px;line-height:1.55}
+@media(max-width:520px){.memimport{align-items:flex-start;flex-direction:column}.memimport > div{width:100%}.memimport label,.memimport button{flex:1;justify-content:center}}
 .memlayer{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
   background:var(--card);border:0;border-radius:var(--r);box-shadow:var(--shadow);
   padding:14px 16px;margin-bottom:9px;font-family:inherit;cursor:pointer;
@@ -3439,6 +3451,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
          multiple 是点名要的的。 -->
     <input type="file" id="picpick" accept="image/*" multiple hidden>
     <input type="file" id="filepick" multiple hidden>
+    <input type="file" id="folderpick" webkitdirectory multiple hidden>
     <textarea id="ta" rows="1" placeholder="说点什么…"></textarea>
     <div class="crow">
       <button class="cbtn" data-sub="加号菜单" aria-label="更多">
@@ -3567,6 +3580,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
              挑完不发，停在输入框上头等用户配一句话。 -->
         <button class="pit" data-pick="photos"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></svg></span>照片</button>
         <button class="pit" data-pick="files"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2"/></svg></span>文件</button>
+        <button class="pit" data-pick="folder"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2 -2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z"/><path d="M3 10h18"/></svg></span>文件夹</button>
         <button class="pit" data-door="相册"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/><path d="M4 15l4 -4a3 3 0 0 1 3 0l5 5"/><path d="M14 14l1 -1a3 3 0 0 1 3 0l2 2"/></svg></span>老照片</button>
         <button class="pit" data-door="一起听"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M13 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M9 17v-13h10v13"/><path d="M9 8h10"/></svg></span>一起听</button>
         <button class="pit" data-door="语音输入"><span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M9 5a3 3 0 0 1 3 -3a3 3 0 0 1 3 3v5a3 3 0 0 1 -3 3a3 3 0 0 1 -3 -3l0 -5"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M8 21l8 0"/><path d="M12 17l0 4"/></svg></span>说给我听</button>
@@ -4096,6 +4110,15 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
       <div class="stamp">记忆总览</div>
     </div>
     <div class="subwrap">
+      <div class="memimport">
+        <span><b>从手机整理旧记忆</b><small>TXT、Markdown、JSON、CSV 会先进入潜在记忆，点「收下」后才参与召回。</small></span>
+        <div>
+          <label><svg class="i" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2"/></svg>多选文件<input type="file" id="memfilepick" accept=".txt,.md,.markdown,.json,.csv" multiple hidden></label>
+          <button id="memfolderbtn"><svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2 -2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z"/><path d="M3 10h18"/></svg>读文件夹</button>
+          <input type="file" id="memfolderpick" accept=".txt,.md,.markdown,.json,.csv" webkitdirectory multiple hidden>
+        </div>
+      </div>
+      <p class="memimportstatus" id="memimportstatus" role="status"></p>
       <!-- (0827) 记忆字云。设计出自本项目，上游作者帮着完善了实现，接的是真记忆。
            摆在四栏上面：图看总量和关系，点一条在底下显示；要翻列表、要改，
            再点四栏进去 —— 记忆本来就是列表。 -->
@@ -8686,6 +8709,55 @@ async function loadMem(){
                           : '还没有');
     });
   }, true);
+})();
+
+/* 手机文件夹里的旧记忆：只读用户亲手选中的文本，先放潜在记忆，绝不直接入库。 */
+(function(){
+  const filepick = document.getElementById('memfilepick'),
+        folderpick = document.getElementById('memfolderpick'),
+        folderbtn = document.getElementById('memfolderbtn'),
+        status = document.getElementById('memimportstatus');
+  if (!filepick || !folderpick || !folderbtn || !status) return;
+  const okName = /\.(txt|md|markdown|json|csv)$/i;
+  let busy = false;
+
+  async function read(files){
+    if (busy) return;
+    const selected = [].slice.call(files || [], 0, 50);
+    if (!selected.length) return;
+    busy = true; folderbtn.disabled = true; status.textContent = '正在读取本机文件…';
+    const items = []; let skipped = Math.max(0, (files && files.length || 0) - selected.length);
+    for (const file of selected){
+      if (!okName.test(file.name || '') || file.size > 500000){ skipped++; continue; }
+      try {
+        const content = (await file.text()).replace(/\r\n?/g, '\n').trim();
+        if (!content || content.length > 20000){ skipped++; continue; }
+        const path = file.webkitRelativePath || file.name || '未命名文件';
+        items.push({content: content, why: '来自本机文件：' + path.slice(-160)});
+      } catch (_) { skipped++; }
+    }
+    if (!items.length){
+      status.textContent = '没有读入内容。只收 TXT、Markdown、JSON、CSV；单个文件不超过 20000 字。';
+      busy = false; folderbtn.disabled = false; return;
+    }
+    try {
+      const response = await fetch('/api/latent/import', {
+        method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({items: items})
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.err || '没有写入');
+      skipped += result.skipped || 0;
+      status.textContent = '已读入 ' + result.imported + ' 条潜在记忆，点「潜在记忆」逐条收下'
+        + (skipped ? '；' + skipped + ' 个文件已跳过' : '');
+      if (typeof toast === 'function') toast('旧记忆已放进待审区');
+    } catch (_) {
+      status.textContent = '这些文件刚才没有写入，请重新选择。';
+    }
+    busy = false; folderbtn.disabled = false;
+  }
+  folderbtn.addEventListener('click', function(){ folderpick.click(); });
+  filepick.addEventListener('change', function(){ read(filepick.files); filepick.value = ''; });
+  folderpick.addEventListener('change', function(){ read(folderpick.files); folderpick.value = ''; });
 })();
 
 /* ══ 记忆总览 ══ 四层各多少条，点一层进去翻 */
@@ -13635,6 +13707,7 @@ window.haptic = haptic;
      两种都要在发出去之后**告诉他文件在服务器的哪个绝对路径**，他才能用 Read 真看一眼。 */
   const pick  = document.getElementById('filepick'),
         picpick = document.getElementById('picpick'),
+        folderpick = document.getElementById('folderpick'),
         bar   = document.getElementById('stagebar');
   /* ★ 0805 晚改成多个：要「像 TG 一样」先挑几样、配一句话、一起发。
      staged 是一排 {kind:'img'|'file', dataURL, name}，发之前不上传，撤掉就不占带宽。 */
@@ -13702,19 +13775,20 @@ window.haptic = haptic;
     const done = () => { if (--pend <= 0){ drawStage(); ta.focus();
       setStat(staged.length + ' 样等着 · 说句话一起发'); setTimeout(() => setStat(''), 2600); } };
     use.forEach(function(f){
+      const pickedName = (f.webkitRelativePath || f.name || hint || '文件').replaceAll('/', ' › ');
       if (f.size > 25 * 1024 * 1024){
-        setStat('「' + f.name + '」超过 25MB，没拿'); setTimeout(() => setStat(''), 2600);
+        setStat('「' + pickedName + '」超过 25MB，没拿'); setTimeout(() => setStat(''), 2600);
         done(); return;
       }
       if (f.type && f.type.indexOf('image') === 0){
         compress(f, function(du){
-          if (du) staged.push({kind: 'img', dataURL: du, name: f.name || hint || '图片'});
+          if (du) staged.push({kind: 'img', dataURL: du, name: pickedName});
           done();
         });
       } else {
         const rd = new FileReader();
         rd.onload = function(){
-          staged.push({kind: 'file', dataURL: rd.result, name: f.name || hint || '文件'}); done();
+          staged.push({kind: 'file', dataURL: rd.result, name: pickedName}); done();
         };
         rd.onerror = done;
         rd.readAsDataURL(f);
@@ -13723,9 +13797,11 @@ window.haptic = haptic;
   }
   picpick.addEventListener('change', function(){ take(picpick.files); picpick.value = ''; });
   pick.addEventListener('change',    function(){ take(pick.files);    pick.value = ''; });
-  /* 加号菜单里那两项调它俩（见 openEntry 那边的 __pick） */
+  folderpick.addEventListener('change', function(){ take(folderpick.files); folderpick.value = ''; });
+  /* 加号菜单里这三项调它们（见 openEntry 那边的 __pick） */
   window.pickPhotos = () => picpick.click();
   window.pickFiles  = () => pick.click();
+  window.pickFolder = () => folderpick.click();
 
   /* ★ 0806 要的：复制粘贴来的图也能发。
      剪贴板里夹着图（截了个屏、网页上复制的图、相册里拷的照片）就吃下来，
@@ -14807,7 +14883,8 @@ async function loadHome(){
     /* 挑照片/文件：关掉面板，把系统选择器叫起来（挑完停在输入框上头，不直接发） */
     if (b.dataset.pick){
       open(false);
-      const f = b.dataset.pick === 'photos' ? window.pickPhotos : window.pickFiles;
+      const f = b.dataset.pick === 'photos' ? window.pickPhotos
+        : (b.dataset.pick === 'folder' ? window.pickFolder : window.pickFiles);
       if (f) setTimeout(f, 120);              /* 等这张纸落下去再弹选择器 */
       else if (typeof toast === 'function') toast('这个入口还没接上');
       return;
