@@ -19,7 +19,8 @@
 线上：https://tangfanovo.github.io/lianhuan/local/ 。同一份 Python 后端在页面里跑（Pyodide），没有服务器。
 iPhone 用 Safari 打开，分享 → 添加到主屏幕；安卓用 Chrome，菜单 → 安装应用。
 第一次打开从 CDN 拿十几 MB，之后由 Service Worker 缓存，第二次几秒就开。
-模型直接从浏览器连：DeepSeek、OpenAI、智谱、硅基流动、OpenRouter 都允许浏览器直连；key 在 设置 › 功能包 › 引擎 里填，存在这台设备里。
+模型直接从浏览器连：DeepSeek、OpenAI、智谱、硅基流动、OpenRouter、Kimi 都允许浏览器直连；key 在 设置 › 功能包 › 引擎 里填，存在这台设备里。
+（这是别人家服务器的行为，会变。`node scripts/check-provider-cors.mjs` 复核一遍，CI 的 e2e 那条每次也会跑，变了会警告。）
 
 **不连任何第三方 CDN**：Pyodide 和 p5 随包自托管，页面上钉了 CSP（`script-src 'self'`，外部脚本一律跑不起来）。
 key 就在这个源的 IndexedDB 里，所以这个源上不能有别人的脚本 —— 这是这一版最要紧的一条边界。

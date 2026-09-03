@@ -44,3 +44,21 @@ class TestPrivacyGateWiring(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestEndToEndCoverage(unittest.TestCase):
+    """★ 合同测试证明不了「真浏览器里能用」。这条钉住那一层验收还在。"""
+
+    def test_browser_version_has_a_real_browser_check(self):
+        spec = ROOT / "apps" / "local" / "e2e" / "browser-version.spec.mjs"
+        self.assertTrue(spec.exists(), "浏览器版的端到端验收不在了")
+        s = spec.read_text(encoding="utf-8")
+        for must in ("__lianhuanLocal", "api/hist", "reload", "--kb"):
+            self.assertIn(must, s, "端到端里少了 " + must)
+        self.assertNotIn("bypassCSP", s, "开了 bypassCSP 就验不到 CSP 有没有拦掉自己人")
+        self.assertNotIn("waitForFunction", s, "它走 eval，会被这一版的 CSP 拦下")
+
+    def test_e2e_runs_in_ci(self):
+        y = (WF / "e2e.yml").read_text(encoding="utf-8")
+        self.assertIn("playwright test", y)
+        self.assertIn("check-provider-cors.mjs", y, "各家还让不让直连，也该有人盯着")

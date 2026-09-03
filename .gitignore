@@ -65,3 +65,7 @@ android-full/local.properties
 
 # 浏览器版：从 PyPI 下的轮子缓存
 apps/local/.wheels/
+
+# Playwright（端到端验收）的产物
+apps/local/test-results/
+apps/local/playwright-report/

@@ -1,0 +1,36 @@
+# 浏览器版的端到端验收：真浏览器里起 Pyodide、说一句话、刷新、看数据还在不在。
+# ★ 单独一条线 —— 它要下一个 Chromium，不该让每次推都等这一下。
+# ★ Playwright 不进 package.json：装在这条流水线里就行，别拖慢别的 npm ci。
+name: e2e
+on:
+  push:
+    branches: [main]
+    paths: ['apps/local/**', 'core/web/**', 'core/**', 'optional/**', '.github/workflows/e2e.yml']
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: npm }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: npm ci
+      - run: npm i --no-save @playwright/test@1.49.1
+      - run: npx playwright install --with-deps chromium
+      - name: 构建浏览器版
+        working-directory: apps/local
+        run: node scripts/build.mjs
+      - name: 跑一遍
+        working-directory: apps/local
+        run: npx playwright test
+      # README 说「浏览器版能直连这几家」——别人家的服务器随时可能改，变了要有人知道。
+      # ★ 只警告，不拦：这不是我们能修的东西，拿它卡发布不合适。
+      - name: 各家还让不让浏览器直连
+        continue-on-error: true
+        run: node scripts/check-provider-cors.mjs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: e2e-trace, path: apps/local/test-results, retention-days: 7 }

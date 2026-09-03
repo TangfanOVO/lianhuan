@@ -18,8 +18,11 @@
 > - 积木一块块看（一台假手机，十一块）：**https://tangfanovo.github.io/lianhuan/**
 > - 整个应用的样子（没有后端的空壳，空状态是真的空）：**https://tangfanovo.github.io/lianhuan/app/**
 >
-> 那里跑的**就是仓库里的源码本身**（iframe 引真 demo）
-> 你在那儿看到的，就是你 `pack:take` 拿走的。想在本机看：`cd apps/showcase && npm run dev`。
+> 三个预览都是从这个仓库的源码构建出来的，各自的边界不一样：
+> **积木页**直接用 iframe 跑每块自己的 `demo.html`，你看到的就是你 `pack:take` 拿走的那份；
+> **应用预览**是前端的静态副本，没有后端，还摘掉了 Service Worker、manifest 和颜文字抽屉，页顶有横条说明；
+> **浏览器版**是完整的一份，另外注入了 Pyodide、后端压缩包和存储桥。
+> 想在本机看：`cd apps/showcase && npm run dev`（浏览器版是 `cd apps/local && npm run dev`）。
 
 ---
 
@@ -67,7 +70,7 @@ Render 和 Koyeb 是云托管平台：别人的机器替你二十四小时跑着
 **一个第三方 CDN 都不连。** Pyodide 和 p5 都随包自托管，页面上钉了 CSP（`script-src 'self'`）——
 这个源下面存着你的 key 和整份家（IndexedDB），在同一个源上跑别人服务器发来的脚本，那道边界就没了。
 家在这台设备的浏览器里；换设备用设置里的导出 / 导入搬。
-模型直接从浏览器连：DeepSeek、OpenAI、智谱、硅基流动、OpenRouter 都允许浏览器直连，key 存在这台设备里。
+模型直接从浏览器连：DeepSeek、OpenAI、智谱、硅基流动、OpenRouter、Kimi 都允许浏览器直连（`node scripts/check-provider-cors.mjs` 随时可以复核），key 存在这台设备里。
 颜文字抽屉和通话这一版不带。源码在 `apps/local/`。
 
 ### 安卓完整体

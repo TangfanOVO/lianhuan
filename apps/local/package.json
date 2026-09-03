@@ -8,7 +8,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "test": "node scripts/build.mjs && node --test tests/*.test.mjs",
-    "dev": "npm run build && python3 -m http.server 8426 --directory dist"
+    "dev": "npm run build && python3 -m http.server 8426 --directory dist",
+    "e2e": "node scripts/build.mjs && playwright test"
   },
   "devDependencies": {
     "pyodide": "0.27.7"
