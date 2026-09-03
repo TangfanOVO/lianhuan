@@ -55,8 +55,9 @@ class TestEndToEndCoverage(unittest.TestCase):
         s = spec.read_text(encoding="utf-8")
         for must in ("__lianhuanLocal", "api/hist", "reload", "--kb"):
             self.assertIn(must, s, "端到端里少了 " + must)
-        self.assertNotIn("bypassCSP", s, "开了 bypassCSP 就验不到 CSP 有没有拦掉自己人")
-        self.assertNotIn("waitForFunction", s, "它走 eval，会被这一版的 CSP 拦下")
+        # 只查真用了没（注释里提到这两个名字是为了说明**为什么不用**）
+        self.assertNotIn("bypassCSP:", s, "开了 bypassCSP 就验不到 CSP 有没有拦掉自己人")
+        self.assertNotIn("page.waitForFunction(", s, "它走 eval，会被这一版的 CSP 拦下")
 
     def test_e2e_runs_in_ci(self):
         y = (WF / "e2e.yml").read_text(encoding="utf-8")

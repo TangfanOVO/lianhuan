@@ -67,8 +67,8 @@ test("接口通，说一句话能存下来，刷新之后还在", async ({ page 
   expect(chat.chunks, "回复不是流式的").toBeGreaterThan(0);
 
   // ★ 关键的一条：写完就刷新，最后一次 IndexedDB 同步不能丢
+  // ★ 等它真写完再刷新 —— flush() 返回的是「写完了」那个 Promise，不是「发出去了」
   await page.evaluate(() => window.__lianhuanLocal.flush());
-  await page.waitForTimeout(1200);
   await page.reload();
   await until(page, () => !!window.__lianhuanLocal, 150000, "刷新后重新起来");
 

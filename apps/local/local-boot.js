@@ -83,19 +83,30 @@
   function syncfs(populate) {
     return new Promise(function (res, rej) { py.FS.syncfs(populate, function (e) { e ? rej(e) : res(); }); });
   }
-  var syncTimer = null, syncing = false, dirty = false;
+  /* ── 把内存里的家写回 IndexedDB ──
+     ★ flush() 返回一个**能等的** Promise，而且 force 时不管 dirty 也要真跑一趟。
+       原来它是「发出去不等」的：调用方以为写完了，其实还在半路 ——
+       CI 上的端到端当场逮到：说完一句话立刻刷新，AI 那半句就没了。
+     ★ 防抖 250ms，不是 700ms：那 700ms 是一扇窗，用户在窗里关掉页面，这一轮就丢了。 */
+  var syncTimer = null, syncing = null, dirty = false;
   function touch() {
     dirty = true;
     clearTimeout(syncTimer);
-    syncTimer = setTimeout(flush, 700);
+    syncTimer = setTimeout(function () { flush(false); }, 250);
   }
-  function flush() {
-    if (!py || syncing || !dirty) return;
-    syncing = true; dirty = false;
-    syncfs(false).catch(function () {}).then(function () { syncing = false; if (dirty) touch(); });
+  function flush(force) {
+    if (!py) return Promise.resolve();
+    if (!force && !dirty) return Promise.resolve();
+    if (syncing) return syncing;                 // 已经在写：把那一趟的 Promise 给他，别重入
+    dirty = false;
+    syncing = syncfs(false).catch(function () {}).then(function () {
+      syncing = null;
+      if (dirty) return flush(false);            // 写的过程里又脏了，再来一趟
+    });
+    return syncing;
   }
-  document.addEventListener("visibilitychange", function () { if (document.hidden) { clearTimeout(syncTimer); flush(); } });
-  window.addEventListener("pagehide", function () { clearTimeout(syncTimer); flush(); });
+  document.addEventListener("visibilitychange", function () { if (document.hidden) { clearTimeout(syncTimer); flush(true); } });
+  window.addEventListener("pagehide", function () { clearTimeout(syncTimer); flush(true); });
 
   /* ── 浏览器自己发的那些（<img src="/uploads/…">）：拿到后换成 blob 地址 ── */
   function swapSrc(img) {
@@ -177,7 +188,8 @@
         await started;
         return new Response(stream, { status: status, headers: hdrs });
       };
-      window.__lianhuanLocal = { pyodide: py, info: JSON.parse(info), flush: flush };
+      /* flush() 对外是「写完了再回来」：等它 resolve 就可以放心关页面。端到端就是这么验的。 */
+      window.__lianhuanLocal = { pyodide: py, info: JSON.parse(info), flush: function () { return flush(true); } };
       queue.splice(0).forEach(function (f) { f(); });
       cover.remove();
     } catch (err) {
