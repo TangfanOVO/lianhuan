@@ -1,0 +1,41 @@
+# 发布前那道隐私闸。**每一条出产物的流水线都要过这一道**：
+# Pages、安卓壳、安卓完整体、Docker、verify —— 出门的东西一律先过闸。
+#
+# ★ 私人词表不写进仓库（把要藏的东西列个清单贴在门口，本身就是泄露），
+#   走 Actions Secret `LIANHUAN_PRIVATE_MARKERS` 传进来（逗号分隔）。
+#
+# ★ 没配 Secret 的时候**不假装过了，也不把已经能用的流水线弄停**：
+#   形状那半照跑（密钥长什么样、绝对路径长什么样，这些不需要词表），
+#   词表那半跳过，并在这一次运行的摘要里大写一条「只过了一半」。
+#   配上 Secret 之后自动升级成强制：词表命中就红。
+name: 隐私闸
+description: 对待发布的内容跑公开边界扫描（配了词表就连词一起查）
+inputs:
+  root:
+    description: 要扫的目录，不填就是仓库本身
+    required: false
+    default: ''
+  markers:
+    description: 私人词表，从调用方的 secrets.LIANHUAN_PRIVATE_MARKERS 传进来
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        LIANHUAN_PRIVATE_MARKERS: ${{ inputs.markers }}
+        ROOT: ${{ inputs.root }}
+      run: |
+        set -e
+        args=""
+        [ -n "$ROOT" ] && args="--root $ROOT"
+        if [ -n "$LIANHUAN_PRIVATE_MARKERS" ]; then
+          echo "### 隐私闸：完整（形状 ＋ 私人词表）" >> "$GITHUB_STEP_SUMMARY"
+          PUBLIC_RELEASE=1 node "$GITHUB_WORKSPACE/scripts/check-public-boundary.mjs" $args
+        else
+          echo "::warning title=隐私闸只过了一半::没配 LIANHUAN_PRIVATE_MARKERS，私人名字/域名那半没查。仓库 Settings → Secrets and variables → Actions 里加上这条 Secret（逗号分隔），这道闸就自动变成强制的。"
+          echo "### ⚠ 隐私闸只过了一半" >> "$GITHUB_STEP_SUMMARY"
+          echo "形状扫描过了；**私人词表那半没查** —— 没配 \`LIANHUAN_PRIVATE_MARKERS\` 这条 Secret。" >> "$GITHUB_STEP_SUMMARY"
+          node "$GITHUB_WORKSPACE/scripts/check-public-boundary.mjs" $args
+        fi

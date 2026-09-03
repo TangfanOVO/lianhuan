@@ -27,6 +27,9 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }     # Chaquopy 要求构建机 Python 跟包里的同一个 3.12
 
+      - name: 隐私闸
+        uses: ./.github/actions/privacy-gate
+        with: { markers: '${{ secrets.LIANHUAN_PRIVATE_MARKERS }}' }
       - name: 有没有配签名钥匙
         id: ks
         env: { KS: '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' }

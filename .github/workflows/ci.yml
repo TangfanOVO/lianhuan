@@ -30,11 +30,19 @@ jobs:
           npm run build
           npm run check:privacy
           python tools/preflight.py
+      - name: 隐私闸（仓库本身）
+        uses: ./.github/actions/privacy-gate
+        with: { markers: '${{ secrets.LIANHUAN_PRIVATE_MARKERS }}' }
       - name: Clean generated copy
         run: |
           set -euo pipefail
           out="$(mktemp -d)/lianhuan"
           python create.py --yes "$out"
-          node scripts/check-public-boundary.mjs --root "$out"
+          echo "CLEAN_COPY=$out" >> "$GITHUB_ENV"
           cd "$out"
           python -m unittest discover -s tests -v
+      - name: 隐私闸（create.py 产出的那一份 —— 真正会发出去的东西）
+        uses: ./.github/actions/privacy-gate
+        with:
+          root: ${{ env.CLEAN_COPY }}
+          markers: ${{ secrets.LIANHUAN_PRIVATE_MARKERS }}

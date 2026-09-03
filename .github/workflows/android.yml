@@ -16,6 +16,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '21' }   # 17~21；更新的 JDK 在 JdkImageTransform 上会炸
+      - name: 隐私闸
+        uses: ./.github/actions/privacy-gate
+        with: { markers: '${{ secrets.LIANHUAN_PRIVATE_MARKERS }}' }
       - name: 打包
         working-directory: android
         run: gradle assembleDebug --no-daemon --console=plain    # runner 自带 Gradle 和 Android SDK，仓库里没放 wrapper

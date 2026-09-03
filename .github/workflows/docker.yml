@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: 隐私闸
+        uses: ./.github/actions/privacy-gate
+        with: { markers: '${{ secrets.LIANHUAN_PRIVATE_MARKERS }}' }
       - run: docker build -t lianhuan:ci .
       - name: 没口令 / 短口令 / 文档里的占位串，都必须拒绝启动
         run: |
