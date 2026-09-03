@@ -9,10 +9,12 @@ package app.lianhuan.full;
  */
 
 import android.annotation.SuppressLint;
+import android.app.DownloadManager;
 import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.webkit.PermissionRequest;
 import android.webkit.CookieManager;
 import android.webkit.ValueCallback;
@@ -20,7 +22,9 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.URLUtil;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
@@ -38,6 +42,9 @@ public class MainActivity extends Activity {
     private static final int REQ_FILE = 11;
     private static final int REQ_MIC = 12;
     private PermissionRequest pendingMic;
+    /** 这次启动的随机票。★ 系统下载管理器是独立进程，不共享 WebView 的 Cookie，
+        所以下载请求要自己把票带上，否则后端回 401，存下来的是一句错误 JSON。 */
+    private volatile String androidToken = "";
 
     @Override
     @SuppressLint("SetJavaScriptEnabled")
@@ -55,6 +62,33 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
+        // 给页面一个「我在壳里」的记号。★ 只追加，不覆盖 —— 页面里那句 /Android/i 的判断照旧成立。
+        s.setUserAgentString(s.getUserAgentString() + " LianhuanShell/1");
+
+        /* 下载。★ 0903 真机验出来的：WebView 里 <a download> 配 blob: 什么都不会发生，
+           而页面还会提示「下载好了」—— 假成功比坏掉更糟。
+           这里接住下载，交给系统的下载管理器：存进公共「下载」文件夹、发通知、告诉用户文件名。 */
+        web.setDownloadListener((url, ua, disposition, mime, len) -> {
+            try {
+                String name = URLUtil.guessFileName(url, disposition, mime);
+                DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
+                if (!androidToken.isEmpty()) {
+                    req.addRequestHeader("Cookie", "lh_android=" + androidToken);
+                }
+                req.setMimeType(mime);
+                req.setTitle(name);
+                req.setDescription("连环的备份");
+                req.setNotificationVisibility(
+                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
+                ((DownloadManager) getSystemService(DOWNLOAD_SERVICE)).enqueue(req);
+                Toast.makeText(this, "存好了：手机的「下载」文件夹 / " + name,
+                               Toast.LENGTH_LONG).show();
+            } catch (Throwable e) {
+                // ★ 宁可吵，也不要再来一次假成功
+                Toast.makeText(this, "没存下来：" + e, Toast.LENGTH_LONG).show();
+            }
+        });
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
 
@@ -129,6 +163,7 @@ public class MainActivity extends Activity {
                 com.chaquo.python.PyObject boot = Python.getInstance().getModule("android_boot");
                 boot.callAttr("start", getFilesDir().getAbsolutePath(), PORT);
                 String token = boot.callAttr("token").toString();
+                androidToken = token;
                 for (int i = 0; i < 100; i++) {          // 最多等 20 秒
                     if (alive()) {
                         runOnUiThread(() -> CookieManager.getInstance().setCookie(

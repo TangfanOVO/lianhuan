@@ -4148,15 +4148,6 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
       <div class="stamp">记忆总览</div>
     </div>
     <div class="subwrap">
-      <div class="memimport">
-        <span><b>从手机整理旧记忆</b><small>TXT、Markdown、JSON、CSV 会先进入潜在记忆，点「收下」后才参与召回。</small></span>
-        <div>
-          <label><svg class="i" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2"/></svg>多选文件<input type="file" id="memfilepick" accept=".txt,.md,.markdown,.json,.csv" multiple hidden></label>
-          <button id="memfolderbtn"><svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2 -2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z"/><path d="M3 10h18"/></svg>读文件夹</button>
-          <input type="file" id="memfolderpick" accept=".txt,.md,.markdown,.json,.csv" webkitdirectory multiple hidden>
-        </div>
-      </div>
-      <p class="memimportstatus" id="memimportstatus" role="status"></p>
       <!-- (0827) 记忆字云。设计出自本项目，上游作者帮着完善了实现，接的是真记忆。
            摆在四栏上面：图看总量和关系，点一条在底下显示；要翻列表、要改，
            再点四栏进去 —— 记忆本来就是列表。 -->
@@ -4182,6 +4173,17 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
       <div id="glyphpick" hidden></div>
       <p class="dhint" id="memhint"></p>
       <div id="memlayers"><p class="lede" style="margin:8px 2px">翻一下…</p></div>
+      <!-- ★ 0903 挪到这儿：它是常驻的，顶在最上面会天天挡着「记忆总览」本身要给人看的东西
+           （字云和四层）。常驻的入口就该待在页底。 -->
+      <div class="memimport">
+        <span><b>从手机整理旧记忆</b><small>TXT、Markdown、JSON、CSV 会先进入潜在记忆，点「收下」后才参与召回。</small></span>
+        <div>
+          <label><svg class="i" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2"/></svg>多选文件<input type="file" id="memfilepick" accept=".txt,.md,.markdown,.json,.csv" multiple hidden></label>
+          <button id="memfolderbtn"><svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2 -2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z"/><path d="M3 10h18"/></svg>读文件夹</button>
+          <input type="file" id="memfolderpick" accept=".txt,.md,.markdown,.json,.csv" webkitdirectory multiple hidden>
+        </div>
+      </div>
+      <p class="memimportstatus" id="memimportstatus" role="status"></p>
     </div>
   </div>
 
@@ -6779,7 +6781,14 @@ async function call(key, {query, path, fallback = null, timeout = 8000, method =
   function say(msg, ms){ if (window.toast) window.toast(msg, ms); }
   function lock(on){ pickBtn.disabled = mergeBtn.disabled = replaceBtn.disabled = on; }
 
+  /* ★ 0903 真机验出来的：安卓 WebView 里 <a download> 配 blob: 什么都不会发生，
+     而下面还会提示「下载好了」—— 假成功比坏掉更糟。壳里改成直接导航到导出接口：
+     后端本来就带 Content-Disposition，壳的 DownloadListener 接住，交给系统下载管理器
+     存进「下载」文件夹并通知。别处（普通浏览器、浏览器版）照旧走 blob。 */
+  const inShell = /LianhuanShell/.test(navigator.userAgent || '');
+
   exportBtn.addEventListener('click', async function(){
+    if (inShell){ location.href = 'api/export'; return; }
     exportBtn.disabled = true;
     try {
       const r = await fetch('/api/export', {credentials:'same-origin'});

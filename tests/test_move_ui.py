@@ -37,3 +37,32 @@ class TestMoveUI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestShellDownloadPath(unittest.TestCase):
+    """安卓壳里不能走 blob 下载 —— 0903 真机上验的：什么都不会发生，页面却说「下载好了」。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.web = (ROOT / "core" / "web" / "index.html").read_text(encoding="utf-8")
+        cls.java = (ROOT / "android-full" / "app" / "src" / "main" / "java"
+                    / "app" / "lianhuan" / "full" / "MainActivity.java").read_text(encoding="utf-8")
+
+    def test_page_takes_the_direct_route_inside_the_shell(self):
+        self.assertIn("/LianhuanShell/.test(navigator.userAgent", self.web)
+        self.assertIn("if (inShell){ location.href = 'api/export'; return; }", self.web)
+        # 别处照旧走 blob，别为了安卓把桌面改坏
+        self.assertIn("URL.createObjectURL", self.web)
+
+    def test_shell_marks_its_user_agent_without_dropping_android(self):
+        self.assertIn('setUserAgentString(s.getUserAgentString() + " LianhuanShell/1")', self.java)
+        # 页面里那句 /Android/i 的判断靠 UA 里还留着 Android —— 只许追加，不许覆盖
+        self.assertNotIn('setUserAgentString("', self.java)
+
+    def test_shell_catches_downloads_and_carries_the_token(self):
+        self.assertIn("setDownloadListener", self.java)
+        self.assertIn("DIRECTORY_DOWNLOADS", self.java)
+        # 下载管理器是独立进程，不带 WebView 的 Cookie；不自己带票就会存下一句 401
+        self.assertIn('req.addRequestHeader("Cookie", "lh_android=" + androidToken)', self.java)
+        # 失败要吵出来，不许再来一次假成功
+        self.assertIn("没存下来：", self.java)
