@@ -197,3 +197,18 @@ MIT（见同目录 `LICENSE`）。
 底栏中央那片枫叶是 **Font Awesome Free 6 · canadian-maple-leaf**，
 Icons 走 **CC BY 4.0**，署名在仓库 `UPSTREAM.md`。它的 path 不在这块里，在 `base/crest.js`。
 线条图标是 **Tabler Icons**（MIT）。
+
+## 收起某几块（0904）
+
+「排一排主页」里每行右边那颗眼睛：**从主页收起 / 放回**。她的原话：
+「有人不需要健康什么的，让他们自己关」。
+
+- **只藏不删。** 收起来的那一行**留在清单里**（变淡、划掉），随时点回来；数据一个字没动。
+- 存本机 `home.hidden`（一串 `data-blk`），刷新还在。
+- 用的是 `hidden` 属性，不是 `display:none` —— 垂丝/横渡/灯串那三种排法的绳子是照
+  DOM 里挂着的卡算的，[`../physics/silk-rope.js`](../physics/silk-rope.js) 认的正是 `hidden`，
+  认得出来才不会在绳上留一个空尖角。
+- 收完会叫一次 `silk.rebuild()` / `paperFit()` / `stackFit()` —— 卡少了，几何要重量。
+- 对外：`window.Home.applyHide()`（宿主自己改了 `home.hidden` 之后叫一下）。
+
+★ **只管方块那一版。** 另外五种排法各有各的坐标，不参与。

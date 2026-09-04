@@ -47,6 +47,7 @@
   var LAYOUTS = ['tiles', 'drape', 'blinds', 'lantern', 'paper', 'stack'];
   var KEY_LAYOUT = 'silk.home';    /* 跟原件同名：风力那个键 silk.wind 也是这一族的 */
   var KEY_ORDER = 'home.order';    /* 方块的板块顺序。原件那边带着应用自己的前缀，这儿去掉了 */
+  var KEY_HIDE  = 'home.hidden';   /* (0904) 收起来的板块。她的原话：「有人不需要健康什么的，让他们自己关」 */
 
   function LSget(k, d) {
     try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }
@@ -242,6 +243,36 @@
     LSset(KEY_ORDER, ids);
     applyOrder();
   }
+  /* (0904) 收起来的那些。★ 用 `hidden` 属性，不用 display:none ——
+     垂丝/横渡/灯串那三种排法的绳子是照 DOM 里挂着的卡算的，
+     `../physics/silk-rope.js` 认的正是 `hidden`：认得出来才不会在绳上留一个空尖角。 */
+  function hiddenSet() {
+    var a = LSget(KEY_HIDE, []);
+    return Array.isArray(a) ? a : [];
+  }
+  function applyHide() {
+    if (!boxTiles) return;
+    ensureBlk();
+    var off = hiddenSet();
+    rows().forEach(function (el) {
+      var gone = off.indexOf(el.dataset.blk) >= 0;
+      el.hidden = gone;
+      var line = el.nextElementSibling;              /* 它后面那根线跟着一起收 */
+      if (line && line.classList.contains('thread')) line.hidden = gone;
+    });
+    /* 收起来之后卡少了，会飘的那几种要重新量一次几何 */
+    if (silk) { try { silk.rebuild(); } catch (e) {} }
+    if (global.paperFit) { try { global.paperFit(); } catch (e) {} }
+    if (global.stackFit) { try { global.stackFit(); } catch (e) {} }
+  }
+  function toggleHide(id) {
+    var off = hiddenSet();
+    var i = off.indexOf(id);
+    if (i >= 0) off.splice(i, 1); else off.push(id);
+    LSset(KEY_HIDE, off);
+    applyHide();
+  }
+
   function applyOrder() {
     if (!boxTiles) return;
     var ids = LSget(KEY_ORDER, null);
@@ -262,14 +293,41 @@
   function buildSortList() {
     if (!list) return;
     ensureBlk();
+    var off = hiddenSet();
     list.innerHTML = rows().map(function (el) {
-      return '<div class="sortitem" data-blk="' + el.dataset.blk + '">'
+      var id = el.dataset.blk, gone = off.indexOf(id) >= 0;
+      /* ★ 眼睛这颗要 type="button"：<button> 不写 type 默认是 submit，
+         塞在表单里会把整页提交掉（这坑咬过人）。 */
+      return '<div class="sortitem' + (gone ? ' off' : '') + '" data-blk="' + id + '">'
         + '<div class="ic"><svg class="i" viewBox="0 0 24 24">'
         + '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></div>'
         + '<span>' + rowName(el).replace(/[&<>]/g, function (c) {
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }) + '</span>'
+        + '<button class="eye" type="button" data-hide="' + id + '" '
+        + 'aria-pressed="' + (gone ? 'true' : 'false') + '" '
+        + 'aria-label="' + (gone ? '放回主页' : '从主页收起') + '">'
+        + (gone
+            ? '<svg class="i" viewBox="0 0 24 24"><path d="M3 3l18 18"/>'
+              + '<path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/>'
+              + '<path d="M9.4 5.2A9 9 0 0 1 12 5c4 0 7.3 2.3 9 7a15 15 0 0 1-2.2 3.3"/>'
+              + '<path d="M6.6 6.6A15 15 0 0 0 3 12c1.7 4.7 5 7 9 7a9 9 0 0 0 3.4-.6"/></svg>'
+            : '<svg class="i" viewBox="0 0 24 24"><path d="M3 12c1.7-4.7 5-7 9-7s7.3 2.3 9 7c-1.7 4.7-5 7-9 7s-7.3-2.3-9-7z"/>'
+              + '<path d="M12 9a3 3 0 1 0 0 6a3 3 0 0 0 0-6"/></svg>')
+        + '</button>'
         + '<span class="grip"><i></i><i></i><i></i></span></div>';
     }).join('');
+  }
+
+  /* (0904) 眼睛：收起 / 放回。她的原话：「有人不需要健康什么的，让他们自己关」。
+     ★ 只藏不删 —— 随时点回来，数据一个字没动。 */
+  if (list) {
+    list.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-hide]');
+      if (!b) return;
+      e.preventDefault(); e.stopPropagation();
+      toggleHide(b.getAttribute('data-hide'));
+      buildSortList();                 /* 重画清单，眼睛跟着变 */
+    });
   }
 
   /* 按住拖 ── 原件 proto.html:5479-5509，一行没改。
@@ -277,6 +335,7 @@
   if (list) {
     var dragEl = null, startY = 0, baseY = 0;
     list.addEventListener('pointerdown', function (e) {
+      if (e.target.closest('[data-hide]')) return;   /* (0904) 点的是眼睛，不是要拖 */
       var it = e.target.closest('.sortitem'); if (!it) return;
       dragEl = it; startY = e.clientY; baseY = 0;
       it.classList.add('drag'); it.setPointerCapture(e.pointerId);
@@ -323,6 +382,7 @@
   });
 
   applyOrder();      /* 开页面就按上次排的来 */
+  applyHide();       /* (0904) 上次收起来的，继续收着 */
   applyHome();       /* 开页面就是上次那种排法 */
 
   global.Home = {
@@ -333,6 +393,7 @@
     },
     syncPad: syncPad,
     applyOrder: applyOrder,
+    applyHide: applyHide,
     /* 壳的尺寸变了（换页、开关条换行、旋屏）叫一次：三种画布都重新量。 */
     rebuild: function () {
       if (silk) silk.rebuild();

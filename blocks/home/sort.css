@@ -55,3 +55,20 @@
 /* 右边那三条横杠（抓手）。三个空的 <i>，没有图标文件。 */
 .grip{display:flex;flex-direction:column;gap:3px}
 .grip i{display:block;width:15px;height:1.6px;background:var(--hint);border-radius:2px}
+
+/* (0904) 收起 / 放回 —— 她要的：「有人不需要健康什么的，让他们自己关」。
+   ★ 只藏不删：收起来的行整条变淡但**留在清单里**，随时点回来。
+   删掉才可怕，淡一点只是不显示。 */
+.sortitem .eye{
+  flex:none;width:34px;height:34px;margin-left:auto;display:flex;align-items:center;justify-content:center;
+  border:0;background:none;color:var(--hint);cursor:pointer;border-radius:9px;
+}
+.sortitem .eye:hover{background:var(--card2);color:var(--ink)}
+.sortitem .eye svg.i{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+.sortitem .eye[aria-pressed="true"]{color:var(--maple)}
+/* 收起来的那一行：淡下去，但看得见、拖得动、点得回来 */
+.sortitem.off{opacity:.5}
+.sortitem.off span:not(.grip){text-decoration:line-through;text-decoration-thickness:1px}
+/* 有了眼睛之后，把手不再靠 margin-left:auto 顶到最右 —— 眼睛占了那个位置 */
+.sortitem .grip{margin-left:0}

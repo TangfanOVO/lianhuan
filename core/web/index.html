@@ -2574,6 +2574,16 @@ input[type=range]::-moz-range-thumb{
   cursor:grab;touch-action:none;user-select:none;
   transition:box-shadow .18s, transform .18s;
 }
+/* (0904) 收起 / 放回 —— 只藏不删：那一行留在清单里，变淡、划掉，随时点回来 */
+.sortitem .eye{flex:none;width:34px;height:34px;margin-left:auto;display:flex;align-items:center;
+  justify-content:center;border:0;background:none;color:var(--hint);cursor:pointer;border-radius:9px}
+.sortitem .eye:hover{background:var(--card2);color:var(--ink)}
+.sortitem .eye svg.i{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+.sortitem .eye[aria-pressed="true"]{color:var(--maple)}
+.sortitem.off{opacity:.5}
+.sortitem.off span:not(.grip){text-decoration:line-through;text-decoration-thickness:1px}
+.sortitem .grip{margin-left:0}
 .sortitem.drag{box-shadow:var(--shadow-lift);transform:scale(1.025);cursor:grabbing;position:relative;z-index:3}
 .sortitem .ic{width:30px;height:30px;margin:0;border-radius:9px}
 .sortitem .ic svg.i{width:16px;height:16px}
@@ -6482,6 +6492,7 @@ const PREF = (function(){
   /* 排一排主页：按住拖 */
   var list = document.getElementById('sortlist'), dragEl = null, startY = 0, baseY = 0;
   list.addEventListener('pointerdown', function(e){
+    if (e.target.closest('[data-hide]')) return;   /* (0904) 点的是眼睛，不是要拖 */
     var it = e.target.closest('.sortitem'); if (!it) return;
     dragEl = it; startY = e.clientY; baseY = 0;
     it.classList.add('drag'); it.setPointerCapture(e.pointerId);
@@ -6522,6 +6533,9 @@ const PREF = (function(){
      ★ 只动方块这一版；用户自己设计的那三个主页各有各的坐标，不参与。 */
   var tilesBox = document.querySelector('[data-home="tiles"]');
   var ORDER_KEY = 'lh.home.order';
+  /* (0904) 收起来的那些板块。她的原话：「有人不需要健康什么的，让他们自己关」。
+     ★ 跟顺序一样两头存：服务端那份换设备也跟着走，本机那份离线也在。 */
+  var HIDE_KEY  = 'lh.home.hidden';
 
   /* 名字取 data-sub（那才是这一格叫什么）——h3 里装的是内容，
      拿它当名字会出现「某首歌」「窗台那盆今天开了…」这种，用户认不出是哪一格。 */
@@ -6592,27 +6606,81 @@ const PREF = (function(){
       if (line && line.classList.contains('thread')) tilesBox.insertBefore(line, anchor);
     });
   }
+  /* (0904) 收起 / 放回。★ 用 `hidden` 属性，不是 display:none ——
+     垂丝/横渡/灯串那几种排法的绳子照 DOM 里挂着的卡算，认得出 `hidden` 才不会留空尖角。
+     ★ **只藏不删**：清单里那一行一直留着，随时点回来，数据一个字没动。 */
+  function hiddenSet(){
+    var a = null;
+    try { a = PREF.get('home.hidden', null); } catch(e){ a = null; }
+    if (!a) { try { a = JSON.parse(localStorage.getItem(HIDE_KEY) || 'null'); } catch(e){ a = null; } }
+    return Array.isArray(a) ? a : [];
+  }
+  function applyHide(){
+    if (!tilesBox) return;
+    ensureBlk();
+    var off = hiddenSet();
+    rows().forEach(function(el){
+      var gone = off.indexOf(el.dataset.blk) >= 0;
+      el.hidden = gone;
+      var line = el.nextElementSibling;               /* 后面那根线跟着一起收 */
+      if (line && line.classList.contains('thread')) line.hidden = gone;
+    });
+    /* 卡少了，会飘的那几种要重新量。这一页的 rebuild 没往外暴露，
+       但它本来就听 resize —— 派一个就行，不用为这件事新开一个口子。 */
+    try { window.dispatchEvent(new Event('resize')); } catch(e){}
+  }
+  function toggleHide(id){
+    var off = hiddenSet(), i = off.indexOf(id);
+    if (i >= 0) off.splice(i, 1); else off.push(id);
+    try { localStorage.setItem(HIDE_KEY, JSON.stringify(off)); } catch(e){}
+    try { PREF.set('home.hidden', off); } catch(e){}
+    applyHide();
+  }
+
   /* PREF 的服务端那份是异步回来的：回来之后再排一次，
      不然换设备第一眼看到的还是本机（或默认）的顺序。 */
-  try { PREF.onload(applyOrder); } catch(e){}
+  try { PREF.onload(function(){ applyOrder(); applyHide(); }); } catch(e){}
 
   /* 打开"排一排"时，照主页此刻的真实样子现生成清单 —— 以后加了新格子它自己会出现，
      不用再手写死一份（原来那份还写着早就撤掉的「待办笺条」）。 */
   function buildSortList(){
     ensureBlk();
+    var off = hiddenSet();
     list.innerHTML = rows().map(function(el){
-      return '<div class="sortitem" data-blk="' + el.dataset.blk + '">'
+      var id = el.dataset.blk, gone = off.indexOf(id) >= 0;
+      /* ★ 眼睛这颗必须写 type="button"：按钮不写 type 默认就是 submit，这坑咬过人 */
+      return '<div class="sortitem' + (gone ? ' off' : '') + '" data-blk="' + id + '">'
         + '<div class="ic"><svg class="i" viewBox="0 0 24 24">'
         + '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></div>'
         + '<span>' + rowName(el).replace(/[&<>]/g, function(c){
             return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }) + '</span>'
+        + '<button class="eye" type="button" data-hide="' + id + '" '
+        + 'aria-pressed="' + (gone ? 'true' : 'false') + '" '
+        + 'aria-label="' + (gone ? '放回主页' : '从主页收起') + '">'
+        + (gone
+            ? '<svg class="i" viewBox="0 0 24 24"><path d="M3 3l18 18"/>'
+              + '<path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/>'
+              + '<path d="M9.4 5.2A9 9 0 0 1 12 5c4 0 7.3 2.3 9 7a15 15 0 0 1-2.2 3.3"/>'
+              + '<path d="M6.6 6.6A15 15 0 0 0 3 12c1.7 4.7 5 7 9 7a9 9 0 0 0 3.4-.6"/></svg>'
+            : '<svg class="i" viewBox="0 0 24 24"><path d="M3 12c1.7-4.7 5-7 9-7s7.3 2.3 9 7c-1.7 4.7-5 7-9 7s-7.3-2.3-9-7z"/>'
+              + '<path d="M12 9a3 3 0 1 0 0 6a3 3 0 0 0 0-6"/></svg>')
+        + '</button>'
         + '<span class="grip"><i></i><i></i><i></i></span></div>';
     }).join('');
   }
   document.addEventListener('click', function(e){
     if (e.target.closest && e.target.closest('[data-sort]')) setTimeout(buildSortList, 30);
   });
-  applyOrder();                     /* 开页面就按用户上次排的来 */
+  /* (0904) 眼睛：收起 / 放回 */
+  if (list) list.addEventListener('click', function(e){
+    var b = e.target.closest('[data-hide]');
+    if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    toggleHide(b.getAttribute('data-hide'));
+    buildSortList();
+  });
+  applyOrder();
+  applyHide();                     /* 开页面就按用户上次排的来 */
 
   /* 顶栏时间走真的 */
   /* 顶栏不再显示假天气 —— 那个数根本读不到，与其编不如不显示。
