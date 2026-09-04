@@ -30,7 +30,7 @@ import os
 import shutil
 from typing import AsyncIterator
 
-from ..protocol import DONE, SAY, SEP, STAGE, THINK, TOOL_LIVE, sse
+from ..protocol import DONE, SAY, SEP, STAGE, THINK, TOOL_LIVE, USAGE, sse
 from .base import Engine, Turn
 
 #: 一直没有字节吐出来就喂一口心跳。长考、跑工具的时候会静很久，
@@ -130,6 +130,13 @@ class CliEngine(Engine):
         feed = self._feeder()
         session_id = turn.session_id
         said_anything = False
+        # ★ 0904：订阅这条路**也数得出 token**。
+        #   她原以为「订阅好像看不到 Claude 的 token 数」—— 那是 API 控制台的事；
+        #   `--output-format stream-json` 吐的就是 Anthropic 的原生流事件
+        #   （下面早就在解 content_block_delta / thinking_delta 了，同一套），
+        #   所以 message_start / message_delta 里的 usage 一样在。
+        #   ★ 数不到就一条都不记 —— 宁可没账，不能有假账。
+        used = {"tin": 0, "tout": 0, "tcache_r": 0, "tcache_w": 0}
 
         yield sse(STAGE, text="在想")
         try:
@@ -165,6 +172,13 @@ class CliEngine(Engine):
                 if t == "stream_event":
                     ev = d.get("event") or {}
                     et = ev.get("type")
+                    if et == "message_start":
+                        u = ((ev.get("message") or {}).get("usage")) or {}
+                        used["tin"] += int(u.get("input_tokens") or 0)
+                        used["tcache_r"] += int(u.get("cache_read_input_tokens") or 0)
+                        used["tcache_w"] += int(u.get("cache_creation_input_tokens") or 0)
+                    elif et == "message_delta":
+                        used["tout"] += int((ev.get("usage") or {}).get("output_tokens") or 0)
                     if et == "content_block_delta":
                         delta = ev.get("delta") or {}
                         if delta.get("type") == "text_delta":
@@ -198,6 +212,10 @@ class CliEngine(Engine):
         finally:
             await self.close()
 
+        if any(used.values()):
+            # model 记的是**哪个 CLI**（claude / codex / …）—— 具体是哪个模型
+            # 由那个客户端自己定，我们这头看不见，不编一个填上去。
+            yield sse(USAGE, engine="cli", model=self.preset.get("bin") or self.bin, **used)
         yield sse(DONE, session_id=session_id)
 
     async def close(self) -> None:

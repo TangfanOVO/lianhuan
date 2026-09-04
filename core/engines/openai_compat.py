@@ -33,8 +33,8 @@ import os
 import re
 from typing import AsyncIterator
 
-from ..protocol import DONE, SAY, SEP, STAGE, THINK, sse
-from .base import Engine, Turn
+from ..protocol import DONE, SAY, SEP, STAGE, THINK, USAGE, sse
+from .base import Engine, Turn, upstream_error
 
 #: 句末标点。在这些字符后面断句
 END = "。！？…!?"
@@ -178,6 +178,8 @@ class OpenAICompatEngine(Engine):
 
         feed = self._feeder()
         said = False
+        #: (0904) 这一轮烧了多少。拿不到就全是 0，收尾时不报 —— 不猜。
+        used = {"tin": 0, "tout": 0, "tcache_r": 0, "tcache_w": 0}
         yield sse(STAGE, text="在想")
 
         # ── 有手的路：先走工具轮（非流式），模型说要动手就替它动，动完再想 ──
@@ -195,10 +197,14 @@ class OpenAICompatEngine(Engine):
                                  "Content-Type": "application/json"},
                         json={"model": self.model, "messages": msgs, "tools": self.tools})
                     if r.status_code != 200:
-                        yield sse("error", text=f"模型那边回了 {r.status_code}：{r.text[:200]}")
+                        yield sse("error", text=upstream_error(r.status_code, r.text, self.model))
                         yield sse(DONE, session_id=turn.session_id)
                         return
-                    m = (r.json().get("choices") or [{}])[0].get("message") or {}
+                    _j = r.json()
+                    _u = _j.get("usage") or {}
+                    used["tin"] += int(_u.get("prompt_tokens") or 0)
+                    used["tout"] += int(_u.get("completion_tokens") or 0)
+                    m = (_j.get("choices") or [{}])[0].get("message") or {}
                     # ★ 思考链在这条路上曾经被漏掉：只取了 content 和 tool_calls。
                     #   支持 thinking+tools 的模型（GLM-4.5、K 系…）每轮都可能带它
                     if m.get("reasoning_content"):
@@ -251,13 +257,15 @@ class OpenAICompatEngine(Engine):
             async with self._client.stream(
                 "POST", f"{self.base}/v1/chat/completions",
                 headers={"Authorization": f"Bearer {self._key}", "Content-Type": "application/json"},
-                json={"model": self.model, "messages": msgs, "stream": True},
+                json={"model": self.model, "messages": msgs, "stream": True,
+                      # ★ 0904：流式默认**不给** usage，得显式要。不认这个字段的家会忽略它。
+                      "stream_options": {"include_usage": True}},
             ) as r:
                 if r.status_code != 200:
                     body = (await r.aread()).decode("utf-8", "replace")[:300]
                     # ★ 把真实原因说出来。「出错了」这三个字帮不了任何人 ——
                     #   余额不足、key 写错、模型名打错，处理方式完全不同
-                    yield sse("error", text=f"模型那边回了 {r.status_code}：{body}")
+                    yield sse("error", text=upstream_error(r.status_code, body, self.model))
                     yield sse(DONE, session_id=turn.session_id)
                     return
 
@@ -271,6 +279,11 @@ class OpenAICompatEngine(Engine):
                         d = json.loads(payload)
                     except Exception:
                         continue
+                    _u = d.get("usage")
+                    if _u:                       # (0904) 末尾那一帧才带
+                        used["tin"] = int(_u.get("prompt_tokens") or 0)
+                        used["tout"] = int(_u.get("completion_tokens") or 0)
+                        used["tcache_r"] = int((_u.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
                     delta = (d.get("choices") or [{}])[0].get("delta") or {}
                     # 推理模型（deepseek-reasoner、o 系列）把思考放在单独的字段里
                     rc = delta.get("reasoning_content")
@@ -306,7 +319,32 @@ class OpenAICompatEngine(Engine):
         finally:
             await self.close()
 
+        if any(used.values()):
+            yield sse(USAGE, engine=self.name, model=self.model, **used)
         yield sse(DONE, session_id=turn.session_id)
+
+    async def list_models(self) -> list[dict]:
+        """问这家有哪些模型（GET /v1/models —— OpenAI 兼容那套的标准接口）。
+
+        ★ 不是每家都开这条（有的要额外权限，有的干脆没有）。问不到就回空列表，
+          界面照实退回手填 —— 不猜、不塞一份写死的名单冒充「支持的模型」。
+        """
+        if not self.ready:
+            return []
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=8.0),
+                                         transport=_browser_transport()) as c:
+                r = await c.get(f"{self.base}/v1/models",
+                                headers={"Authorization": f"Bearer {self._key}"})
+                if r.status_code != 200:
+                    return []
+                data = r.json().get("data") or []
+                out = [{"id": m.get("id", ""), "name": m.get("id", "")} for m in data if m.get("id")]
+                out.sort(key=lambda x: x["id"])
+                return out
+        except Exception:
+            return []
 
     async def close(self) -> None:
         c, self._client = self._client, None

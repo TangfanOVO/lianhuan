@@ -1376,6 +1376,8 @@ h3{font-size:15.5px;font-weight:600;margin:0 0 3px;line-height:1.45}
 .found b{color:var(--ink);font-variant-numeric:tabular-nums}
 
 .chips{display:flex;gap:7px;overflow-x:auto;padding:0 0 12px;margin:0 -16px;padding-left:16px;padding-right:16px}
+/* (0904) .chips 设了 display，所以 hidden 属性压不住它 —— 配套这一条，不然那一排藏不掉 */
+.chips[hidden]{display:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{
   flex:none;border:1px solid var(--line);background:transparent;color:var(--sub);
@@ -2478,6 +2480,22 @@ h3{font-size:15.5px;font-weight:600;margin:0 0 3px;line-height:1.45}
   color:var(--ink);font-size:15px;font-weight:600;
 }
 .mdgo button:last-child{border-bottom:0}
+.mdgo button[hidden]{display:none}   /* 上面那条 display:flex 会盖掉 hidden，钉死（规矩 9）*/
+/* 设置页里认出来的模型：**竖着排**。0904 外部验收说的：横向滚动那版「卡手」——
+   一屏看不全、要横着扒拉、选完还得回上面再按一次保存。聊天框那张弹层是竖的，好用。 */
+.mlist{display:grid;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mlist[hidden]{display:none}         /* 上面 display:grid 会盖掉 hidden，钉死（规矩 9）*/
+.mlist button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+  border:0;border-bottom:1px solid var(--line);background:var(--card2);cursor:pointer;
+  font-family:inherit;font-size:13.5px;color:var(--ink);padding:12px 13px;min-height:44px}
+.mlist button:last-child{border-bottom:0}
+.mlist button:active{background:var(--card)}
+.mlist button.on{color:var(--maple);font-weight:600}
+.mlist button .mid{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mlist button .mtag{flex:none;font-size:11px;color:var(--hint)}
+/* 后面那颗藏起来了，这颗就成了最后一颗，别多留一条线。
+   老浏览器不认 :has 也只是多一条分隔线，不影响用。 */
+.mdgo button:has(+ button[hidden]){border-bottom:0}
 .mdgo button>span{flex:1;min-width:0}
 .mdgo button>b{flex:none;font-weight:500;font-size:13.5px;color:var(--sub)}
 .mdgo button>svg{flex:none;width:18px;height:18px;color:var(--hint);
@@ -4003,11 +4021,24 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
         <b style="display:block;font-size:15px">说话的引擎<small id="engnow" style="margin-left:8px;color:var(--hint);font-weight:400"></small></b>
         <div class="chips" id="engpre" style="margin:10px -4px 4px;padding:0 4px 6px"></div>
         <div style="display:grid;gap:8px;margin-top:4px">
+          <!-- (0904 外部验收 P0-2) 协议自己选，不靠地址猜。
+               自建 Claude 代理、第三方 Anthropic 兼容地址都不带 anthropic.com，
+               靠猜一律猜成 OpenAI —— 于是贴了 key 一个模型也认不出来。
+               点上面的公司预设会自动切到对的那条；自定义地址就在这儿选。 -->
+          <div class="chips" id="engproto" style="margin:0 -4px;padding:0 4px 2px">
+            <button class="chip" type="button" data-proto="api">OpenAI 兼容</button>
+            <button class="chip" type="button" data-proto="anthropic">Anthropic 协议</button>
+          </div>
           <input id="engbase" placeholder="接口地址，如 https://api.deepseek.com" style="min-height:42px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card2);color:var(--ink);font:inherit;font-size:13px">
           <input id="engmodel" placeholder="模型名，如 deepseek-chat" style="min-height:42px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card2);color:var(--ink);font:inherit;font-size:13px">
           <input id="engkey" type="password" placeholder="API key（存本机服务端，不进库不进导出）" style="min-height:42px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card2);color:var(--ink);font:inherit;font-size:13px">
-          <button class="pkbtn main" id="engsave">保存并用它说话</button>
+          <!-- (0904 外部验收 P0-1) 拿**这一刻框里填着的**去问，不是问上一份存下的旧配置。
+               原来只能「先保存 → 刷新 → 再识别」，全新装的人第一次点它一个也认不出来。 -->
+          <button class="pkbtn main" id="engscan" type="button">连接并识别模型</button>
+          <div class="mlist" id="engmodels" hidden></div>
           <small id="engmsg" style="color:var(--hint)"></small>
+          <!-- 认不出来（这家不开这条接口 / key 权限不够）时手填，照旧能用 -->
+          <button class="pkbtn" id="engsave">直接保存上面填的</button>
         </div>
       </div>
       <!-- MCP：给 AI 接外面的工具（钓鱼那类）。命令是用户自己贴的=自己运行程序 -->
@@ -4498,6 +4529,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:1
     <div class="subwrap">
       <p class="dhint" id="syshint"></p>
       <div id="sysmodel"></div>
+      <div id="sysusage"></div>
       <div id="syslist"><p class="lede" style="margin:8px 2px">翻一下…</p></div>
     </div>
   </div>
@@ -6762,6 +6794,7 @@ const EP = {
   think       : '/api/think',              /* {mode:'fast'|'auto'|'deep'} —— 想多深，跟脑子同一张弹层 */
   sysstatus   : '/api/sysstatus',          /* {checked_at, items:[{key,label,ok,detail,level}]} */
   usage       : '/api/usage',
+  engineModels: '/api/engine/models',      /* POST · 问这家有哪些模型，结果后端会缓存 */
   /* 设置那几样（都能读能写；写是用户自己拉滑钮／按保存，我不替用户按）*/
   voice       : '/api/voice',              /* {auto,rate,pitch,loudness} 默认 0/1.0/0 */
   whisperFreq : '/api/whisper_freq',       /* {level:0-100} 耳语（主动找用户）的频率 */
@@ -12393,13 +12426,54 @@ window.haptic = haptic;
 /* ══ 模型 · 状态 ══ 哪张嘴在说话、几条线还通着 */
 (function(){
   const mo   = document.getElementById('sysmodel'),
+        use  = document.getElementById('sysusage'),
         list = document.getElementById('syslist'),
         hint = document.getElementById('syshint');
   if (!list) return;
+
+  /* ══ 用量 ══ 烧了多少 token（0904 补的）。
+     ★ 只有走 API 的引擎报得出账；回声不烧、本机 CLI 这一版没接。
+       **报不出来就说没有，不估、不折算成钱** —— 各家单价不同还会变，猜一个比不给更糟。
+     ★ 缓存读单独占一格：这个应用每轮把整份记忆重发一遍，那一列往往比正文大一个数量级，
+       混进「进」里会看不出缓存到底有没有生效。 */
+  const K = n => {
+    n = +n || 0;
+    if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M';
+    if (n >= 1e4) return Math.round(n / 1e3) + 'k';
+    if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'k';
+    return String(n);
+  };
+  function drawUsage(u){
+    if (!use) return;
+    if (!u || !u.turns){
+      use.innerHTML = '<p class="dnone" style="margin:10px 2px">还没记过账。'
+        + '走 API 说过话之后这儿才有数（回声和本机 CLI 不计）。</p>';
+      return;
+    }
+    const t = u.today || {}, w = u.window || {};
+    let h = '<div class="hcard">'
+      + '<div><b>' + K(t.tin) + '</b><small>今天进</small></div>'
+      + '<div><b>' + K(t.tout) + '</b><small>今天出</small></div>'
+      + '<div><b>' + K(t.tcache_r) + '</b><small>今天读缓存</small></div>'
+      + '</div>'
+      + '<p class="dhint">近 ' + (u.days || 30) + ' 天：说了 ' + u.turns + ' 轮，'
+      + '进 ' + K(w.tin) + ' 出 ' + K(w.tout)
+      + (w.tcache_r ? '，缓存读 ' + K(w.tcache_r) : '')
+      + (w.tcache_w ? ' 写 ' + K(w.tcache_w) : '') + '</p>';
+    (u.by_model || []).forEach(function(x){
+      h += '<div class="sysrow"><span class="dot"></span>'
+        + '<span class="lb">' + W.esc(x.model || '?') + '</span>'
+        + '<span class="de">' + x.turns + ' 轮 · 进 ' + K(x.tin) + ' 出 ' + K(x.tout)
+        + (x.tcache_r ? ' · 缓存读 ' + K(x.tcache_r) : '')
+        + (x.engine ? ' · ' + W.esc(x.engine) : '') + '</span></div>';
+    });
+    use.innerHTML = h;
+  }
   W.door('[data-sub="模型 / QQ / 用量 / 状态"], [data-sub="选模型"]', 'syspage', async function(){
-    const [m, sys] = await Promise.all([
+    const [m, sys, use] = await Promise.all([
       call('aiModel',   {fallback: null}),
       call('sysstatus', {fallback: null}),
+      call('usage',     {query: {days: 30}, fallback: null}),
     ]);
     if (mo && m){
       mo.innerHTML = '<div class="dit"><div class="ih"><b>这会儿说话的是</b></div>'
@@ -12408,6 +12482,7 @@ window.haptic = haptic;
             ? '<div class="ctx">备着的：' + W.esc(m.options.join(' · ')) + '</div>' : '')
         + '</div>';
     }
+    drawUsage(use);
     const items = (sys && sys.items) || [];
     if (hint) hint.textContent = sys && sys.checked_at ? ('查于 ' + sys.checked_at) : '';
     /* ★ 0829：QQ 那一行做成可点的。0829 报的：站在这一页不知道该怎么把 QQ 重新连上 ——
@@ -12419,7 +12494,17 @@ window.haptic = haptic;
         + '<span class="de">' + W.esc(x.detail || '')
         + (jump ? ' <span style="color:var(--maple);white-space:nowrap">去扫码 ›</span>' : '')
         + '</span></div>';
-    }).join('') : '<p class="dnone">没取到。</p>';
+    }).join('')
+      /* ★ 0904：原来只写「没取到」，读的人不知道是什么没取到、也不知道上面那些算不算数。
+         整机自检（/api/sysstatus）这一路这个版本没有 —— 说清楚，别让人以为是坏了。
+       ★ 但标题里的 QQ 是**真有的**（功能包 qq-napcat，自己跑 NapCat 就接上），
+         所以自检没有的时候，这儿照样得留一扇去 QQ 那页的门 ——
+         不然人对着「模型 · QQ · 用量 · 状态」这个名字点进来，找不到 QQ 在哪。 */
+      : '<div class="sysrow" data-open="qqpage" style="cursor:pointer"><span class="dot"></span>'
+        + '<span class="lb">QQ</span><span class="de">在不在线、掉线了扫码 '
+        + '<span style="color:var(--maple);white-space:nowrap">去看看 ›</span></span></div>'
+        + '<p class="dnone" style="margin:10px 2px">整机自检这一路这个版本没有。'
+        + '上面的模型和用量是实数。</p>';
   });
 })();
 
@@ -15201,7 +15286,8 @@ async function loadHome(){
     'claude-opus-4-6[1m]': '更早那一代，留着备用',
   };
 
-  let cur = '', opts = [], def = '', busy = false, th = 'auto';
+  let cur = '', opts = [], def = '', busy = false, th = 'auto', byApi = false,
+      autoScanned = false;
 
   /* ★ 0810 定的：只留名字。NOTE 那一行描述整条撤掉 —— 常量留着不删，
      哪天想在别处（比如长按看详情）用得上，而且删了以后没人记得这几句是怎么写的。 */
@@ -15220,12 +15306,18 @@ async function loadHome(){
       if (more) more.innerHTML = '';
       return;
     }
-    /* 主页＝当代那两个 ＋ 正在用的（哪怕它是旧的）；其余全进「更早那几代」 */
-    const inMain = id => MAIN_IDS.indexOf(id) >= 0 || id === cur;
+    /* ★ 0904：接了别家 API 的时候，这张单子是「这家有哪些模型」，
+         没有「当代 / 更早那几代」这回事 —— deepseek-reasoner 不是 deepseek-chat 的上一代。
+         照旧分代会把认出来的模型大半藏进二级页，等于没识别。所以这条路一屏列全。
+       MAIN_IDS 那套是 Claude 订阅那条老路的分法，一个字没动。 */
+    const inMain = id => byApi || MAIN_IDS.indexOf(id) >= 0 || id === cur;
     const a = opts.filter(inMain), b = opts.filter(id => !inMain(id));
     list.innerHTML = a.map(row).join('');
     if (more) more.innerHTML = b.length ? b.map(row).join('')
       : '<p class="dnone" style="margin:8px 2px">没有更早的了。</p>';
+    /* 都在主页上了，「换个模型 ›」那行点进去是空的 —— 收起来，别让人白点一下 */
+    const goMore = mbody && mbody.querySelector('[data-go="more"]');
+    if (goMore) goMore.hidden = !b.length ? true : false;
   }
   function label(){ btn.innerHTML = W.esc(nice(cur)) + '<span aria-hidden="true"> ▾</span>'; }
 
@@ -15256,6 +15348,10 @@ async function loadHome(){
          而 d.configured 是「你选的那个」。两个不一样就必须说出来 ——
          界面显示 api、实际回声，那是界面在说假话，我们自己那条硬线第一个不答应。 */
     if (d && d.options && d.options.length){
+      /* ★ 0904：后端带回 provider，就说明这张单子列的是**一家 API 下面的模型**
+         （她要的：「所有 API 支持的模型被识别之后自动进入聊天框下面」），
+         不是 Claude 订阅那几代。分代那套对别家不成立 —— 见 draw()。 */
+      byApi = !!d.provider;
       cur = d.model || ''; def = d.default || '';
       /* 正在用的那个排最前 —— 后端给的顺序是随机的，选中的落在最后一行要滚下去才看得见。
          只在开弹层时排一次；换完不重排，免得刚点的那一行当场跳走。 */
@@ -15265,6 +15361,24 @@ async function loadHome(){
     draw();
     /* draw() 会把脚注收起来，所以这句放它后面 */
     if (d && d.fallback_note && foot){ foot.hidden = false; foot.textContent = d.fallback_note; }
+
+    /* ★ 0904：接了 API 却还没认过模型 —— 自己去认一次，别让人先跑一趟设置页。
+         她要的原话：「所有 API 支持的模型被识别之后自动进入聊天框下面」。
+
+       四条边界，每条都是有意的：
+       · **不挡画面**：上面已经画好了（至少有当前这个），认模型是后台的事，
+         认回来了再重画。这一趟要走真网络，最长能等 20 秒，不能拿它卡住弹层。
+       · **只在没认过的时候**（单子上只剩当前那一个）——认过一次就有缓存了，
+         每次开弹层都去打一次外部请求是白烧别人的配额。
+       · **一次会话只自动试一次**：这家不给名单（有的要额外权限），
+         试不出来就安静收手，不重试、不弹错——设置页那颗手动按钮还在，
+         想再问一次、或者上游新出了模型，去那儿点。
+       · **认不出来不算失败**：手填模型名那条路本来就一直能走。 */
+    if (d && d.provider && !autoScanned && opts.length <= 1){
+      autoScanned = true;
+      call('engineModels', {method: 'POST', body: {}, fallback: null})
+        .then(function(r){ if (r && r.ok && (r.models || []).length > 1) load(); });
+    }
   }
   function open(v){
     sheet.style.transform = v ? 'translateY(0)' : '';
@@ -16497,7 +16611,12 @@ async function loadHome(){
     '健康':['health'], '我给你留的话':['calendar'],
     '日历 · 纪念日':['calendar'], '日历':['calendar'], 'calpage':['calendar'],
     '我此刻在哪':['where'], '语音输入':['listen'],
-    '模型 / QQ / 用量 / 状态':['sysstatus'],
+    /* ★ 0904 修：原来这一行要 ['sysstatus']，可开源版根本没有 /api/sysstatus
+         （那是私人版才有的整机自检）。于是这道门被「未接入口」那个 window capture
+         劫走，点了只弹一张空草稿页 —— 她报的「这个链接点不开」就是这个。
+       这一页真正给得出的是**模型**和**用量**，两个都是真接通的接口；
+       状态那半取不到就在页面上老实说没取到。所以门认 aiModel。 */
+    '模型 / QQ / 用量 / 状态':['aiModel'],
   };
   var wired = null;                      /* null = 还没问到，全放行 */
   /* 这个 IIFE 是追加的，够不着外面那几个 esc（各在各的闭包里）—— 自带一个 */
@@ -16715,6 +16834,75 @@ async function loadHome(){
       });
     }).catch(function(){});
   }
+
+  /* ══ 引擎那格的三个帮手（0904，外部验收之后加的）══ */
+
+  /* 协议高亮。**协议是明说的，不靠地址猜** —— 自建 Claude 代理、第三方
+     Anthropic 兼容地址都不带 anthropic.com，靠猜一律猜成 OpenAI。 */
+  function paintProto(){
+    var box = document.getElementById('engproto');
+    if (!box) return;
+    [].forEach.call(box.querySelectorAll('[data-proto]'), function(b){
+      b.classList.toggle('on', b.getAttribute('data-proto') === (window.__engProto || 'api'));
+    });
+  }
+  function clearModels(){
+    var box = document.getElementById('engmodels');
+    if (box){ box.innerHTML = ''; box.hidden = true; }
+  }
+  /* 认出来的模型竖着列，**点一个就存下来并启用** ——
+     原来是横滚芯片、点了只填进输入框，人还得回上面再按一次保存。 */
+  function drawModels(ms, base, key){
+    var box = document.getElementById('engmodels'), msg = document.getElementById('engmsg');
+    if (!box) return;
+    var cur = (document.getElementById('engmodel').value || '').trim();
+    box.innerHTML = '';
+    ms.forEach(function(m){
+      var b = document.createElement('button');
+      b.type = 'button';
+      if (m.id === cur) b.className = 'on';
+      /* 一律用 textContent 塞字 —— 模型名是**上游给的**，当数据看，不当标记看 */
+      var nm = document.createElement('span');
+      nm.className = 'mid';
+      nm.textContent = m.name || m.id;
+      b.appendChild(nm);
+      var tag = document.createElement('span');
+      tag.className = 'mtag';
+      /* 在用的那个标出来；显示名跟 id 不一样时把 id 也露一眼（照着 id 填的人认得出） */
+      tag.textContent = (m.id === cur) ? '在用' : ((m.name && m.name !== m.id) ? m.id : '');
+      if (tag.textContent) b.appendChild(tag);
+      b.addEventListener('click', function(){
+        if (b.disabled) return;
+        [].forEach.call(box.querySelectorAll('button'), function(x){ x.disabled = true; });
+        if (msg) msg.textContent = '存着…';
+        var body = {engine: window.__engProto || 'api', base: base, model: m.id};
+        if (key) body.key = key;
+        fetch('/api/engine/config', {method:'POST', headers:{'Content-Type':'application/json'},
+                                     credentials:'same-origin', body: JSON.stringify(body)})
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            [].forEach.call(box.querySelectorAll('button'), function(x){ x.disabled = false; });
+            if (!d || !d.ok){
+              if (msg) msg.textContent = (d && d.error) || '没存上，再点一下？';
+              return;
+            }
+            document.getElementById('engmodel').value = m.id;
+            if (msg) msg.textContent = '好了，现在用 ' + (m.name || m.id) + ' 说话。';
+            if (window.toast) toast('换成 ' + (m.name || m.id) + ' 了');
+            /* 聊天框那颗 ▾ 的名单缓存该重取了 */
+            if (W && W.dirtyAll) W.dirtyAll();
+            load();
+          })
+          .catch(function(){
+            [].forEach.call(box.querySelectorAll('button'), function(x){ x.disabled = false; });
+            if (msg) msg.textContent = '没存上，再点一下？';
+          });
+      });
+      box.appendChild(b);
+    });
+    box.hidden = false;
+  }
+
   function load(){
     fetch('/api/packs').then(function(r){return r.json();})
       .then(function(d){ draw(d.packs||[]); })
@@ -16726,11 +16914,20 @@ async function loadHome(){
       var eb = document.getElementById('engbase'), em = document.getElementById('engmodel');
       if (eb && !eb.value) eb.value = c.base || '';
       if (em && !em.value) em.value = c.model || '';
+      /* ★ 0904 外部验收 P0-2：协议是**明说的**，不靠地址猜。
+           已经在用 Claude 那条就停在 Claude，否则默认 OpenAI 兼容（家数最多）。 */
+      if (!window.__engProto) window.__engProto = (c.engine === 'anthropic') ? 'anthropic' : 'api';
+      paintProto();
       var pre = document.getElementById('engpre');
       if (pre && !pre.childElementCount) (c.presets||[]).forEach(function(p){
         var b = document.createElement('button');
         b.className = 'chip'; b.textContent = p.name;
-        b.addEventListener('click', function(){ eb.value = p.base; em.value = p.model; });
+        b.addEventListener('click', function(){
+          eb.value = p.base; em.value = p.model;
+          /* 预设自带协议 —— 点一下就把协议也切过去，人不用知道 Claude 跟别家不是一套形状 */
+          if (p.engine) { window.__engProto = p.engine; paintProto(); }
+          clearModels();
+        });
         pre.appendChild(b);
       });
     }).catch(function(){});
@@ -16745,6 +16942,59 @@ async function loadHome(){
           + '<button class="pkbtn" style="min-height:32px;padding:0 10px" data-mcp-del="' + esc(s.name) + '">删</button></div>';
       }).join('') : '<small style="color:var(--hint)">还没登记过。</small>';
     }).catch(function(){});
+    var proto = document.getElementById('engproto');
+    if (proto && !proto.__wired){ proto.__wired = true;
+      proto.addEventListener('click', function(e){
+        var b = e.target.closest && e.target.closest('[data-proto]');
+        if (!b) return;
+        window.__engProto = b.getAttribute('data-proto');
+        paintProto();
+        clearModels();          /* 换了协议，上一次认出来的名单就不作数了 */
+        var msg = document.getElementById('engmsg');
+        if (msg) msg.textContent = '';
+      });
+    }
+
+    /* ══ 连接并识别模型（0904，外部验收之后重做）══
+       她要的：「选 API、识别过后挑模型」。
+       原来那版两处卡手，都是外部验收点出来的：
+         · P0-1 发的是**空请求** —— 后端只好去问上一份存下的旧配置。
+           全新装的人填完地址和 key 还没保存，点它一个也认不出来，
+           得「先保存 → 刷新 → 再识别」才行。现在拿**框里这一刻的东西**去问。
+         · 认出来横着排、要扒拉，选完还得回上面按保存。现在竖着列，**点一下就存并启用**。 */
+    var scan = document.getElementById('engscan');
+    if (scan && !scan.__wired){ scan.__wired = true;
+      scan.addEventListener('click', function(){
+        var box = document.getElementById('engmodels'), msg = document.getElementById('engmsg');
+        var base = (document.getElementById('engbase').value || '').trim();
+        var key  = (document.getElementById('engkey').value  || '').trim();
+        if (!base){ if (msg) msg.textContent = '先填接口地址（或者上面点一家）。'; return; }
+        scan.disabled = true; scan.textContent = '连着…';
+        if (msg) msg.textContent = '';
+        /* key 留空＝用已经存着的那把（刷新之后 key 框是空的，改地址也不用重贴）。
+           ★ 0904 复验抓的 P1：这句话上一版**只写在注释里，后端并没做** ——
+             刷新后再点识别一律「还差 key」。现在后端真会去读存下的那把（只读，不落盘）。 */
+        var body = {engine: window.__engProto || 'api', base: base};
+        if (key) body.key = key;
+        fetch('/api/engine/models', {method:'POST', headers:{'Content-Type':'application/json'},
+                                     credentials:'same-origin', body: JSON.stringify(body)})
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            var ms = d.models || [];
+            if (!ms.length){
+              clearModels();
+              if (msg) msg.textContent = (d.error || '这家没报模型名单。')
+                + ' 模型名直接填进上面那格，按「直接保存上面填的」照样能用。';
+              return;
+            }
+            drawModels(ms, base, key);
+            if (msg) msg.textContent = '认出 ' + ms.length + ' 个。点一个就存下来并开始用它。';
+          })
+          .catch(function(){ if (msg) msg.textContent = '没连上 —— 地址写对了吗？网络通吗？'; })
+          .finally(function(){ scan.disabled = false; scan.textContent = '连接并识别模型'; });
+      });
+    }
+
     var ma = document.getElementById('mcpadd');
     if (ma && !ma.__wired){ ma.__wired = true;
       ma.addEventListener('click', function(){
@@ -16770,20 +17020,31 @@ async function loadHome(){
     }
     var sv = document.getElementById('engsave');
     if (sv && !sv.__wired){ sv.__wired = true;
+      var SAVE_LABEL = sv.textContent;      /* ★ 0904 复验 P2：存完别把文案改成别的按钮的名字 */
       sv.addEventListener('click', function(){
         var msg = document.getElementById('engmsg');
         sv.disabled = true; sv.textContent = '存着…';
+        /* ★ 0904 复验 P0：**这条也得带协议**。
+             这颗是「这家不开模型列表接口」时的兜底 —— 上一轮只把「识别后点模型」那条
+             带上了 engine，漏了这条。于是选了「Anthropic 协议」再走手填，
+             后端又退回猜地址，自定义 Claude 地址照样被当成 OpenAI。 */
         fetch('/api/engine/config', {method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({base: document.getElementById('engbase').value,
+          credentials:'same-origin',
+          body: JSON.stringify({engine: window.__engProto || 'api',
+                                base: document.getElementById('engbase').value,
                                 model: document.getElementById('engmodel').value,
                                 key: document.getElementById('engkey').value})})
           .then(function(r){return r.json();})
           .then(function(d){
-            sv.disabled = false; sv.textContent = '保存并用它说话';
+            sv.disabled = false; sv.textContent = SAVE_LABEL;
             if (d.ok){ document.getElementById('engkey').value = '';
                        if (msg) msg.textContent = '存好了 · 刷新后生效';
                        setTimeout(function(){ location.reload(); }, 800); }
             else if (msg) msg.textContent = d.error || '没存上';
+          })
+          .catch(function(){
+            sv.disabled = false; sv.textContent = SAVE_LABEL;
+            if (msg) msg.textContent = '没存上，再点一下？';
           });
       });
     }

@@ -20,6 +20,7 @@ SAY = "s"             # 一句话（完整的一句，不是字符增量）
 TOOL_LIVE = "tool_live"   # 工具刚启动，名字先报出来 —— 写大文件要好几分钟，别让人对着三个点干等
 TOOL = "tool"             # 工具在跑，带参数摘要
 TOOL_DONE = "tool_done"   # 工具跑完
+USAGE = "usage"       # 这一轮烧了多少 token（进／出／缓存）。引擎报得出来才有，报不出来就没有
 DONE = "done"         # 说完了，带 session_id
 HEARTBEAT = "hb"      # 心跳：长考期一个字节都没有时喂一口，免得中间的反向代理按「空闲」掐断
 RECV = "recv"         # 收到了，任务已在寄存器里 —— 带 job id，断线后靠它 attach 补播

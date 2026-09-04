@@ -364,7 +364,7 @@ async def chat(req: Request):
           刷新之后从库里读出来变成一个 —— 同一条消息，刷新前后长得不一样。
           分句是前端拆的，所以库里必须留着记号。
         """
-        said, think, tools = [], [], []
+        said, think, tools, usage = [], [], [], None
         for ev in j.events:
             try:
                 d = json.loads(ev[6:])
@@ -374,6 +374,11 @@ async def chat(req: Request):
                 said.append(d.get("text", ""))
             elif d.get("type") == THINK:
                 think.append(d.get("delta", ""))
+            elif d.get("type") == "usage":
+                # ★ 0904：这一轮烧了多少。落在这儿而不是 SSE 里 —— 人关了页面这笔账也要记上。
+                usage = {k: int(d.get(k) or 0) for k in ("tin", "tout", "tcache_r", "tcache_w")}
+                usage["engine"] = d.get("engine", "")
+                usage["model"] = d.get("model", "")
             elif d.get("type") == "tool_done":
                 # ★ 0831（GPT 四轮 P0-04）：真的动了什么手、成没成 —— 跟着这一轮永久存下来。
                 #   不然失败只是个一闪而过的状态条，模型下一句「已经写好了」就把它盖掉了。
@@ -385,6 +390,13 @@ async def chat(req: Request):
             #   就会接到**别人的原文**后面 —— 两边 HTTP 都成功，账本却配错了。
             print("[chat] 说话期间档案换了，这条不落库（避免配错原文）", flush=True)
             return
+        # ★ 用量要**先**记：摔了的那半截照样烧了钱，不记等于账对不上。
+        #   （正文那边摔了确实不该落库，那是两件事。）
+        if usage:
+            try:
+                store.add_usage(**usage)
+            except Exception as e:                          # noqa: BLE001
+                print("[usage] 没记上：", e, flush=True)
         if j.failed:
             # ★ 0831（GPT 二轮 P0）：摔了的半截话**不作为正式回复落库** ——
             #   刷新之后它看着跟说完的一模一样，人不知道那轮其实失败了。
@@ -927,17 +939,31 @@ def engine_config_get():
     return {"base": base,
             "model": model,   # 界面优先，跟引擎一致
             "key_set": bool(key), "key_tail": key[-4:] if key else "",
+            "engine": store.get_setting("engine", "echo"),
+            # ★ 0904 外部验收抓的 P0：每条**明说自己是哪种协议**，界面点了就带着走。
+            #   原来只给 base，后端只好看地址里有没有 anthropic.com 去猜 ——
+            #   自建 Claude 代理、第三方 Anthropic 兼容地址一律被猜成 OpenAI，
+            #   于是「贴了 key 一个模型也认不出来」，而且没有一处说得清为什么。
             "presets": [
-                # Claude 单开：它不是 OpenAI 兼容的形状，得选「Claude」那个引擎才走得通
-                {"name": "Claude · Opus", "base": "https://api.anthropic.com", "model": "claude-opus-5"},
-                {"name": "Claude · Sonnet", "base": "https://api.anthropic.com", "model": "claude-sonnet-5"},
-                {"name": "DeepSeek", "base": "https://api.deepseek.com", "model": "deepseek-chat"},
-                {"name": "DeepSeek R1 · 带思考链", "base": "https://api.deepseek.com", "model": "deepseek-reasoner"},
-                {"name": "Kimi", "base": "https://api.moonshot.cn", "model": "moonshot-v1-8k"},
-                {"name": "智谱", "base": "https://open.bigmodel.cn/api/paas/v4", "model": "glm-4-flash"},
-                {"name": "硅基流动", "base": "https://api.siliconflow.cn", "model": "Qwen/Qwen2.5-7B-Instruct"},
-                {"name": "OpenAI", "base": "https://api.openai.com", "model": "gpt-4o-mini"},
-                {"name": "本机 Ollama", "base": "http://127.0.0.1:11434", "model": "qwen2.5"},
+                # Claude 不是 OpenAI 兼容的形状（/v1/messages ＋ x-api-key），单开一条协议
+                {"name": "Claude · Opus", "engine": "anthropic",
+                 "base": "https://api.anthropic.com", "model": "claude-opus-5"},
+                {"name": "Claude · Sonnet", "engine": "anthropic",
+                 "base": "https://api.anthropic.com", "model": "claude-sonnet-5"},
+                {"name": "DeepSeek", "engine": "api",
+                 "base": "https://api.deepseek.com", "model": "deepseek-chat"},
+                {"name": "DeepSeek R1 · 带思考链", "engine": "api",
+                 "base": "https://api.deepseek.com", "model": "deepseek-reasoner"},
+                {"name": "Kimi", "engine": "api",
+                 "base": "https://api.moonshot.cn", "model": "moonshot-v1-8k"},
+                {"name": "智谱", "engine": "api",
+                 "base": "https://open.bigmodel.cn/api/paas/v4", "model": "glm-4-flash"},
+                {"name": "硅基流动", "engine": "api",
+                 "base": "https://api.siliconflow.cn", "model": "Qwen/Qwen2.5-7B-Instruct"},
+                {"name": "OpenAI", "engine": "api",
+                 "base": "https://api.openai.com", "model": "gpt-4o-mini"},
+                {"name": "本机 Ollama", "engine": "api",
+                 "base": "http://127.0.0.1:11434", "model": "qwen2.5"},
             ]}
 
 
@@ -951,6 +977,11 @@ async def engine_config_set(req: Request):
     base_in = (b.get("base") or "").strip()
     want = (b.get("engine") or "").strip()
     if want not in ("api", "anthropic"):
+        # ★ 0904 外部验收（P0-2）：**看地址猜协议是错的** —— 自建 Claude 代理、
+        #   第三方 Anthropic 兼容地址都不带 anthropic.com，会被一律猜成 OpenAI。
+        #   界面现在一律明说 engine（预设自带、自定义地址有一排协议让人选），
+        #   这里只剩兜底：给老调用方（不带 engine 的脚本）留条活路，别让它们当场坏掉。
+        #   返回里带着 engine，调用方看得见我们最后按哪条走的。
         want = "anthropic" if "anthropic.com" in base_in.lower() else "api"
     anth = want == "anthropic"
     fields = (("base", "anthropic_base"), ("model", "anthropic_model"), ("key", "anthropic_key")) if anth \
@@ -975,6 +1006,124 @@ async def engine_config_set(req: Request):
     return {"ok": True, "engine": want}
 
 
+@app.get("/api/usage")
+def api_usage(days: int = 30):
+    """烧了多少 token（0904）。她问的：「链接里这个『用量』，本意是 token，计数有做吗」——
+    以前没有，这是补的。
+
+    ★ 只有能报账的引擎才有数：走 API 那两条（OpenAI 兼容 / Anthropic）都报；
+      回声不烧 token；本机 CLI 走的是你自己的订阅，这一版不记它的账。
+      **没有的就是没有，不估、不折算成钱** —— 单价各家不同还会变，猜一个数比不给更糟。
+    """
+    try:
+        return store.usage_stats(days=max(1, min(int(days or 30), 365)))
+    except Exception as e:                                  # noqa: BLE001
+        return JSONResponse({"error": f"看不了账：{type(e).__name__}"}, status_code=500)
+
+
+@app.post("/api/engine/models")
+async def engine_models(req: Request = None):
+    """去问**这家自己**有哪些模型（0904）。
+
+    她要的流程：选一家 → 贴 key → **认一下** → 从认出来的名单里挑，而不是手打模型名。
+
+    两条路：
+
+    · **临时探**（带 base / key / engine 进来）—— 用**界面上这一刻填着的东西**问一次，
+      **一个字都不落盘**：不写 secrets、不改当前引擎、不写缓存。
+      ★ 0904 外部验收抓的 P0-1：原来只有下面那条老路，前端还发的是空请求 ——
+        新用户第一次填完地址和 key 还没保存就点「认一下」，问的是**上一份旧配置**
+        （全新库里干脆什么都没有），于是「一个模型也认不出来」。
+        流程本来就该是「填 → 认 → 挑一个 → 这才保存」，不该逼人先存一遍再刷新。
+
+    · **老路**（不带参数）—— 问当前已保存的那个引擎，问到了写进缓存给聊天框那颗 ▾ 用。
+      这条一个字没动：聊天框的自动识别、老的调用方都还走它。
+
+    ★ 问不到就照实说问不到（有的家不开 /v1/models，有的要额外权限）——
+      不塞一份写死的名单冒充「支持的模型」。界面照旧能手填。
+    """
+    b = {}
+    if req is not None:
+        try:
+            b = await req.json() or {}
+        except Exception:                                   # noqa: BLE001
+            b = {}                                          # 空 body / 不是 JSON：当老路走
+
+    probe_base = (b.get("base") or "").strip()
+    probe_key = (b.get("key") or "").strip()
+    if probe_base or probe_key:
+        # ── 临时探：拿界面上这一刻的东西问，不碰任何存下来的状态 ──
+        want = (b.get("engine") or "").strip()
+        if want not in ("api", "anthropic"):
+            want = "anthropic" if "anthropic.com" in probe_base.lower() else "api"
+        if not probe_key:
+            # ★ 0904 复验（P1）：key 框留空 ≠ 没有 key。
+            #   页面刷新后 key 框按设计是空的（不把明文 key 回填到界面上），
+            #   这时候再点「连接并识别模型」，用**已经存着的那把**才对 ——
+            #   界面上那句注释本来就是这么承诺的，而后端原来只要没收到明文就 428，
+            #   逼人重新去翻 key 粘一遍。**这是我写了一句不真的注释**，现在让它成真。
+            #   ★ 仍然一个字不落盘：只是读出来用一次。
+            sec = _secrets()
+            if want == "anthropic":
+                probe_key = (sec.get("anthropic_key")
+                             or os.environ.get("LIANHUAN_ANTHROPIC_KEY") or "").strip()
+            else:
+                probe_key = (sec.get("api_key")
+                             or os.environ.get("LIANHUAN_API_KEY") or "").strip()
+        if not probe_key:
+            return JSONResponse({"ok": False, "models": [], "provider": want,
+                                 "error": "还差 key —— 填上再认一次。"}, status_code=428)
+        if not probe_key.isascii():
+            return JSONResponse({"ok": False, "models": [], "provider": want,
+                                 "error": "key 里有非 ASCII 字符（中文？全角符号？）"}, status_code=400)
+        # 局部 import：跟 available_engines() 同一个理由 —— 引擎模块各带各的依赖，
+        # 顶上无条件 import 会让「没装那个依赖」变成整个服务起不来。
+        if want == "anthropic":
+            from .engines.anthropic_api import AnthropicEngine
+            probe = AnthropicEngine(base=probe_base or None, key=probe_key)
+        else:
+            from .engines.openai_compat import OpenAICompatEngine
+            probe = OpenAICompatEngine(base=probe_base or None, key=probe_key)
+        if not probe.ready:
+            return JSONResponse({"ok": False, "models": [], "provider": want,
+                                 "error": probe.needs[:200]}, status_code=428)
+        try:
+            models = await probe.list_models()
+        except Exception as e:                              # noqa: BLE001
+            return JSONResponse({"ok": False, "models": [], "provider": want,
+                                 "error": f"问不出来：{type(e).__name__}"}, status_code=502)
+        finally:
+            try:
+                await probe.close()
+            except Exception:                               # noqa: BLE001
+                pass
+        if not models:
+            return {"ok": False, "models": [], "provider": want, "probe": True,
+                    "error": "这家没告诉我们有哪些模型（可能没开这条接口，或者 key 权限不够）。"
+                             "模型名直接填也行。"}
+        # ★ 不写缓存：这份配置还没保存，缓存是按「已保存的引擎」存的，写进去会串。
+        return {"ok": True, "provider": want, "probe": True, "models": models[:200]}
+
+    # ── 老路：问当前已保存的那个引擎 ──
+    cur = store.get_setting("engine", "echo")
+    eng = available_engines().get(cur)
+    if eng is None:
+        return JSONResponse({"ok": False, "error": "还没选引擎"}, status_code=404)
+    if not eng.ready:
+        return JSONResponse({"ok": False, "error": eng.needs[:200]}, status_code=428)
+    try:
+        models = await eng.list_models()
+    except Exception as e:                                  # noqa: BLE001
+        return JSONResponse({"ok": False, "error": f"问不出来：{type(e).__name__}"}, status_code=502)
+    if not models:
+        return {"ok": False, "models": [], "provider": cur,
+                "error": "这家没告诉我们有哪些模型（可能没开这条接口，或者 key 权限不够）。模型名直接填也行。"}
+    cache = store.get_setting("engine_models", {}) or {}
+    cache[cur] = models[:200]
+    store.set_setting("engine_models", cache)
+    return {"ok": True, "provider": cur, "models": models[:200]}
+
+
 # ── 换个脑子 / 想多深：界面那两页直接映射到引擎系统 ────────────
 @app.get("/api/ai_model")
 def ai_model():
@@ -997,6 +1146,33 @@ def ai_model():
     picked = engines.get(want)
     live = want if (picked and picked.ready) else "echo"
     out = {"model": live, "default": "echo", "options": opts, "notes": notes}
+    # ★ 0904：接了 API 的时候，「换个脑子」那张单子该列**模型**，不是引擎。
+    #   她的原话：「不应该自己选吧，应该是一个公司链接了，然后里面可以像我们一样聊天框切换模型呀」。
+    #   引擎（哪一家）在 设置 › 功能包 › 引擎 里选一次；模型在聊天框那儿随时换 —— 那才是聊天时的动作。
+    #   ★ 回声和 CLI 问不出模型名单，那两条照旧列引擎（老行为一个字没动）。
+    if picked is not None and getattr(picked, "model", ""):
+        cached = store.get_setting("engine_models", {}) or {}
+        known = cached.get(want) or []
+        # ★ 这份缓存是**存在库里**的设置项：换版本、手改、导别人的备份进来，
+        #   都可能让它变成另一个形状。它一崩就是整条 /api/ai_model 500 ——
+        #   聊天框上那颗模型按钮和这一整页跟着全黑。所以宽容地读：
+        #   认 {"id":…}，也认光秃秃一个字符串，别的一概跳过。
+        def _mid(m):
+            if isinstance(m, dict):
+                return str(m.get("id") or "")
+            return m if isinstance(m, str) else ""
+        ids = [i for i in (_mid(m) for m in known) if i]
+        cur = picked.model
+        if cur and cur not in ids:
+            ids.insert(0, cur)              # 正在用的那个永远在单子上，不然人看不见自己在用什么
+        if ids:
+            out["model"] = cur
+            out["options"] = ids
+            out["default"] = cur
+            out["provider"] = want
+            out["engine_label"] = picked.label
+            out["names"] = {_mid(m): (m.get("name") or _mid(m)) for m in known
+                            if isinstance(m, dict) and _mid(m)}
     if live != want:
         # 脚注是界面上一行小字 —— 只说结论。`needs` 那一整段（带 export 命令和换行）
         # 塞进来会把那一行撑烂，细节本来就在 notes 里，界面自己会显示。
@@ -1019,12 +1195,29 @@ async def ai_model_set(req: Request):
     b = await req.json()
     want = (b.get("model") or "").strip()
     engines = available_engines()
-    if want not in engines:
-        return JSONResponse({"ok": False, "error": "没有这个引擎"}, status_code=404)
-    if not engines[want].ready:
-        return JSONResponse({"ok": False, "error": engines[want].needs[:200]}, status_code=428)
-    store.set_setting("engine", want)
-    return {"ok": True, "model": want}
+    # ① 老行为：传的是引擎名（echo / cli / api / anthropic）→ 换引擎。一个字没改。
+    if want in engines:
+        if not engines[want].ready:
+            return JSONResponse({"ok": False, "error": engines[want].needs[:200]}, status_code=428)
+        store.set_setting("engine", want)
+        return {"ok": True, "model": want}
+    # ② 0904 新增：传的是模型名 → 在**当前这家**里换个模型，不动引擎。
+    #    这是聊天框那颗 ▾ 走的路。
+    cur = store.get_setting("engine", "echo")
+    eng = engines.get(cur)
+    if eng is None or not getattr(eng, "model", ""):
+        return JSONResponse({"ok": False, "error": "现在这个引擎不认模型名"}, status_code=404)
+    if not want or len(want) > 120 or not want.isascii():
+        return JSONResponse({"ok": False, "error": "模型名不像话"}, status_code=400)
+    sec = _secrets()
+    sec["anthropic_model" if cur == "anthropic" else "api_model"] = want
+    SECRETS.parent.mkdir(parents=True, exist_ok=True)
+    SECRETS.write_text(json.dumps(sec, ensure_ascii=False, indent=1), encoding="utf-8")
+    try:
+        os.chmod(SECRETS, 0o600)
+    except Exception:
+        pass
+    return {"ok": True, "model": want, "provider": cur}
 
 
 @app.get("/api/think")

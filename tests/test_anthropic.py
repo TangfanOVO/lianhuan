@@ -210,5 +210,46 @@ class TestHonesty(unittest.TestCase):
         self.assertIn("ASCII", eng.needs)
 
 
+class TestUpstreamErrorsSpeakHuman(unittest.TestCase):
+    """上游报错要说人话 —— 而且**原文照旧带着**。
+
+    0904 起因：她问「手动输入模型，会不会也会识别错误因为我们没做过」。
+    拿一个真的本机上游试了一次：模型名少打一个字母，界面吐的是
+    `模型那边回了 404：{"type":"error",...}` —— 技术上没说错，
+    可看的人不知道那是**自己名字打错了**，也不知道去哪儿改。
+
+    ★ 原文为什么必须留着：余额不足、key 过期、模型下线、区域不支持，
+      处理方式各不相同。猜一句话把原文盖掉，是把人送错方向。
+    """
+
+    def test_a_wrong_model_name_says_so_and_points_somewhere(self):
+        from core.engines.base import upstream_error
+        t = upstream_error(404, '{"type":"error","error":{"type":"not_found_error"}}', "claude-opu-5")
+        self.assertIn("claude-opu-5", t, "得把人打错的那个名字念回去")
+        self.assertIn("认一下有哪些模型", t, "得告诉人去哪儿看正确的名单")
+        self.assertIn("404", t)
+        self.assertIn("not_found_error", t, "原文不许被盖掉")
+
+    def test_key_and_rate_limit_and_their_side_are_told_apart(self):
+        from core.engines.base import upstream_error
+        self.assertIn("key", upstream_error(401, "{}", "m"))
+        self.assertIn("限流", upstream_error(429, "{}", "m"))
+        self.assertIn("它那边", upstream_error(503, "{}", "m"), "5xx 要说清不是用户的错")
+
+    def test_an_unknown_status_still_reports_the_raw_body(self):
+        """认不出来的照旧原样端出去 —— 不认得不等于可以吞掉。"""
+        from core.engines.base import upstream_error
+        t = upstream_error(418, "i am a teapot", "m")
+        self.assertIn("418", t)
+        self.assertIn("teapot", t)
+
+    def test_both_api_engines_actually_use_it(self):
+        for p in ("core/engines/anthropic_api.py", "core/engines/openai_compat.py"):
+            with open(p, encoding="utf-8") as f:
+                src = f.read()
+            self.assertIn("upstream_error(", src, f"{p} 还在自己拼那句话")
+            self.assertNotIn('text=f"模型那边回了 {r.status_code}', src, f"{p} 有漏网的")
+
+
 if __name__ == "__main__":
     unittest.main()

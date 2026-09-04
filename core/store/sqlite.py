@@ -44,6 +44,21 @@ CREATE TABLE IF NOT EXISTS memories (
 CREATE INDEX IF NOT EXISTS memories_ts ON memories(ts DESC);
 
 CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL);
+
+-- 每轮烧了多少 token。★ 0904 新建的表，老表一个字没动。
+-- 她要的：「链接里这个『用量』，本意是 token，用了多少 token 的计数有做吗」——没做，这是补的。
+-- ★ 只记数，不记内容：这张表拿去看账，不该在里面读到说过什么。
+CREATE TABLE IF NOT EXISTS token_usage (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts REAL NOT NULL,
+  engine TEXT NOT NULL DEFAULT '',
+  model TEXT NOT NULL DEFAULT '',
+  tin INTEGER NOT NULL DEFAULT 0,      -- 进去的
+  tout INTEGER NOT NULL DEFAULT 0,     -- 出来的
+  tcache_r INTEGER NOT NULL DEFAULT 0, -- 缓存读到的（便宜那部分）
+  tcache_w INTEGER NOT NULL DEFAULT 0  -- 写进缓存的
+);
+CREATE INDEX IF NOT EXISTS token_usage_ts ON token_usage(ts DESC);
 """
 
 #: 全文检索的影子表。★ 从 SCHEMA 里拆出来单独建，因为**不是每个 SQLite 都带 FTS5**：
@@ -285,6 +300,47 @@ class SqliteStore(Store):
 
     def all_memories(self) -> list[Memory]:
         return [self._mem(r) for r in self.db.execute("SELECT * FROM memories ORDER BY id")]
+
+    # ── 用量（0904 新增）──
+    def add_usage(self, engine: str = "", model: str = "",
+                  tin: int = 0, tout: int = 0, tcache_r: int = 0, tcache_w: int = 0) -> None:
+        """记一笔。★ 只记数，不记内容 —— 这张表拿去看账，不该在里面读到说过什么。"""
+        import time as _t
+        self.db.execute(
+            "INSERT INTO token_usage (ts, engine, model, tin, tout, tcache_r, tcache_w) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (_t.time(), engine or "", model or "", int(tin), int(tout), int(tcache_r), int(tcache_w)))
+        self.db.commit()
+
+    def usage_stats(self, days: int = 30) -> dict:
+        """看账：总数、今天、按天、按模型。★ 没有的日子就是没有，不补 0 装作有。"""
+        import time as _t
+        since = _t.time() - days * 86400
+        day0 = _t.mktime(_t.localtime()[:3] + (0, 0, 0, 0, 0, -1))
+        def _row(sql, args=()):
+            r = self.db.execute(sql, args).fetchone()
+            return {k: int(r[k] or 0) for k in ("tin", "tout", "tcache_r", "tcache_w")} if r else {}
+        cols = "SUM(tin) tin, SUM(tout) tout, SUM(tcache_r) tcache_r, SUM(tcache_w) tcache_w"
+        return {
+            "days": days,
+            "total": _row(f"SELECT {cols} FROM token_usage"),
+            "window": _row(f"SELECT {cols} FROM token_usage WHERE ts > ?", (since,)),
+            "today": _row(f"SELECT {cols} FROM token_usage WHERE ts >= ?", (day0,)),
+            "turns": int(self.db.execute("SELECT count(*) n FROM token_usage").fetchone()["n"] or 0),
+            "by_model": [
+                {"model": r["model"] or "?", "engine": r["engine"] or "",
+                 "turns": int(r["n"] or 0), "tin": int(r["tin"] or 0), "tout": int(r["tout"] or 0),
+                 "tcache_r": int(r["tcache_r"] or 0)}
+                for r in self.db.execute(
+                    f"SELECT model, engine, count(*) n, {cols} FROM token_usage "
+                    "WHERE ts > ? GROUP BY model, engine ORDER BY (SUM(tin)+SUM(tout)) DESC LIMIT 20",
+                    (since,))],
+            "by_day": [
+                {"day": r["d"], "tin": int(r["tin"] or 0), "tout": int(r["tout"] or 0)}
+                for r in self.db.execute(
+                    f"SELECT date(ts,'unixepoch','localtime') d, {cols} FROM token_usage "
+                    "WHERE ts > ? GROUP BY d ORDER BY d DESC LIMIT 31", (since,))],
+        }
 
     # ── 设置 ──
     def get_setting(self, key: str, default: Any = None) -> Any:

@@ -44,8 +44,8 @@ from typing import AsyncIterator
 
 import httpx
 
-from .base import Engine, Turn
-from ..protocol import DONE, SAY, STAGE, THINK, sse
+from .base import Engine, Turn, upstream_error
+from ..protocol import DONE, SAY, STAGE, THINK, USAGE, sse
 
 #: 版本头。Anthropic 要求每个请求都带，缺了直接 400。
 API_VERSION = "2023-06-01"
@@ -168,6 +168,7 @@ class AnthropicEngine(Engine):
 
         feed = self._feeder()
         said = False
+        used = {"tin": 0, "tout": 0, "tcache_r": 0, "tcache_w": 0}
         yield sse(STAGE, text="在想")
 
         self._client = httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=15.0),
@@ -183,10 +184,15 @@ class AnthropicEngine(Engine):
                 r = await self._client.post(f"{self.base}/v1/messages",
                                             headers=self._headers(), json=body)
                 if r.status_code != 200:
-                    yield sse("error", text=f"模型那边回了 {r.status_code}：{r.text[:260]}")
+                    yield sse("error", text=upstream_error(r.status_code, r.text, self.model))
                     yield sse(DONE, session_id=turn.session_id)
                     return
                 d = r.json()
+                _u = d.get("usage") or {}
+                used["tin"] += int(_u.get("input_tokens") or 0)
+                used["tout"] += int(_u.get("output_tokens") or 0)
+                used["tcache_r"] += int(_u.get("cache_read_input_tokens") or 0)
+                used["tcache_w"] += int(_u.get("cache_creation_input_tokens") or 0)
                 if d.get("stop_reason") != "tool_use":
                     # 它不想动手，把这一轮的话直接吐出去（别再发一次请求，那是白花钱）
                     for blk in d.get("content") or []:
@@ -251,7 +257,7 @@ class AnthropicEngine(Engine):
                     body = (await r.aread()).decode("utf-8", "replace")[:300]
                     # ★ 把真实原因说出来。「出错了」这三个字帮不了任何人 ——
                     #   余额不足、key 写错、模型名打错，处理方式完全不同
-                    yield sse("error", text=f"模型那边回了 {r.status_code}：{body}")
+                    yield sse("error", text=upstream_error(r.status_code, body, self.model))
                     yield sse(DONE, session_id=turn.session_id)
                     return
 
@@ -263,6 +269,17 @@ class AnthropicEngine(Engine):
                     except Exception:
                         continue
                     typ = d.get("type")
+                    # ★ 0904 用量：message_start 带进去的（含缓存那两笔），
+                    #   message_delta 带出来的。两条都收，最后一起报。
+                    if typ == "message_start":
+                        u = ((d.get("message") or {}).get("usage")) or {}
+                        used["tin"] = int(u.get("input_tokens") or 0)
+                        used["tcache_r"] = int(u.get("cache_read_input_tokens") or 0)
+                        used["tcache_w"] = int(u.get("cache_creation_input_tokens") or 0)
+                    elif typ == "message_delta":
+                        u = d.get("usage") or {}
+                        if u.get("output_tokens") is not None:
+                            used["tout"] = int(u["output_tokens"])
                     if typ == "content_block_delta":
                         delta = d.get("delta") or {}
                         dt = delta.get("type")
@@ -300,7 +317,25 @@ class AnthropicEngine(Engine):
             except Exception:
                 pass
             self._client = None
+            if any(used.values()):
+                yield sse(USAGE, engine=self.name, model=self.model, **used)
             yield sse(DONE, session_id=turn.session_id)
+
+    async def list_models(self) -> list[dict]:
+        """问 Anthropic 有哪些模型（GET /v1/models）。拿不到就空列表，界面退回手填。"""
+        if not self.ready:
+            return []
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=8.0),
+                                         transport=_browser_transport()) as c:
+                r = await c.get(f"{self.base}/v1/models",
+                                headers=self._headers(), params={"limit": 100})
+                if r.status_code != 200:
+                    return []
+                return [{"id": m.get("id", ""), "name": m.get("display_name") or m.get("id", "")}
+                        for m in (r.json().get("data") or []) if m.get("id")]
+        except Exception:
+            return []
 
     async def close(self) -> None:
         if self._client is not None:
