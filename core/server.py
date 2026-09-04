@@ -277,6 +277,11 @@ def available_engines() -> dict:
         out["api"] = OpenAICompatEngine()
     except Exception:
         pass
+    try:                                   # Claude：Anthropic 官方 API（跟上面那条不是一个形状）
+        from .engines.anthropic_api import AnthropicEngine
+        out["anthropic"] = AnthropicEngine()
+    except Exception:
+        pass
     return out
 
 
@@ -289,8 +294,9 @@ def pick_engine():
     engines = available_engines()
     eng = engines.get(want) or engines["echo"]
     eng = eng if eng.ready else engines["echo"]
-    # AI 的手：API 引擎带上工具（改签名/写记忆/发动态/记心情/写小玩意/装包）
-    if getattr(eng, "name", "") == "openai":
+    # AI 的手：会用工具的引擎都带上（改签名/写记忆/发动态/记心情/写小玩意/装包）
+    # ★ 0904 加了 anthropic —— 换个模型不该把手弄丢，那是「静默降级」，比坏掉还糟。
+    if getattr(eng, "name", "") in ("openai", "anthropic"):
         eng.tools = _hands.all_tools()          # 内置的手 + 用户登记的 MCP 工具
         eng.exec_tool = _hands.execute
     return eng
@@ -907,11 +913,24 @@ def _secrets() -> dict:
 def engine_config_get():
     """★ key 永远不回读 —— 只说有没有、末四位。它也不进 /api/export、不进数据库。"""
     sec = _secrets()
-    key = sec.get("api_key") or os.environ.get("LIANHUAN_API_KEY") or ""
-    return {"base": sec.get("api_base") or os.environ.get("LIANHUAN_API_BASE") or "",
-            "model": sec.get("api_model") or os.environ.get("LIANHUAN_API_MODEL") or "",   # 界面优先，跟引擎一致
+    # ★ 0904：Claude 走的是另一套字段（它不是 OpenAI 兼容的形状）。
+    #   这一格填的东西要落到**当前选中的那个引擎**头上，否则「填了没反应」——
+    #   那比报错难查十倍（0831 那次「界面改了 env 静默压掉」是同一种病）。
+    if store.get_setting("engine", "echo") == "anthropic":
+        key = sec.get("anthropic_key") or os.environ.get("LIANHUAN_ANTHROPIC_KEY") or ""
+        base = sec.get("anthropic_base") or os.environ.get("LIANHUAN_ANTHROPIC_BASE") or ""
+        model = sec.get("anthropic_model") or os.environ.get("LIANHUAN_ANTHROPIC_MODEL") or ""
+    else:
+        key = sec.get("api_key") or os.environ.get("LIANHUAN_API_KEY") or ""
+        base = sec.get("api_base") or os.environ.get("LIANHUAN_API_BASE") or ""
+        model = sec.get("api_model") or os.environ.get("LIANHUAN_API_MODEL") or ""
+    return {"base": base,
+            "model": model,   # 界面优先，跟引擎一致
             "key_set": bool(key), "key_tail": key[-4:] if key else "",
             "presets": [
+                # Claude 单开：它不是 OpenAI 兼容的形状，得选「Claude」那个引擎才走得通
+                {"name": "Claude · Opus", "base": "https://api.anthropic.com", "model": "claude-opus-5"},
+                {"name": "Claude · Sonnet", "base": "https://api.anthropic.com", "model": "claude-sonnet-5"},
                 {"name": "DeepSeek", "base": "https://api.deepseek.com", "model": "deepseek-chat"},
                 {"name": "DeepSeek R1 · 带思考链", "base": "https://api.deepseek.com", "model": "deepseek-reasoner"},
                 {"name": "Kimi", "base": "https://api.moonshot.cn", "model": "moonshot-v1-8k"},
@@ -926,11 +945,22 @@ def engine_config_get():
 async def engine_config_set(req: Request):
     b = await req.json()
     sec = _secrets()
-    for src, dst in (("base", "api_base"), ("model", "api_model"), ("key", "api_key")):
+    # ★ 0904：这一格现在服务两个引擎（Claude 不是 OpenAI 兼容的形状）。
+    #   选哪个：调用方明说就听它的；没说就**看接口地址** —— 点了「Claude」那颗预设，
+    #   地址就是 api.anthropic.com。这样界面一个字都不用改。
+    base_in = (b.get("base") or "").strip()
+    want = (b.get("engine") or "").strip()
+    if want not in ("api", "anthropic"):
+        want = "anthropic" if "anthropic.com" in base_in.lower() else "api"
+    anth = want == "anthropic"
+    fields = (("base", "anthropic_base"), ("model", "anthropic_model"), ("key", "anthropic_key")) if anth \
+        else (("base", "api_base"), ("model", "api_model"), ("key", "api_key"))
+    keyfield = "anthropic_key" if anth else "api_key"
+    for src, dst in fields:
         v = (b.get(src) or "").strip()
         if v:
             sec[dst] = v
-    if sec.get("api_key") and not sec["api_key"].isascii():
+    if sec.get(keyfield) and not sec[keyfield].isascii():
         return JSONResponse({"ok": False, "error": "key 里有非 ASCII 字符（中文？全角符号？）"},
                             status_code=400)
     SECRETS.parent.mkdir(parents=True, exist_ok=True)
@@ -939,8 +969,10 @@ async def engine_config_set(req: Request):
         os.chmod(SECRETS, 0o600)       # 只有自己读得到
     except Exception:
         pass
-    store.set_setting("engine", "api")
-    return {"ok": True}
+    # ★ 原来这儿写死了 "api" —— 填了 Claude 的地址也会被切回 OpenAI 那条，
+    #   于是「贴了 key 还是不通」，而且没有任何地方说得清为什么（0904 抓的）。
+    store.set_setting("engine", want)
+    return {"ok": True, "engine": want}
 
 
 # ── 换个脑子 / 想多深：界面那两页直接映射到引擎系统 ────────────

@@ -69,6 +69,9 @@ ENGINES = [
     ("echo", "先不接（回声）", "什么都不要。先看看界面长什么样"),
     ("cli",  "本机 CLI",       "本机装了官方 CLI 并登录过。**不用 API key**，走你自己的订阅"),
     ("api",  "API（OpenAI 兼容）", "DeepSeek / Kimi / 智谱 / OpenAI / 本机 Ollama…装完在 设置 › 功能包 › 引擎 里贴 key"),
+    # ★ Claude 单开一条：Anthropic 不是 OpenAI 兼容的形状（/v1/messages ＋ x-api-key ＋ 版本头），
+    #   填进上面那一格接不通。0904 有人问「接口怎么没有 Claude」，一查确实没有。
+    ("anthropic", "Claude（Anthropic）", "官方 API。要 sk-ant- 开头的 key —— **订阅不能当 API 用**，想用订阅选上面的本机 CLI"),
 ]
 
 STORES = [
@@ -170,6 +173,11 @@ def main():
         todo += ["## 换成真的模型\n",
                  "现在用的是**回声引擎**，它不接模型，只把你说的话回给你 —— 界面上会一直标着「未接模型」。",
                  "去设置里挑一个引擎就能换。\n"]
+    if engine == "anthropic":
+        todo += ["## 引擎\n", "你选了 Claude（Anthropic 官方 API）。开起来之后进 **设置 › 功能包 › 引擎**，",
+                 "把 `sk-ant-` 开头的 key 贴进去（存 `data/secrets.json`，0600，不进导出）。\n",
+                 "★ **订阅（Pro/Max）不能当 API 用**，那是两笔账。想走订阅就改选「本机 CLI」。\n",
+                 "★ 人设和记忆每轮都要重发，所以这条路默认给 system 打了缓存标记 —— 重复那部分按缓存价走。\n"]
     if engine == "cli":
         todo += ["## 引擎\n", "你选了本机 CLI。**装了官方 CLI 并登录过**它才会亮，",
                  "否则界面上会显示「待接」并告诉你差什么。不用 API key。\n"]

@@ -120,14 +120,16 @@ python3 create.py
  11. 机器人     在不在/电量/头往哪看（只有前端）            需要：一台机器人
 
 桌宠？   不要（默认） / 要一只（我们只指路，不发素材） / 我自己画
-引擎？   先不接（回声） / 本机 CLI（用你已有的订阅，不用 key） / API（OpenAI 兼容：DeepSeek、Kimi、智谱、Ollama…）
+引擎？   先不接（回声） / 本机 CLI（用你已有的订阅，不用 key） / API（OpenAI 兼容：DeepSeek、Kimi、智谱、Ollama…） / Claude（Anthropic 官方 API）
 存哪儿？ SQLite（一个文件，零配置）
 ```
 
 然后**双击 `start.command`**（macOS / Linux）—— 它会自己建环境、装依赖、起服务、开浏览器。
 第一次要一分钟，之后几秒。
 
-要接模型：开起来之后进 **设置 › 功能包 › 引擎**，填接口地址和 key，再从聊天页发一条测试消息确认供应商真实响应。
+要接模型：开起来之后进 **设置 › 功能包 › 引擎**，上面那排预设点一家（有 Claude，也有一排 OpenAI 兼容的），
+填 key，再从聊天页发一条测试消息确认供应商真实响应。
+★ **Claude 的订阅（Pro/Max）不能当 API 用**，那是两笔账；想走订阅请改选「本机 CLI」。
 key 存在你自己这台机器的 `data/secrets.json` 里，网页本身不拿它、也不直连任何厂商。
 （不想点界面的话，`.env.example` 复制成 `.env` 填进去也行，效果一样。）
 
@@ -197,6 +199,7 @@ python -m core.server        # 加 --lan 让同一个 wifi 的手机也能连
 | ✅ PWA | manifest ＋ Service Worker ＋ iOS 加主屏 |
 | ✅ 前端积木 | 底座 · 纸感材质 · 丝线叠卡 · 界面零件 |
 | ✅ 引擎 · API | OpenAI 兼容适配（DeepSeek / Kimi / 智谱 / 硅基 / OpenAI / 本机 Ollama）与工具调用都在；填完配置后以一次真实回复为验通 |
+| ✅ 引擎 · Claude | Anthropic 官方 API（`/v1/messages`）。它**不是** OpenAI 兼容的形状，所以是单独一个适配器：思考链原生，人设自动打缓存标记（这个应用每轮都重发整份记忆），工具照旧带上。契约有假上游测试，真 Key 待验 |
 | ✅ AI 有手 | 改自己的签名、写记忆、记心情、发动态、写信、记日历、上架小玩意…（`core/hands.py`） |
 | ✅ 外接 MCP | 登记 stdio server，AI 就长出它的工具（跟 Claude 的 `.mcp.json` 同格式） |
 | ✅ 选装包 | 记事四件套 · 共读 · 通话与全双工适配 · 颜文字抽屉 · 日历相册 · Obsidian 记忆 · QQ 桥 —— 代码全在包里；外部服务必须填自己的配置并用真实调用确认，页面只把“已保存配置”写成“已配置” |

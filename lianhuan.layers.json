@@ -34,9 +34,10 @@
         "function/runtime"
       ],
       "paths": [
-        "core/engines"
+        "core/engines",
+        "core/engines/anthropic_api.py"
       ],
-      "truth": "回声那条不接模型也能跑通全流程。CLI 那条要本机装了对应命令行；API 那条要自己填配置，并以一次真实回复为验通，没贴 key 时界面照实说未就绪。★ CLI 那条走 --resume，不读 history —— 窗口治理那套对它不生效。"
+      "truth": "回声那条不接模型也能跑通全流程。CLI 那条要本机装了对应命令行；API 那条要自己填配置，并以一次真实回复为验通，没贴 key 时界面照实说未就绪。★ CLI 那条走 --resume，不读 history —— 窗口治理那套对它不生效。 0904 加了 Claude（Anthropic 官方 API）：它不是 OpenAI 兼容的形状，单独一个适配器；思考链原生，人设打缓存标记。契约有假上游测试，真 Key 待验。"
     },
     "localdata": {
       "label": "本地账本",
