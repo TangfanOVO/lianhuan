@@ -269,9 +269,9 @@ class TestFirstTimeSetup(unittest.TestCase):
             r = asyncio.run(S.engine_models(_Req({
                 "engine": "anthropic",
                 "base": "http://127.0.0.1:8455",       # ★ 自建地址，不含 anthropic.com
-                "key": "sk-ant-typed-just-now"})))
+                "key": "sk-ant-t1"})))
         self.assertEqual(seen["base"], "http://127.0.0.1:8455", "没用框里填的地址")
-        self.assertEqual(seen["key"], "sk-ant-typed-just-now", "没用框里填的 key")
+        self.assertEqual(seen["key"], "sk-ant-t1", "没用框里填的 key")
         self.assertTrue(r["ok"])
         self.assertEqual(r["provider"], "anthropic")
         self.assertIn("claude-opus-4-7", [m["id"] for m in r["models"]])
@@ -362,13 +362,13 @@ class TestFirstTimeSetup(unittest.TestCase):
             return [{"id": "claude-opus-5", "name": "Claude Opus 5"}]
 
         from core.engines.anthropic_api import AnthropicEngine
-        with mock.patch.dict(os.environ, {"LIANHUAN_ANTHROPIC_KEY": "sk-ant-saved-earlier"}), \
+        with mock.patch.dict(os.environ, {"LIANHUAN_ANTHROPIC_KEY": "sk-ant-t2"}), \
              mock.patch.object(AnthropicEngine, "list_models", fake_list):
             r = asyncio.run(S.engine_models(_Req({
                 "engine": "anthropic",
                 "base": "http://127.0.0.1:8455"})))       # ← key 一个字都没带
         self.assertTrue(r["ok"], "刷新之后再识别不该说「还差 key」")
-        self.assertEqual(seen["key"], "sk-ant-saved-earlier", "没去用存下的那把")
+        self.assertEqual(seen["key"], "sk-ant-t2", "没去用存下的那把")
         self.assertEqual(S.store.get_setting("engine", "echo"), "echo", "复用 key 也不许落盘")
         self.assertEqual(S.store.get_setting("engine_models", {}), {}, "复用 key 也不许写缓存")
 
