@@ -11523,6 +11523,13 @@ async function loadMem(){
     const lb = $('coLyric');    if (lb) lb.textContent = '';
 
     const pre = await call('musicPrepare', {query: {id: song.id}, fallback: null, timeout: 30000});
+    /* ★ (0905) pre === null = 接口根本没通(这一份不带音源接口,或者上游没起来)。
+       原来这种情况不进下面那个分支,一路走到 onerror 说「音源断了 · 换一首试试」——
+       换哪一首都一样,那句是误导。这儿说实话,而且**不往下跳**。 */
+    if (pre === null){
+      coFail(song, '连不上音源接口 · 这一份不带音源，README 里推荐了上游');
+      return;
+    }
     if (pre && pre.ok === false){
       /* 拿不到源：说人话，然后自己往下走。队列空了就停在这儿，别装作在放 */
       if (coFail(song, '拿不到音源 · 多半要 VIP 或者下架了') && coQueue.length) next();
@@ -11588,7 +11595,16 @@ async function loadMem(){
     const q = (($('coSearch') || {}).value || '').trim(); if (!q) return;
     const R = $('coResults'); R.innerHTML = '<p class="lede" style="margin:8px 2px">搜…</p>';
     const d = await call('musicSearch', {query: {q: q}, fallback: null});
-    const songs = (d && d.songs) || [];
+    /* ★ (0905) 分开两件事:call() 拿不到接口回 null,真搜到 0 条回 {songs:[]}。
+       原来一句 `(d && d.songs) || []` 把两种合成了「没搜到，换个词？」——
+       可这一份**不打包非官方音源接口**(README/FEATURES 里写明的取舍),换十个词也一样。
+       让它说实话;等使用者自己接了上游,这句自动就不出现了。 */
+    if (d === null){
+      R.innerHTML = '<p class="dnone">搜不动 —— 这一份没带音源接口。'
+                  + 'README 里推荐了上游实现，接上之后这儿才会出结果。</p>';
+      return;
+    }
+    const songs = d.songs || [];
     if (!songs.length){ R.innerHTML = '<p class="dnone">没搜到，换个词？</p>'; return; }
     R.innerHTML = '';
     songs.forEach(function(s, idx){
