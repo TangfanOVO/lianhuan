@@ -11,7 +11,11 @@
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-KEY = "sk-ant-fake-for-local-test"
+# ★ 别把它加长。发布前的隐私闸（scripts/check-public-boundary.mjs）按形状拦凭据，
+#   规则是 `sk-` 后面接 20 个以上字符。原来那串前缀后面有 23 个字符，被闸门当成
+#   真 key 拦下，整条 APK 流水线停在「隐私闸」这一步（0905 栽过）。
+#   前缀留着是为了像真的；长度必须短于阈值。
+KEY = "sk-ant-fake-local"
 
 MODELS = [
     ("claude-opus-5",     "Claude Opus 5"),
