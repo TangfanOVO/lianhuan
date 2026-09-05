@@ -17142,41 +17142,86 @@ async function loadHome(){
   }, true);
 })();
 
-/* ══ 系统返回手势 ══ 安卓/浏览器的「返回」要回到上一页，不是退出整个应用。
-   隔壁项目栽的坑：.sub 页开关没进 history，安卓侧滑一下直接回桌面。
-   做法：开一层 sub 就 push 一层 state；系统返回（popstate）关最上层；
-   页内自己关的（返回键/Esc）把多出来的 history 层吃掉。守卫防循环。
-   （新增不改旧：靠 MutationObserver 看 .sub/.drawer 的 class，不碰任何处理器。） */
+/* ══ 返回桥 ══
+   问题：这一页从来不往浏览器历史里压东西（整份文件一个 pushState 都没有）。
+   于是「返回」——iPhone 侧滑、安卓返回键、桌面后退——都是**整页离开**：
+     · 会话还在 → 重新加载 `/` → 又走一遍开屏
+     · 会话没送上 → 门把它挡回登录页 → 还要再输一次口令
+
+   ★ 修法：**一行现有代码都不改**，在外面加这一层。
+
+   ★★ 上一版按「开了几层」去压历史，这笔账对不上：有些入口是**原地换一层、
+      顺手把别的层关掉**，层数掉了、可压进去的那一格没弹，久了历史就错位，
+      返回于是落到页面外面去。
+      现在不数层了，改成一条笨规矩：**永远只在身后留一个哨兵**。
+        · 每次 popstate：先把哨兵补回去，再决定关不关一层
+        · 于是不管层怎么开怎么关、谁顺手关了谁，返回都落在这一页里，永远走不出去
+      历史长度是常数，不会越用越长。 */
 (function(){
-  if (!window.history || !history.pushState) return;
-  var guard = false;
-  function count(){
-    return document.querySelectorAll('.sub.on').length
-         + (document.getElementById('drawer') && document.getElementById('drawer').classList.contains('on') ? 1 : 0);
+  'use strict';
+  if (window.__backBridge) return;      /* 别装两遍 */
+  window.__backBridge = 2;
+
+  var SEL = '.sub.on, .drawer.on';
+  var order = [];                        /* 见过的打开顺序，用来挑「最上面那一层」 */
+
+  function layers(){
+    var a = Array.prototype.slice.call(document.querySelectorAll(SEL));
+    /* ★ .sheet 那三张（换个脑子／加号菜单／想多深）不带 .on —— 它们靠行内 transform
+       开合，上面那个选择器一直看不见，于是打开之后按返回毫无反应。
+       它们各自紧挨着一张 scrim，scrim 是带 .on 的，拿它当这张 sheet 的开关信号。 */
+    Array.prototype.forEach.call(document.querySelectorAll('.sheet'), function(sh){
+      var sc = sh.previousElementSibling;
+      if (sc && sc.classList && sc.classList.contains('on') && a.indexOf(sh) < 0) a.push(sh);
+    });
+    return a;
   }
-  var last = count();
+
+  /* 只记顺序，不碰历史 —— 历史由 popstate 那一头独自管，两边不打架 */
   new MutationObserver(function(){
-    var n = count();
-    if (n === last) return;
-    if (!guard){
-      if (n > last){ for (var i = last; i < n; i++) history.pushState({lh: 1}, ''); }
-      else { guard = true; history.go(n - last); setTimeout(function(){ guard = false; }, 120); }
+    var open = layers();
+    open.forEach(function(el){ if (order.indexOf(el) < 0) order.push(el); });
+    order = order.filter(function(el){ return open.indexOf(el) >= 0; });
+  }).observe(document.documentElement, {
+    subtree: true, attributes: true, attributeFilter: ['class']
+  });
+
+  /* 关掉最上面那一层：优先按它自己那颗返回键，让原有的动画、落点、清理照常跑 */
+  function closeTop(){
+    var open = layers();
+    if (!open.length) return false;
+    var top = null;
+    for (var i = order.length - 1; i >= 0; i--){
+      if (open.indexOf(order[i]) >= 0){ top = order[i]; break; }
     }
-    last = n;
-  }).observe(document.body, {subtree: true, attributes: true, attributeFilter: ['class']});
+    if (!top) top = open[open.length - 1];
+
+    if (top.classList.contains('drawer')){
+      var scrim = document.querySelector('.scrim.on');
+      if (scrim){ scrim.click(); return true; }
+    }
+    /* ★ (0905) sheet 关法：点它自己那张 scrim —— 各家 open(false) 都挂在这上头，
+       动画、落点、清理照原样跑，这儿不碰任何一家的内部。 */
+    if (top.classList.contains('sheet')){
+      var sc = top.previousElementSibling;
+      if (sc && sc.classList && sc.classList.contains('on')){ sc.click(); return true; }
+    }
+    var btn = top.id && document.querySelector('[data-close="' + top.id + '"]');
+    if (btn){ btn.click(); return true; }
+    top.classList.remove('on');          /* 兜底，不是主路 */
+    return true;
+  }
+
+  function pin(){                        /* 身后永远留一个哨兵 */
+    try { history.pushState({ lh: 1 }, ''); } catch(e){}
+  }
+
+  try { history.replaceState({ lh: 1 }, ''); } catch(e){}
+  pin();
+
   window.addEventListener('popstate', function(){
-    if (guard) return;
-    var subs = document.querySelectorAll('.sub.on');
-    var dw = document.getElementById('drawer');
-    guard = true;
-    if (dw && dw.classList.contains('on')){
-      dw.classList.remove('on');
-      var sc = document.getElementById('scrim'); if (sc) sc.classList.remove('on');
-    } else if (subs.length){
-      subs[subs.length - 1].classList.remove('on');
-    }
-    last = count();
-    setTimeout(function(){ guard = false; }, 120);
+    pin();                               /* ★ 先补哨兵：无论下面发生什么，都不会走出这一页 */
+    closeTop();                          /* 有层就关一层；没有就什么都不做（到根了，app 就该这样） */
   });
 })();
 </script>
