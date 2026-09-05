@@ -5056,6 +5056,13 @@ const PREF = (function(){
   var pages = { home:'p-home', chat:'p-chat', write:'p-write', mem:'p-mem', room:'p-room' };
 
   function go(key){
+    /* ★ (0905) data-go 一名两用 —— 「换个脑子」那张 sheet 内部也拿 data-go 切自己的
+       视图（think / more），而底下这条委托是给**每一个** [data-go] 绑的，
+       于是 sheet 里那两颗也会调到 go()。pages 里没有这两个 key，
+       结果五张页面全被摘掉 on、又没人接手 → 整屏一片白（顶栏底栏还在，不是刷新）。
+       守卫放这儿而不是去改 sheet：go() 本来就只该管它认识的页面，
+       以后谁再往别处加 data-go 都不会再炸这一下。 */
+    if (!pages[key]) return;
     Object.keys(pages).forEach(function(k){
       document.getElementById(pages[k]).classList.toggle('on', k === key);
     });
